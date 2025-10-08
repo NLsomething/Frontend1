@@ -27,10 +27,10 @@ function HomePage() {
       <div className={styles.container}>
         <div className={styles.content}>
           <h1 className={styles.titleLarge}>
-            Classroom Booking System
+            ClassroomInsight
           </h1>
           <p className={styles.subtitle}>
-            Welcome to our classroom booking platform. Reserve classrooms efficiently 
+            Welcome to ClassroomInsight. Reserve classrooms efficiently 
             and manage your educational space needs with ease.
           </p>
           
