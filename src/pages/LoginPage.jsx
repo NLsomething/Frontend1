@@ -1,6 +1,16 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { signIn, signUp, resetPassword } from '../services/authService'
+import { useAuth } from '../context/AuthContext'
 import loginbg from '../assets/images/loginbg.jpg'
+import { useNotifications } from '../context/NotificationContext'
+import { USER_ROLES, USER_ROLE_LABELS } from '../constants/roles'
+
+const REGISTRATION_ROLES = [
+  USER_ROLES.student,
+  USER_ROLES.teacher,
+  USER_ROLES.buildingManager
+]
 
 // Style classes
 const styles = {
@@ -42,20 +52,32 @@ const styles = {
 
 function LoginPage() {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const { notifySuccess } = useNotifications()
   
   const [formData, setFormData] = useState({
     usernameOrEmail: '',
     password: ''
   })
+  const [loading, setLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
   const [showRegister, setShowRegister] = useState(false)
   const [showForgotPassword, setShowForgotPassword] = useState(false)
   const [registerData, setRegisterData] = useState({
     username: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    role: USER_ROLES.student
   })
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('')
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate('/home')
+    }
+  }, [user, navigate])
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
@@ -73,36 +95,107 @@ function LoginPage() {
     }))
   }
 
-  const handleLogin = () => {
-    if (formData.usernameOrEmail && formData.password) {
-      alert(`Welcome! Redirecting to classroom booking...`)
-      navigate('/home')
-    } else {
-      alert('Please enter both username/email and password.')
+  const handleLogin = async (e) => {
+    e.preventDefault()
+    setErrorMessage('')
+    
+    if (!formData.usernameOrEmail || !formData.password) {
+      setErrorMessage('Please enter both email and password.')
+      return
     }
-  }
 
-  const handleRegister = () => {
-    if (registerData.username && registerData.email && registerData.password && registerData.confirmPassword) {
-      if (registerData.password !== registerData.confirmPassword) {
-        alert('Passwords do not match!')
-        return
+    setLoading(true)
+
+    try {
+      const { user, session, error } = await signIn(formData.usernameOrEmail, formData.password)
+      
+      if (error) {
+        setErrorMessage(error)
+      } else if (user && session) {
+        navigate('/home')
       }
-      alert('Registration successful! Please login with your credentials.')
-      setShowRegister(false)
-      setRegisterData({ username: '', email: '', password: '', confirmPassword: '' })
-    } else {
-      alert('Please fill in all fields.')
+    } catch (error) {
+      setErrorMessage('An unexpected error occurred. Please try again.')
+    } finally {
+      setLoading(false)
     }
   }
 
-  const handleForgotPassword = () => {
-    if (forgotPasswordEmail) {
-      alert('Password reset instructions have been sent to your email.')
-      setShowForgotPassword(false)
-      setForgotPasswordEmail('')
-    } else {
-      alert('Please enter your email address.')
+  const handleRegister = async () => {
+    setErrorMessage('')
+    
+    if (!registerData.username || !registerData.email || !registerData.password || !registerData.confirmPassword) {
+      setErrorMessage('Please fill in all fields.')
+      return
+    }
+    
+    if (registerData.password !== registerData.confirmPassword) {
+      setErrorMessage('Passwords do not match!')
+      return
+    }
+
+    if (registerData.password.length < 6) {
+      setErrorMessage('Password must be at least 6 characters long.')
+      return
+    }
+
+    if (!REGISTRATION_ROLES.includes(registerData.role)) {
+      setErrorMessage('Please choose a valid role.')
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      const { user, error } = await signUp(
+        registerData.email,
+        registerData.password,
+        { username: registerData.username },
+        registerData.role
+      )
+      
+      if (error) {
+        setErrorMessage(error)
+      } else if (user) {
+        notifySuccess('Registration successful', {
+          description: 'Please check your email to verify your account.'
+        })
+        setShowRegister(false)
+  setRegisterData({ username: '', email: '', password: '', confirmPassword: '', role: USER_ROLES.student })
+      }
+    } catch (error) {
+      setErrorMessage('An unexpected error occurred during registration.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleForgotPassword = async () => {
+    setErrorMessage('')
+    
+    if (!forgotPasswordEmail) {
+      setErrorMessage('Please enter your email address.')
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      const { error } = await resetPassword(forgotPasswordEmail)
+      
+      if (error) {
+        setErrorMessage(error)
+      } else {
+        notifySuccess('Password reset email sent', {
+          description: 'Check your inbox for further instructions.'
+        })
+        setShowForgotPassword(false)
+        setForgotPasswordEmail('')
+      }
+    } catch (error) {
+      setErrorMessage('An unexpected error occurred.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -131,17 +224,24 @@ function LoginPage() {
           </div>
 
           <div className={styles.form}>
+            {errorMessage && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                {errorMessage}
+              </div>
+            )}
+            
             <div>
               <label className={styles.label}>
-                Username or Email
+                Email
               </label>
               <input
-                type="text"
+                type="email"
                 name="usernameOrEmail"
                 value={formData.usernameOrEmail}
                 onChange={handleInputChange}
-                placeholder="Enter username or email"
+                placeholder="Enter your email"
                 className={styles.input}
+                disabled={loading}
               />
             </div>
 
@@ -156,11 +256,16 @@ function LoginPage() {
                 onChange={handleInputChange}
                 placeholder="Enter your password"
                 className={styles.input}
+                disabled={loading}
               />
             </div>
 
-            <button onClick={handleLogin} className={`${styles.btnPrimary} ${styles.colorDarkBlue}`}>
-              Login
+            <button 
+              onClick={handleLogin} 
+              className={`${styles.btnPrimary} ${styles.colorDarkBlue}`}
+              disabled={loading}
+            >
+              {loading ? 'Logging in...' : 'Login'}
             </button>
           </div>
 
@@ -231,6 +336,22 @@ function LoginPage() {
                   placeholder="Confirm your password"
                   className={styles.inputCompact}
                 />
+              </div>
+
+              <div>
+                <label className={styles.labelCompact}>Role</label>
+                <select
+                  name="role"
+                  value={registerData.role}
+                  onChange={handleRegisterChange}
+                  className={styles.inputCompact}
+                >
+                  {REGISTRATION_ROLES.map((roleOption) => (
+                    <option key={roleOption} value={roleOption}>
+                      {USER_ROLE_LABELS[roleOption]}
+                    </option>
+                  ))}
+                </select>
               </div>
               
               <div className={styles.buttonGroupModal}>
