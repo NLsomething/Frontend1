@@ -12,13 +12,27 @@ import { SCHEDULE_STATUS, SCHEDULE_STATUS_LABELS, SCHEDULE_STATUS_STYLES } from 
 import { getSchedulesByDate, upsertScheduleEntry, deleteScheduleEntry } from '../services/scheduleService'
 import { ROOM_REQUEST_STATUS, ROOM_REQUEST_STATUS_LABELS, ROOM_REQUEST_STATUS_STYLES, MAX_ROOM_REQUEST_WEEKS } from '../constants/requests'
 import { createRoomRequest, fetchRoomRequests, updateRoomRequestStatus } from '../services/roomRequestService'
+import { createButton, cn } from '../styles/shared'
 
-// Style classes
+// Styles
 const styles = {
   screen: "relative w-full h-screen overflow-hidden",
   canvasContainer: "w-full h-full",
-  logoutBtn: "absolute top-6 right-6 z-10 bg-[#096ecc] hover:bg-[#1f5ca9] text-white font-semibold py-3 px-6 rounded-lg shadow-lg transition-all duration-200 hover:scale-105",
-  canvasInstructions: "absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10 text-white bg-black/50 backdrop-blur-sm px-6 py-3 rounded-full text-sm font-medium shadow-lg"
+  logoutBtn: cn(createButton('secondary', 'lg'), "absolute top-6 right-6 z-10 shadow-lg"),
+  canvasInstructions: "absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10 text-white bg-black/50 backdrop-blur-sm px-6 py-3 rounded-full text-sm font-medium shadow-lg",
+  scheduleButton: (isOpen) => cn(
+    "absolute top-6 left-6 z-20 bg-white text-[#096ecc] font-semibold py-3 px-5 border border-[#096ecc] shadow-lg transition-all duration-200 hover:bg-[#096ecc] hover:text-white hover:shadow-xl rounded-lg",
+    isOpen ? "scale-95" : "scale-100"
+  ),
+  requestsButton: (isOpen, loading) => cn(
+    "absolute top-[5.5rem] left-6 z-20 bg-white text-[#0b7a4b] font-semibold py-3 px-5 border border-[#0b7a4b] shadow-lg transition-all duration-200 rounded-lg",
+    loading ? "opacity-60 cursor-not-allowed" : "hover:bg-[#0b7a4b] hover:text-white hover:shadow-xl",
+    isOpen ? "scale-95" : "scale-100"
+  ),
+  myRequestsButton: (isOpen) => cn(
+    "absolute top-[5.5rem] left-6 z-20 bg-white text-[#096ecc] font-semibold py-3 px-5 border border-[#096ecc] shadow-lg transition-all duration-200 hover:bg-[#096ecc] hover:text-white hover:shadow-xl rounded-lg",
+    isOpen ? "scale-95" : "scale-100"
+  )
 }
 
 const ScheduleGrid = ({ rooms, timeSlots, scheduleMap, onAdminAction, onTeacherRequest, buildKey, canEdit, canRequest }) => (
@@ -1019,7 +1033,7 @@ function HomePage() {
 
       <button
         onClick={handleScheduleButtonClick}
-        className={`absolute top-6 left-6 z-20 bg-white text-[#096ecc] font-semibold py-3 px-5 border border-[#096ecc] shadow-lg transition-all duration-200 hover:bg-[#096ecc] hover:text-white hover:shadow-xl ${isScheduleOpen ? 'scale-95' : 'scale-100'}`}
+        className={styles.scheduleButton(isScheduleOpen)}
       >
         {isScheduleOpen ? 'Hide Schedule' : 'Show Room Schedule'}
       </button>
@@ -1027,7 +1041,7 @@ function HomePage() {
       {canManageRequests && (
         <button
           onClick={handleRequestsButtonClick}
-          className={`absolute top-[5.5rem] left-6 z-20 bg-white text-[#0b7a4b] font-semibold py-3 px-5 border border-[#0b7a4b] shadow-lg transition-all duration-200 ${requestActionLoading ? 'opacity-60 cursor-not-allowed' : 'hover:bg-[#0b7a4b] hover:text-white hover:shadow-xl'} ${requestsPanelOpen ? 'scale-95' : 'scale-100'}`}
+          className={styles.requestsButton(requestsPanelOpen, requestActionLoading)}
           disabled={requestActionLoading}
         >
           {requestsPanelOpen ? 'Hide Requests' : `Manage Requests${pendingRequests.length ? ` (${pendingRequests.length})` : ''}`}
@@ -1037,7 +1051,7 @@ function HomePage() {
       {canRequestRoom && !canManageRequests && (
         <button
           onClick={() => setMyRequestsPanelOpen((prev) => !prev)}
-          className={`absolute top-[5.5rem] left-6 z-20 bg-white text-[#096ecc] font-semibold py-3 px-5 border border-[#096ecc] shadow-lg transition-all duration-200 hover:bg-[#096ecc] hover:text-white hover:shadow-xl ${myRequestsPanelOpen ? 'scale-95' : 'scale-100'}`}
+          className={styles.myRequestsButton(myRequestsPanelOpen)}
         >
           {myRequestsPanelOpen ? 'Hide My Requests' : `My Requests${myRequests.length ? ` (${myRequests.length})` : ''}`}
         </button>

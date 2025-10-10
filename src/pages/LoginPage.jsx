@@ -5,6 +5,16 @@ import { useAuth } from '../context/AuthContext'
 import loginbg from '../assets/images/loginbg.jpg'
 import { useNotifications } from '../context/NotificationContext'
 import { USER_ROLES, USER_ROLE_LABELS } from '../constants/roles'
+import { 
+  createButton, 
+  createInput,
+  cn,
+  labels,
+  spacing,
+  headers,
+  typography,
+  containers
+} from '../styles/shared'
 
 const REGISTRATION_ROLES = [
   USER_ROLES.student,
@@ -12,33 +22,33 @@ const REGISTRATION_ROLES = [
   USER_ROLES.buildingManager
 ]
 
-// Style classes
+// Styles
 const styles = {
   screen: "w-screen h-screen bg-gradient-to-br from-blue-600 to-purple-700 flex items-center justify-center",
   container: "w-full max-w-[26rem] mx-4",
-  card: "rounded-xl shadow-2xl p-7",
-  modal: "rounded-xl shadow-2xl pt-6 px-6 pb-7 w-full max-w-[25rem] transform scale-100 transition-all duration-300",
-  modalCompact: "rounded-xl shadow-2xl pt-3.5 px-5 pb-4.5 w-full max-w-[25rem] transform scale-100 transition-all duration-300 max-h-[96vh] overflow-y-auto",
-  overlay: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4 z-50",
-  header: "text-center mb-7",
-  headerCompact: "text-center mb-2.5",
-  form: "space-y-5",
-  formCompact: "space-y-2",
+  card: cn(containers.card, containers.cardDefault),
+  modal: cn(containers.modal, containers.modalDefault),
+  modalCompact: cn(containers.modal, containers.modalCompact),
+  overlay: containers.overlay,
+  header: cn(headers.container, headers.containerDefault),
+  headerCompact: cn(headers.container, headers.containerCompact),
+  form: spacing.form,
+  formCompact: spacing.formCompact,
   buttonGroup: "mt-5 space-y-2.5",
   buttonGroupModal: "pt-1",
-  titleLarge: "text-2xl font-bold mb-2",
-  titleMedium: "text-xl font-bold",
-  subtitle: "text-gray-600 text-base",
-  subtitleSmall: "text-sm text-gray-600",
-  label: "block text-sm font-medium text-gray-700 mb-1.5",
-  labelCompact: "block text-sm font-medium text-gray-700 mb-0.5",
-  input: "w-full p-2.5 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:ring-2 focus:border-transparent transition-all duration-200",
-  inputCompact: "w-full p-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:ring-2 focus:border-transparent transition-all duration-200",
-  btnPrimary: "w-full text-white font-semibold py-2.5 px-5 rounded-lg transform transition-all duration-200 hover:scale-105 shadow-lg",
-  btnSecondary: "w-full text-white font-semibold py-2.5 px-5 rounded-lg transition-colors duration-200",
-  btnText: "w-full font-medium transition-colors duration-200 py-2 text-sm",
-  btnModalPrimary: "w-full font-semibold py-2 rounded-lg transition-colors duration-200 mb-2",
-  btnModalSecondary: "w-full font-semibold py-2 rounded-lg transition-colors duration-200",
+  titleLarge: cn(typography.h1, "mb-2"),
+  titleMedium: typography.h2,
+  subtitle: cn(typography.body, typography.subtitle),
+  subtitleSmall: cn(typography.bodySmall, typography.subtitle),
+  label: cn(labels.base, labels.default),
+  labelCompact: cn(labels.base, labels.compact),
+  input: createInput(false),
+  inputCompact: createInput(true),
+  btnPrimary: createButton('primary', 'md', true),
+  btnSecondary: createButton('secondary', 'md', true),
+  btnText: createButton('text', 'sm', true),
+  btnModalPrimary: cn(createButton('primary', 'sm', true), "mb-2"),
+  btnModalSecondary: createButton('secondary', 'sm', true),
   colorDarkBlue: "bg-[#1f5ca9] hover:bg-[#1a4d8f] text-white focus:ring-[#1f5ca9]",
   colorLightBlue: "bg-[#096ecc] hover:bg-[#0859a8] text-white focus:ring-[#096ecc]",
   colorLighterBlue: "bg-[#e8f4ff] hover:bg-[#d0e8ff] text-[#1f5ca9] focus:ring-[#096ecc]",
@@ -46,8 +56,8 @@ const styles = {
   icon: "mx-auto w-14 h-14 rounded-full flex items-center justify-center mb-3",
   bgWhite: "bg-[#ffffff]",
   bgLightGray: "bg-[#f9f9f9]",
-  textDarkBlue: "text-[#1f5ca9]",
-  textLightBlue: "text-[#096ecc] hover:text-[#1f5ca9]"
+  textDarkBlue: typography.primary,
+  textLightBlue: cn(typography.secondary, "hover:text-[#1f5ca9]")
 }
 
 function LoginPage() {
