@@ -3,7 +3,8 @@ import { Canvas } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import { useAuth } from '../context/AuthContext'
 import { signOut } from '../services/authService'
-import { useEffect, useState, useMemo, useCallback, Fragment } from 'react'
+import { useEffect, useState, useMemo, useCallback, Fragment, useRef } from 'react'
+import * as THREE from 'three'
 import SchoolModel from '../components/SchoolModel'
 import { useNotifications } from '../context/NotificationContext'
 import { USER_ROLES } from '../constants/roles'
@@ -84,6 +85,7 @@ function HomePage() {
   const navigate = useNavigate()
   const { user, loading, role, profile } = useAuth()
   const { notifySuccess, notifyError, notifyInfo } = useNotifications()
+  const controlsRef = useRef()
   const [isScheduleOpen, setScheduleOpen] = useState(false)
   const [scheduleDate, setScheduleDate] = useState(() => new Date())
   const [scheduleLoading, setScheduleLoading] = useState(false)
@@ -107,6 +109,9 @@ function HomePage() {
   const [rejectionReasons, setRejectionReasons] = useState({})
   const [requestActionLoading, setRequestActionLoading] = useState(false)
   const [submittingRequest, setSubmittingRequest] = useState(false)
+  const [myRequestsPanelOpen, setMyRequestsPanelOpen] = useState(false)
+  const [myRequests, setMyRequests] = useState([])
+  const [myRequestsLoading, setMyRequestsLoading] = useState(false)
 
   const isoDate = useMemo(() => {
     const local = new Date(scheduleDate.getTime() - scheduleDate.getTimezoneOffset() * 60000)
@@ -160,15 +165,6 @@ function HomePage() {
 
   const buildScheduleKey = useCallback((roomNumber, slotHour) => `${roomNumber}-${slotHour}`, [])
 
-  const populateScheduleMap = useCallback((entries) => {
-    const next = {}
-    entries.forEach((entry) => {
-      const key = buildScheduleKey(entry.room_number, entry.slot_hour)
-      next[key] = entry
-    })
-    setScheduleMap(next)
-  }, [buildScheduleKey])
-
   const loadRequests = useCallback(async ({ silent = false } = {}) => {
     if (!canManageRequests && !canRequestRoom) {
       return
@@ -206,6 +202,37 @@ function HomePage() {
     }
   }, [canManageRequests, canRequestRoom, notifyError])
 
+  const loadMyRequests = useCallback(async () => {
+    if (!canRequestRoom || !user?.id) {
+      return
+    }
+
+    setMyRequestsLoading(true)
+
+    try {
+      const { data, error } = await fetchRoomRequests()
+
+      if (error) {
+        console.error('Error loading my requests:', error.message || error)
+        notifyError('Unable to load your requests', {
+          description: error.message || 'Please try again later.'
+        })
+        setMyRequests([])
+      } else {
+        // Filter to only show current user's requests
+        const userRequests = data.filter(req => req.requester_id === user.id)
+        setMyRequests(userRequests)
+      }
+    } catch (error) {
+      console.error('Unexpected error loading my requests:', error)
+      notifyError('Unable to load your requests', {
+        description: 'Please try again later.'
+      })
+    } finally {
+      setMyRequestsLoading(false)
+    }
+  }, [canRequestRoom, user, notifyError])
+
   const loadSchedules = useCallback(async () => {
     if (!canViewSchedule) {
       setScheduleMap({})
@@ -221,11 +248,53 @@ function HomePage() {
       notifyError('Unable to load schedule data', {
         description: 'Please try again or contact an administrator if the problem continues.'
       })
-    } else {
-      populateScheduleMap(data)
+      setScheduleLoading(false)
+      return
     }
+
+    // Build the schedule map from database entries
+    const next = {}
+    data.forEach((entry) => {
+      const key = buildScheduleKey(entry.room_number, entry.slot_hour)
+      next[key] = entry
+    })
+
+    // Overlay pending requests as "pending" status
+    try {
+      const { data: pendingRequests, error: requestsError } = await fetchRoomRequests()
+      
+      if (!requestsError && pendingRequests) {
+        pendingRequests.forEach((request) => {
+          // Only show pending requests for current date
+          if (request.status === ROOM_REQUEST_STATUS.pending && request.base_date === isoDate) {
+            const startHour = Math.min(request.start_hour, request.end_hour)
+            const endHour = Math.max(request.start_hour, request.end_hour)
+            
+            for (let hour = startHour; hour <= endHour; hour++) {
+              const key = buildScheduleKey(request.room_number, hour)
+              // Only mark as pending if slot is not already occupied/maintenance
+              if (!next[key] || next[key].status === SCHEDULE_STATUS.empty) {
+                next[key] = {
+                  room_number: request.room_number,
+                  slot_hour: hour,
+                  status: SCHEDULE_STATUS.pending,
+                  course_name: null,
+                  booked_by: null,
+                  schedule_date: isoDate
+                }
+              }
+            }
+          }
+        })
+      }
+    } catch (err) {
+      console.error('Error loading pending requests for overlay:', err)
+      // Continue without pending overlay
+    }
+
+    setScheduleMap(next)
     setScheduleLoading(false)
-  }, [populateScheduleMap, isoDate, canViewSchedule, notifyError])
+  }, [buildScheduleKey, isoDate, canViewSchedule, notifyError])
 
   useEffect(() => {
     // Redirect to login if not authenticated
@@ -258,6 +327,12 @@ function HomePage() {
   }, [requestsPanelOpen, loadRequests])
 
   useEffect(() => {
+    if (myRequestsPanelOpen) {
+      loadMyRequests()
+    }
+  }, [myRequestsPanelOpen, loadMyRequests])
+
+  useEffect(() => {
     if (!canManageRequests) {
       return
     }
@@ -270,6 +345,117 @@ function HomePage() {
       clearInterval(interval)
     }
   }, [canManageRequests, loadRequests])
+
+  // WASD keyboard controls for camera movement with smooth continuous motion
+  useEffect(() => {
+    const moveSpeed = 0.6 // Speed per frame
+    const keysPressed = new Set()
+    
+    // Boundary limits for the orbit target (where camera looks at) - building footprint
+    const minX = -30
+    const maxX = 30
+    const minZ = -30
+    const maxZ = 30
+
+    const handleKeyDown = (event) => {
+      // Don't handle if user is typing in an input/textarea
+      const target = event.target
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') {
+        return
+      }
+
+      const key = event.key.toLowerCase()
+      
+      // Only handle WASD keys
+      if (!['w', 'a', 's', 'd'].includes(key)) return
+
+      event.preventDefault() // Prevent default behavior for WASD
+      keysPressed.add(key)
+
+      // Stop auto-rotate when moving
+      if (controlsRef.current && controlsRef.current.autoRotate) {
+        controlsRef.current.autoRotate = false
+      }
+    }
+
+    const handleKeyUp = (event) => {
+      const key = event.key.toLowerCase()
+      keysPressed.delete(key)
+    }
+
+    const updateMovement = () => {
+      if (!controlsRef.current || keysPressed.size === 0) {
+        requestAnimationFrame(updateMovement)
+        return
+      }
+
+      const orbitTarget = controlsRef.current.target
+      const camera = controlsRef.current.object
+
+      // Get the direction vectors relative to camera orientation
+      const forward = new THREE.Vector3()
+      const right = new THREE.Vector3()
+      
+      camera.getWorldDirection(forward)
+      forward.y = 0 // Keep movement on horizontal plane
+      forward.normalize()
+      
+      right.crossVectors(forward, new THREE.Vector3(0, 1, 0))
+      right.normalize()
+
+      // Calculate combined movement vector
+      const movement = new THREE.Vector3()
+
+      if (keysPressed.has('w')) {
+        movement.addScaledVector(forward, moveSpeed)
+      }
+      if (keysPressed.has('s')) {
+        movement.addScaledVector(forward, -moveSpeed)
+      }
+      if (keysPressed.has('a')) {
+        movement.addScaledVector(right, -moveSpeed)
+      }
+      if (keysPressed.has('d')) {
+        movement.addScaledVector(right, moveSpeed)
+      }
+
+      // Normalize diagonal movement to prevent faster diagonal speed
+      if (movement.length() > 0) {
+        if (keysPressed.size > 1) {
+          movement.normalize().multiplyScalar(moveSpeed)
+        }
+        
+        // Calculate new target position
+        const newTarget = orbitTarget.clone().add(movement)
+        
+        // Clamp the target position within boundaries
+        newTarget.x = Math.max(minX, Math.min(maxX, newTarget.x))
+        newTarget.z = Math.max(minZ, Math.min(maxZ, newTarget.z))
+        
+        // Calculate the actual movement that was applied to target
+        const actualMovement = newTarget.clone().sub(orbitTarget)
+        
+        // Apply the same movement to camera
+        camera.position.add(actualMovement)
+        orbitTarget.copy(newTarget)
+        controlsRef.current.update()
+      }
+
+      requestAnimationFrame(updateMovement)
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keyup', handleKeyUp)
+    
+    // Start the animation loop
+    const animationId = requestAnimationFrame(updateMovement)
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keyup', handleKeyUp)
+      cancelAnimationFrame(animationId)
+    }
+  }, [])
 
   const pendingRequests = useMemo(() => (
     requests.filter((request) => request.status === ROOM_REQUEST_STATUS.pending)
@@ -320,6 +506,17 @@ function HomePage() {
 
   const handleTeacherRequest = (roomNumber, slotHour) => {
     if (!canRequestRoom) {
+      return
+    }
+
+    // Only block if slot is occupied or in maintenance (not pending)
+    const key = buildScheduleKey(roomNumber, slotHour)
+    const entry = scheduleMap[key]
+    
+    if (entry && entry.status !== SCHEDULE_STATUS.empty && entry.status !== SCHEDULE_STATUS.pending) {
+      notifyError('Slot not available', {
+        description: `Room ${roomNumber} at ${getSlotLabel(slotHour)} is already ${SCHEDULE_STATUS_LABELS[entry.status].toLowerCase()}.`
+      })
       return
     }
 
@@ -524,6 +721,46 @@ function HomePage() {
       return
     }
 
+    // Validate that the requested slots are still available (not occupied/maintenance)
+    for (let hour = startHour; hour <= endHour; hour++) {
+      const key = buildScheduleKey(requestState.room, hour)
+      const entry = scheduleMap[key]
+      
+      if (entry && entry.status !== SCHEDULE_STATUS.empty && entry.status !== SCHEDULE_STATUS.pending) {
+        notifyError('Slot no longer available', {
+          description: `Room ${requestState.room} at ${getSlotLabel(hour)} is now ${SCHEDULE_STATUS_LABELS[entry.status].toLowerCase()}. Please choose a different time.`
+        })
+        return
+      }
+    }
+
+    // Check if user already has a pending request for this slot
+    try {
+      const { data: allRequests, error: checkError } = await fetchRoomRequests()
+      
+      if (!checkError && allRequests) {
+        const duplicateRequest = allRequests.find((req) => 
+          req.requester_id === user?.id &&
+          req.status === ROOM_REQUEST_STATUS.pending &&
+          req.room_number === requestState.room &&
+          req.base_date === isoDate &&
+          // Check if time ranges overlap
+          Math.max(startHour, Math.min(req.start_hour, req.end_hour)) <= 
+          Math.min(endHour, Math.max(req.start_hour, req.end_hour))
+        )
+
+        if (duplicateRequest) {
+          notifyInfo('Request already submitted', {
+            description: `You already have a pending request for Room ${requestState.room} on this date at an overlapping time.`
+          })
+          return
+        }
+      }
+    } catch (err) {
+      console.error('Error checking for duplicate requests:', err)
+      // Continue anyway - don't block if check fails
+    }
+
     if (!user?.id) {
       notifyError('Not authenticated', {
         description: 'Please sign in again before submitting a request.'
@@ -563,9 +800,18 @@ function HomePage() {
     resetRequestModal()
     setSubmittingRequest(false)
 
+    // Reload admin requests panel if open
     if (requestsPanelOpen) {
       loadRequests({ silent: true })
     }
+    
+    // Reload teacher's own requests if they have the panel or might open it
+    if (canRequestRoom && !canManageRequests) {
+      loadMyRequests({ silent: true })
+    }
+    
+    // Reload schedule to show pending request
+    await loadSchedules()
   }
 
   const handleApproveRequest = async (request) => {
@@ -785,6 +1031,15 @@ function HomePage() {
           disabled={requestActionLoading}
         >
           {requestsPanelOpen ? 'Hide Requests' : `Manage Requests${pendingRequests.length ? ` (${pendingRequests.length})` : ''}`}
+        </button>
+      )}
+
+      {canRequestRoom && !canManageRequests && (
+        <button
+          onClick={() => setMyRequestsPanelOpen((prev) => !prev)}
+          className={`absolute top-[5.5rem] left-6 z-20 bg-white text-[#096ecc] font-semibold py-3 px-5 border border-[#096ecc] shadow-lg transition-all duration-200 hover:bg-[#096ecc] hover:text-white hover:shadow-xl ${myRequestsPanelOpen ? 'scale-95' : 'scale-100'}`}
+        >
+          {myRequestsPanelOpen ? 'Hide My Requests' : `My Requests${myRequests.length ? ` (${myRequests.length})` : ''}`}
         </button>
       )}
 
@@ -1052,25 +1307,238 @@ function HomePage() {
         </div>
       </aside>
 
+      {myRequestsPanelOpen && (
+        <div
+          className="absolute inset-0 z-30 bg-black/10"
+          onClick={() => setMyRequestsPanelOpen(false)}
+        />
+      )}
+
+      <aside
+        className={`absolute top-0 right-0 z-40 h-full w-full max-w-3xl transition-transform duration-300 ease-in-out ${myRequestsPanelOpen ? 'translate-x-0' : 'translate-x-full'}`}
+        aria-hidden={!myRequestsPanelOpen}
+      >
+        <div className="flex h-full w-full flex-col bg-white/95 backdrop-blur-sm border-l border-slate-200 shadow-2xl">
+          <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+            <div>
+              <h2 className="text-xl font-semibold text-slate-900">My Requests</h2>
+              <p className="text-sm text-slate-500">View the status of your room requests</p>
+            </div>
+            <button
+              onClick={() => setMyRequestsPanelOpen(false)}
+              className="border border-slate-300 px-3 py-1 text-sm font-medium text-slate-600 transition-colors duration-150 hover:bg-slate-100"
+            >
+              Close
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+            {myRequestsLoading ? (
+              <div className="flex h-full items-center justify-center text-sm text-slate-500">
+                Loading your requests…
+              </div>
+            ) : myRequests.length === 0 ? (
+              <div className="flex h-full items-center justify-center">
+                <div className="rounded border border-dashed border-slate-300 bg-white px-6 py-12 text-center text-sm text-slate-500 max-w-md">
+                  <p className="font-medium text-slate-600 mb-2">No requests yet</p>
+                  <p className="text-xs text-slate-400">Submit a request by clicking on an empty slot in the schedule.</p>
+                </div>
+              </div>
+            ) : (
+              <>
+                {myRequests.filter((r) => r.status === 'pending').length > 0 && (
+                  <section className="space-y-4">
+                    <header className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-600">Pending</h3>
+                      <span className="text-xs font-medium text-slate-400">
+                        {myRequests.filter((r) => r.status === 'pending').length} awaiting review
+                      </span>
+                    </header>
+
+                    {myRequests
+                      .filter((r) => r.status === 'pending')
+                      .map((request) => {
+                        const statusStyle = ROOM_REQUEST_STATUS_STYLES[request.status] || ROOM_REQUEST_STATUS_STYLES.pending
+                        return (
+                          <div key={request.id} className="border border-slate-200 bg-white px-5 py-4 shadow-sm">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-semibold text-slate-800">Room {request.room_number}</p>
+                                <p className="text-xs text-slate-500">
+                                  {formatDateDisplay(request.base_date)} • {formatRequestRange(request)} • {request.week_count} week{request.week_count > 1 ? 's' : ''}
+                                </p>
+                              </div>
+                              <span className={`rounded border px-2 py-1 text-xs font-semibold uppercase tracking-wide ${statusStyle}`}>
+                                {ROOM_REQUEST_STATUS_LABELS[request.status]}
+                              </span>
+                            </div>
+
+                            <div className="mt-3 grid gap-2 text-xs text-slate-600">
+                              {request.booked_by && (
+                                <div>
+                                  <span className="font-semibold text-slate-700">Usage:</span> {request.booked_by}
+                                </div>
+                              )}
+                              {request.course_name && (
+                                <div>
+                                  <span className="font-semibold text-slate-700">Course/Event:</span> {request.course_name}
+                                </div>
+                              )}
+                              {request.notes && (
+                                <div>
+                                  <span className="font-semibold text-slate-700">Notes:</span> {request.notes}
+                                </div>
+                              )}
+                              <div className="text-xs text-slate-400 mt-1">
+                                Submitted {formatDateDisplay(request.created_at.slice(0, 10))}
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                  </section>
+                )}
+
+                {myRequests.filter((r) => r.status === 'approved').length > 0 && (
+                  <section className="space-y-4">
+                    <header className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold uppercase tracking-wide text-emerald-600">Approved</h3>
+                      <span className="text-xs font-medium text-slate-400">
+                        {myRequests.filter((r) => r.status === 'approved').length} accepted
+                      </span>
+                    </header>
+
+                    {myRequests
+                      .filter((r) => r.status === 'approved')
+                      .map((request) => {
+                        const statusStyle = ROOM_REQUEST_STATUS_STYLES[request.status]
+                        return (
+                          <div key={request.id} className="border border-emerald-200 bg-emerald-50/30 px-5 py-4 shadow-sm">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-semibold text-slate-800">Room {request.room_number}</p>
+                                <p className="text-xs text-slate-500">
+                                  {formatDateDisplay(request.base_date)} • {formatRequestRange(request)} • {request.week_count} week{request.week_count > 1 ? 's' : ''}
+                                </p>
+                              </div>
+                              <span className={`rounded border px-2 py-1 text-xs font-semibold uppercase tracking-wide ${statusStyle}`}>
+                                {ROOM_REQUEST_STATUS_LABELS[request.status]}
+                              </span>
+                            </div>
+
+                            <div className="mt-3 grid gap-2 text-xs text-slate-600">
+                              {request.booked_by && (
+                                <div>
+                                  <span className="font-semibold text-slate-700">Usage:</span> {request.booked_by}
+                                </div>
+                              )}
+                              {request.course_name && (
+                                <div>
+                                  <span className="font-semibold text-slate-700">Course/Event:</span> {request.course_name}
+                                </div>
+                              )}
+                              {request.reviewer_name && (
+                                <div>
+                                  <span className="font-semibold text-slate-700">Approved by:</span> {request.reviewer_name}
+                                  {request.reviewed_at && ` • ${formatDateDisplay(request.reviewed_at.slice(0, 10))}`}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                  </section>
+                )}
+
+                {myRequests.filter((r) => r.status === 'rejected').length > 0 && (
+                  <section className="space-y-4">
+                    <header className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold uppercase tracking-wide text-rose-600">Rejected</h3>
+                      <span className="text-xs font-medium text-slate-400">
+                        {myRequests.filter((r) => r.status === 'rejected').length} declined
+                      </span>
+                    </header>
+
+                    {myRequests
+                      .filter((r) => r.status === 'rejected')
+                      .map((request) => {
+                        const statusStyle = ROOM_REQUEST_STATUS_STYLES[request.status]
+                        return (
+                          <div key={request.id} className="border border-rose-200 bg-rose-50/30 px-5 py-4 shadow-sm">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-semibold text-slate-800">Room {request.room_number}</p>
+                                <p className="text-xs text-slate-500">
+                                  {formatDateDisplay(request.base_date)} • {formatRequestRange(request)} • {request.week_count} week{request.week_count > 1 ? 's' : ''}
+                                </p>
+                              </div>
+                              <span className={`rounded border px-2 py-1 text-xs font-semibold uppercase tracking-wide ${statusStyle}`}>
+                                {ROOM_REQUEST_STATUS_LABELS[request.status]}
+                              </span>
+                            </div>
+
+                            <div className="mt-3 grid gap-2 text-xs text-slate-600">
+                              {request.booked_by && (
+                                <div>
+                                  <span className="font-semibold text-slate-700">Usage:</span> {request.booked_by}
+                                </div>
+                              )}
+                              {request.course_name && (
+                                <div>
+                                  <span className="font-semibold text-slate-700">Course/Event:</span> {request.course_name}
+                                </div>
+                              )}
+                              {request.reviewer_name && (
+                                <div>
+                                  <span className="font-semibold text-slate-700">Reviewed by:</span> {request.reviewer_name}
+                                  {request.reviewed_at && ` • ${formatDateDisplay(request.reviewed_at.slice(0, 10))}`}
+                                </div>
+                              )}
+                              {request.rejection_reason && (
+                                <div className="bg-rose-100/50 px-3 py-2 rounded border border-rose-200 mt-2">
+                                  <span className="font-semibold text-rose-700 block mb-1">Reason for rejection:</span>
+                                  <span className="text-rose-600">{request.rejection_reason}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                  </section>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </aside>
+
       <div className={styles.canvasContainer}>
         <Canvas 
-          camera={{ position: [25, 15, 25], fov: 50 }}
+          camera={{ position: [40, 25, 40], fov: 50 }}
           style={{ background: 'linear-gradient(to bottom, #e8f4ff, #ffffff)' }}
         >
           <SchoolModel />
           <OrbitControls 
+            ref={controlsRef}
             enableZoom={true}
             enablePan={true}
             enableRotate={true}
             minDistance={10}
-            maxDistance={60}
+            maxDistance={100}
             maxPolarAngle={Math.PI / 2}
+            autoRotate={true}
+            autoRotateSpeed={2}
+            onStart={() => {
+              if (controlsRef.current) {
+                controlsRef.current.autoRotate = false
+              }
+            }}
           />
         </Canvas>
       </div>
 
       <p className={styles.canvasInstructions}>
-        🖱️ Click and drag to rotate • Scroll to zoom • Right-click to pan
+        🖱️ Click and drag to rotate • Scroll to zoom • Right-click to pan • ⌨️ WASD to move
       </p>
 
       {editState.isOpen && canEditSchedule && (
