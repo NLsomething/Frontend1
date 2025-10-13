@@ -95,11 +95,21 @@ const ScheduleGrid = ({ rooms, timeSlots, scheduleMap, onAdminAction, onTeacherR
   </div>
 )
 
+const CAMERA_CONFIG = {
+  baseSpeed: 0.6,
+  referenceDistance: 50,
+  getScaledSpeed: (distance) => {
+    return CAMERA_CONFIG.baseSpeed * (distance / CAMERA_CONFIG.referenceDistance)
+  }
+}
+
 function HomePage() {
   const navigate = useNavigate()
   const { user, loading, role, profile } = useAuth()
   const { notifySuccess, notifyError, notifyInfo } = useNotifications()
   const controlsRef = useRef()
+  const isPanning = useRef(false)
+  const lastPanPosition = useRef({ x: 0, y: 0 })
   const [isScheduleOpen, setScheduleOpen] = useState(false)
   const [scheduleDate, setScheduleDate] = useState(() => new Date())
   const [scheduleLoading, setScheduleLoading] = useState(false)
@@ -311,7 +321,6 @@ function HomePage() {
   }, [buildScheduleKey, isoDate, canViewSchedule, notifyError])
 
   useEffect(() => {
-    // Redirect to login if not authenticated
     if (!loading && !user) {
       navigate('/')
     }
@@ -360,19 +369,14 @@ function HomePage() {
     }
   }, [canManageRequests, loadRequests])
 
-  // WASD keyboard controls for camera movement with smooth continuous motion
   useEffect(() => {
-    const moveSpeed = 0.6 // Speed per frame
     const keysPressed = new Set()
-    
-    // Boundary limits for the orbit target (where camera looks at) - building footprint
-    const minX = -30
-    const maxX = 30
-    const minZ = -30
-    const maxZ = 30
+    const minX = -60
+    const maxX = 60
+    const minZ = -60
+    const maxZ = 60
 
     const handleKeyDown = (event) => {
-      // Don't handle if user is typing in an input/textarea
       const target = event.target
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') {
         return
@@ -380,13 +384,11 @@ function HomePage() {
 
       const key = event.key.toLowerCase()
       
-      // Only handle WASD keys
       if (!['w', 'a', 's', 'd'].includes(key)) return
 
-      event.preventDefault() // Prevent default behavior for WASD
+      event.preventDefault()
       keysPressed.add(key)
 
-      // Stop auto-rotate when moving
       if (controlsRef.current && controlsRef.current.autoRotate) {
         controlsRef.current.autoRotate = false
       }
@@ -406,50 +408,46 @@ function HomePage() {
       const orbitTarget = controlsRef.current.target
       const camera = controlsRef.current.object
 
-      // Get the direction vectors relative to camera orientation
+      const distance = camera.position.distanceTo(orbitTarget)
+      const dynamicSpeed = CAMERA_CONFIG.getScaledSpeed(distance)
+
       const forward = new THREE.Vector3()
       const right = new THREE.Vector3()
       
       camera.getWorldDirection(forward)
-      forward.y = 0 // Keep movement on horizontal plane
+      forward.y = 0
       forward.normalize()
       
       right.crossVectors(forward, new THREE.Vector3(0, 1, 0))
       right.normalize()
 
-      // Calculate combined movement vector
       const movement = new THREE.Vector3()
 
       if (keysPressed.has('w')) {
-        movement.addScaledVector(forward, moveSpeed)
+        movement.addScaledVector(forward, dynamicSpeed)
       }
       if (keysPressed.has('s')) {
-        movement.addScaledVector(forward, -moveSpeed)
+        movement.addScaledVector(forward, -dynamicSpeed)
       }
       if (keysPressed.has('a')) {
-        movement.addScaledVector(right, -moveSpeed)
+        movement.addScaledVector(right, -dynamicSpeed)
       }
       if (keysPressed.has('d')) {
-        movement.addScaledVector(right, moveSpeed)
+        movement.addScaledVector(right, dynamicSpeed)
       }
 
-      // Normalize diagonal movement to prevent faster diagonal speed
       if (movement.length() > 0) {
         if (keysPressed.size > 1) {
-          movement.normalize().multiplyScalar(moveSpeed)
+          movement.normalize().multiplyScalar(dynamicSpeed)
         }
         
-        // Calculate new target position
         const newTarget = orbitTarget.clone().add(movement)
         
-        // Clamp the target position within boundaries
         newTarget.x = Math.max(minX, Math.min(maxX, newTarget.x))
         newTarget.z = Math.max(minZ, Math.min(maxZ, newTarget.z))
         
-        // Calculate the actual movement that was applied to target
         const actualMovement = newTarget.clone().sub(orbitTarget)
         
-        // Apply the same movement to camera
         camera.position.add(actualMovement)
         orbitTarget.copy(newTarget)
         controlsRef.current.update()
@@ -461,13 +459,80 @@ function HomePage() {
     window.addEventListener('keydown', handleKeyDown)
     window.addEventListener('keyup', handleKeyUp)
     
-    // Start the animation loop
     const animationId = requestAnimationFrame(updateMovement)
     
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
       cancelAnimationFrame(animationId)
+    }
+  }, [])
+
+  useEffect(() => {
+    const handleMouseDown = (event) => {
+      if (event.button === 2) {
+        event.preventDefault()
+        isPanning.current = true
+        lastPanPosition.current = { x: event.clientX, y: event.clientY }
+        
+        if (controlsRef.current) {
+          controlsRef.current.autoRotate = false
+        }
+      }
+    }
+
+    const handleMouseMove = (event) => {
+      if (!isPanning.current || !controlsRef.current) return
+
+      const deltaX = event.clientX - lastPanPosition.current.x
+      const deltaY = event.clientY - lastPanPosition.current.y
+      lastPanPosition.current = { x: event.clientX, y: event.clientY }
+
+      const controls = controlsRef.current
+      const camera = controls.object
+
+      const distance = camera.position.distanceTo(controls.target)
+      const dynamicPanSpeed = CAMERA_CONFIG.getScaledSpeed(distance)
+
+      const right = new THREE.Vector3()
+      const forward = new THREE.Vector3()
+      
+      camera.getWorldDirection(forward)
+      forward.y = 0
+      forward.normalize()
+      
+      right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize()
+
+      const horizontalOffset = right.multiplyScalar(-deltaX * dynamicPanSpeed * 0.1)
+      const forwardOffset = forward.multiplyScalar(deltaY * dynamicPanSpeed * 0.1)
+
+      const offset = new THREE.Vector3().add(horizontalOffset).add(forwardOffset)
+      
+      controls.target.add(offset)
+      camera.position.add(offset)
+      controls.update()
+    }
+
+    const handleMouseUp = (event) => {
+      if (event.button === 2) {
+        isPanning.current = false
+      }
+    }
+
+    const handleContextMenu = (event) => {
+      event.preventDefault()
+    }
+
+    window.addEventListener('mousedown', handleMouseDown)
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+    window.addEventListener('contextmenu', handleContextMenu)
+
+    return () => {
+      window.removeEventListener('mousedown', handleMouseDown)
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+      window.removeEventListener('contextmenu', handleContextMenu)
     }
   }, [])
 
@@ -1535,13 +1600,18 @@ function HomePage() {
           <OrbitControls 
             ref={controlsRef}
             enableZoom={true}
-            enablePan={true}
+            enablePan={false}
             enableRotate={true}
             minDistance={10}
             maxDistance={100}
             maxPolarAngle={Math.PI / 2}
             autoRotate={true}
             autoRotateSpeed={2}
+            mouseButtons={{
+              LEFT: THREE.MOUSE.ROTATE,
+              MIDDLE: THREE.MOUSE.DOLLY,
+              RIGHT: undefined
+            }}
             onStart={() => {
               if (controlsRef.current) {
                 controlsRef.current.autoRotate = false
@@ -1552,7 +1622,7 @@ function HomePage() {
       </div>
 
       <p className={styles.canvasInstructions}>
-        🖱️ Click and drag to rotate • Scroll to zoom • Right-click to pan • ⌨️ WASD to move
+        🖱️ Click and drag to rotate • Scroll to zoom • Right-click to move • ⌨️ WASD to move
       </p>
 
       {editState.isOpen && canEditSchedule && (

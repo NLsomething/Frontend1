@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { signIn } from '../services/authService'
+import { resetPassword } from '../services/authService'
 import { useAuth } from '../context/AuthContext'
 import loginbg from '../assets/images/loginbg.jpg'
+import { useNotifications } from '../context/NotificationContext'
 import { 
   createButton, 
   createInput,
@@ -28,7 +29,6 @@ const styles = {
   label: cn(labels.base, labels.default),
   input: createInput(false),
   btnPrimary: createButton('primary', 'md', true),
-  btnSecondary: createButton('secondary', 'md', true),
   btnText: createButton('text', 'sm', true),
   icon: authPages.icon,
   iconBg: cn(authPages.iconBg, 'hover:bg-[#d0e8ff]'),
@@ -37,23 +37,17 @@ const styles = {
   textPrimary: typography.primary,
   textSecondaryHover: cn(typography.secondary, 'hover:text-[#1f5ca9]'),
   colorDarkBlue: buttons.primary,
-  colorLightBlue: buttons.secondary,
 }
 
-function LoginPage() {
+function ForgotPasswordPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { notifySuccess } = useNotifications()
   
-  const [formData, setFormData] = useState({
-    usernameOrEmail: '',
-    password: ''
-  })
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('')
   const [loading, setLoading] = useState(false)
-  const [loginError, setLoginError] = useState('')
-
-  // Refs for login form
-  const emailInputRef = useRef(null)
-  const passwordInputRef = useRef(null)
+  const [forgotPasswordError, setForgotPasswordError] = useState('')
+  const forgotEmailRef = useRef(null)
 
   useEffect(() => {
     if (user) {
@@ -61,36 +55,31 @@ function LoginPage() {
     }
   }, [user, navigate])
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }))
-  }
-
-  const handleLogin = async (e) => {
+  const handleForgotPassword = async (e) => {
     e.preventDefault()
-    setLoginError('')
+    setForgotPasswordError('')
     
-    if (!formData.usernameOrEmail || !formData.password) {
-      setLoginError('Please enter both email and password.')
+    if (!forgotPasswordEmail) {
+      setForgotPasswordError('Please enter your email address.')
       return
     }
 
     setLoading(true)
 
     try {
-      const { user, session, error } = await signIn(formData.usernameOrEmail, formData.password)
+      const { error } = await resetPassword(forgotPasswordEmail)
       
       if (error) {
-        setLoginError(error)
-      } else if (user && session) {
-        navigate('/home')
+        setForgotPasswordError(error)
+      } else {
+        notifySuccess('Password reset email sent', {
+          description: 'Check your inbox for further instructions.'
+        })
+        navigate('/')
       }
     } catch (error) {
-      console.error('Login error:', error)
-      setLoginError('An unexpected error occurred. Please try again.')
+      console.error('Forgot password error:', error)
+      setForgotPasswordError('An unexpected error occurred.')
     } finally {
       setLoading(false)
     }
@@ -110,89 +99,57 @@ function LoginPage() {
         <div className={`${styles.card} ${styles.bgWhite}`}>
           <div className={styles.header}>
             <div className={`${styles.icon} ${styles.iconBg}`}>
-              <span className="text-xl">🏫</span>
+              <span className="text-xl">🔐</span>
             </div>
             <h1 className={`${styles.titleLarge} ${styles.textPrimary}`}>
-              Welcome
+              Forgot Password
             </h1>
             <p className={styles.subtitle}>
-              Sign in to access ClassroomInsight
+              Enter your email to reset password
             </p>
           </div>
 
           <div className={styles.form}>
-            {loginError && (
+            {forgotPasswordError && (
               <div className={styles.errorAlert}>
-                {loginError}
+                {forgotPasswordError}
               </div>
             )}
             
             <div>
-              <label className={styles.label}>
-                Email
-              </label>
+              <label className={styles.label}>Email Address</label>
               <input
-                ref={emailInputRef}
+                ref={forgotEmailRef}
                 type="email"
-                name="usernameOrEmail"
-                value={formData.usernameOrEmail}
-                onChange={handleInputChange}
+                value={forgotPasswordEmail}
+                onChange={(e) => setForgotPasswordEmail(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault()
-                    passwordInputRef.current?.focus()
+                    handleForgotPassword(e)
                   }
                 }}
-                placeholder="Enter your email"
+                placeholder="Enter your email address"
                 className={styles.input}
                 disabled={loading}
               />
             </div>
-
-            <div>
-              <label className={styles.label}>
-                Password
-              </label>
-              <input
-                ref={passwordInputRef}
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleInputChange}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault()
-                    handleLogin(e)
-                  }
-                }}
-                placeholder="Enter your password"
-                className={styles.input}
-                disabled={loading}
-              />
-            </div>
-
+            
             <button 
-              onClick={handleLogin} 
+              onClick={handleForgotPassword} 
               className={`${styles.btnPrimary} ${styles.colorDarkBlue}`}
               disabled={loading}
             >
-              {loading ? 'Logging in...' : 'Login'}
+              {loading ? 'Sending...' : 'Send Reset Link'}
             </button>
           </div>
 
           <div className={styles.buttonGroup}>
             <button 
-              onClick={() => navigate('/register')} 
-              className={`${styles.btnSecondary} ${styles.colorLightBlue}`}
-            >
-              Register
-            </button>
-            
-            <button 
-              onClick={() => navigate('/forgot-password')} 
+              onClick={() => navigate('/')} 
               className={`${styles.btnText} ${styles.textSecondaryHover}`}
             >
-              Forgot Password?
+              Back to Sign In
             </button>
           </div>
         </div>
@@ -201,4 +158,4 @@ function LoginPage() {
   )
 }
 
-export default LoginPage
+export default ForgotPasswordPage

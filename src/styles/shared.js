@@ -227,3 +227,23 @@ export function createPanel(side = 'left', size = 'panelMedium', isOpen = true) 
   
   return cn(...baseClasses)
 }
+
+// Styles
+export const authPages = {
+  screen: 'w-screen h-screen bg-gradient-to-br from-blue-600 to-purple-700 flex items-center justify-center',
+  screenWithScroll: 'w-screen h-screen bg-gradient-to-br from-blue-600 to-purple-700 flex items-center justify-center py-6',
+  container: 'w-full max-w-[26rem] mx-4',
+  containerCompact: 'w-full max-w-[24rem] mx-4',
+  icon: 'mx-auto w-14 h-14 rounded-full flex items-center justify-center mb-3',
+  iconCompact: 'mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-2',
+  iconBg: 'bg-[#e8f4ff]',
+  errorAlert: 'bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4',
+  buttonGroup: 'mt-5 space-y-2.5',
+  buttonGroupCompact: 'mt-4 space-y-2',
+  formCompact: 'space-y-3',
+  headerCompact: 'text-center mb-4',
+  titleCompact: 'text-2xl mb-1',
+  subtitleCompact: 'text-sm',
+  labelCompact: 'text-xs font-medium mb-1',
+  inputCompact: 'w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+}
