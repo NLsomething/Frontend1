@@ -12,6 +12,7 @@ import { SCHEDULE_STATUS, SCHEDULE_STATUS_LABELS, SCHEDULE_STATUS_STYLES } from 
 import { getSchedulesByDate, upsertScheduleEntry, deleteScheduleEntry } from '../services/scheduleService'
 import { ROOM_REQUEST_STATUS, ROOM_REQUEST_STATUS_LABELS, ROOM_REQUEST_STATUS_STYLES, MAX_ROOM_REQUEST_WEEKS } from '../constants/requests'
 import { createRoomRequest, fetchRoomRequests, updateRoomRequestStatus } from '../services/roomRequestService'
+import { fetchBuildings } from '../services/buildingService'
 import { createButton, cn } from '../styles/shared'
 
 // Styles
@@ -110,6 +111,8 @@ function HomePage() {
   const controlsRef = useRef()
   const isPanning = useRef(false)
   const lastPanPosition = useRef({ x: 0, y: 0 })
+  const [building, setBuilding] = useState(null)
+  const [buildingLoading, setBuildingLoading] = useState(true)
   const [isScheduleOpen, setScheduleOpen] = useState(false)
   const [scheduleDate, setScheduleDate] = useState(() => new Date())
   const [scheduleLoading, setScheduleLoading] = useState(false)
@@ -325,6 +328,30 @@ function HomePage() {
       navigate('/')
     }
   }, [user, loading, navigate])
+
+  useEffect(() => {
+    const loadBuilding = async () => {
+      setBuildingLoading(true)
+      try {
+        const { data, error } = await fetchBuildings()
+        
+        if (error) {
+          console.error('Error loading building:', error)
+          notifyError('Failed to load building model', {
+            description: 'Using default model instead.'
+          })
+        } else if (data && data.length > 0) {
+          setBuilding(data[0])
+        }
+      } catch (err) {
+        console.error('Unexpected error loading building:', err)
+      } finally {
+        setBuildingLoading(false)
+      }
+    }
+
+    loadBuilding()
+  }, [notifyError])
 
   useEffect(() => {
     loadSchedules()
@@ -1596,7 +1623,7 @@ function HomePage() {
           camera={{ position: [40, 25, 40], fov: 50 }}
           style={{ background: 'linear-gradient(to bottom, #e8f4ff, #ffffff)' }}
         >
-          <SchoolModel />
+          {!buildingLoading && <SchoolModel building={building} />}
           <OrbitControls 
             ref={controlsRef}
             enableZoom={true}
