@@ -6,6 +6,7 @@ import { signOut } from '../services/authService'
 import { useEffect, useState, useMemo, useCallback, Fragment, useRef } from 'react'
 import * as THREE from 'three'
 import SchoolModel from '../components/SchoolModel'
+import BuildingInfoModal from '../components/BuildingInfoModal'
 import { useNotifications } from '../context/NotificationContext'
 import { USER_ROLES } from '../constants/roles'
 import { SCHEDULE_STATUS, SCHEDULE_STATUS_LABELS, SCHEDULE_STATUS_STYLES } from '../constants/schedule'
@@ -13,6 +14,7 @@ import { getSchedulesByDate, upsertScheduleEntry, deleteScheduleEntry } from '..
 import { ROOM_REQUEST_STATUS, ROOM_REQUEST_STATUS_LABELS, ROOM_REQUEST_STATUS_STYLES, MAX_ROOM_REQUEST_WEEKS } from '../constants/requests'
 import { createRoomRequest, fetchRoomRequests, updateRoomRequestStatus } from '../services/roomRequestService'
 import { fetchBuildings } from '../services/buildingService'
+import { fetchRoomsByBuildingId } from '../services/roomService'
 import { createButton, cn } from '../styles/shared'
 
 // Styles
@@ -21,80 +23,109 @@ const styles = {
   canvasContainer: "w-full h-full",
   logoutBtn: cn(createButton('secondary', 'lg'), "absolute top-6 right-6 z-10 shadow-lg"),
   canvasInstructions: "absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10 text-white bg-black/50 backdrop-blur-sm px-6 py-3 rounded-full text-sm font-medium shadow-lg",
-  scheduleButton: (isOpen) => cn(
-    "absolute top-6 left-6 z-20 bg-white text-[#096ecc] font-semibold py-3 px-5 border border-[#096ecc] shadow-lg transition-all duration-200 hover:bg-[#096ecc] hover:text-white hover:shadow-xl rounded-lg",
-    isOpen ? "scale-95" : "scale-100"
-  ),
   requestsButton: (isOpen, loading) => cn(
-    "absolute top-[5.5rem] left-6 z-20 bg-white text-[#0b7a4b] font-semibold py-3 px-5 border border-[#0b7a4b] shadow-lg transition-all duration-200 rounded-lg",
+    "absolute top-6 left-6 z-20 bg-white text-[#0b7a4b] font-semibold py-3 px-5 border border-[#0b7a4b] shadow-lg transition-all duration-200 rounded-lg",
     loading ? "opacity-60 cursor-not-allowed" : "hover:bg-[#0b7a4b] hover:text-white hover:shadow-xl",
     isOpen ? "scale-95" : "scale-100"
   ),
   myRequestsButton: (isOpen) => cn(
-    "absolute top-[5.5rem] left-6 z-20 bg-white text-[#096ecc] font-semibold py-3 px-5 border border-[#096ecc] shadow-lg transition-all duration-200 hover:bg-[#096ecc] hover:text-white hover:shadow-xl rounded-lg",
+    "absolute top-6 left-6 z-20 bg-white text-[#096ecc] font-semibold py-3 px-5 border border-[#096ecc] shadow-lg transition-all duration-200 hover:bg-[#096ecc] hover:text-white hover:shadow-xl rounded-lg",
+    isOpen ? "scale-95" : "scale-100"
+  ),
+  buildingInfoButton: (isOpen, hasBuilding) => cn(
+    "absolute top-[5.5rem] left-6 z-20 font-semibold py-3 px-5 border shadow-lg transition-all duration-200 rounded-lg",
+    hasBuilding 
+      ? "bg-white text-[#f97316] border-[#f97316] hover:bg-[#f97316] hover:text-white hover:shadow-xl" 
+      : "bg-gray-100 text-gray-400 border-gray-300 cursor-not-allowed",
+    isOpen ? "scale-95" : "scale-100"
+  ),
+  scheduleButton: (isOpen, hasBuilding) => cn(
+    "absolute top-[10rem] left-6 z-20 font-semibold py-3 px-5 border shadow-lg transition-all duration-200 rounded-lg",
+    hasBuilding 
+      ? "bg-white text-[#096ecc] border-[#096ecc] hover:bg-[#096ecc] hover:text-white hover:shadow-xl" 
+      : "bg-gray-100 text-gray-400 border-gray-300 cursor-not-allowed",
     isOpen ? "scale-95" : "scale-100"
   )
 }
 
-const ScheduleGrid = ({ rooms, timeSlots, scheduleMap, onAdminAction, onTeacherRequest, buildKey, canEdit, canRequest }) => (
-  <div className="overflow-x-auto">
-    <div className="min-w-[960px]">
-      <div className="grid grid-cols-[140px_repeat(10,minmax(80px,1fr))] border-t border-slate-200 text-sm">
-        <div className="bg-white px-4 py-3 font-semibold text-slate-700">Time</div>
-        {rooms.map((room) => (
-          <div key={room} className="bg-white px-3 py-3 text-center font-semibold text-slate-600 border-l border-slate-200">
-            {room}
+const ScheduleGrid = ({ rooms, timeSlots, scheduleMap, onAdminAction, onTeacherRequest, buildKey, canEdit, canRequest }) => {
+  return (
+    <div className="overflow-x-auto">
+      <div className="min-w-[960px]">
+        <div 
+          style={{
+            display: 'grid',
+            gridTemplateColumns: `120px repeat(${timeSlots.length}, minmax(70px, 1fr))`,
+            borderTop: '1px solid #e2e8f0',
+            fontSize: '0.875rem'
+          }}
+        >
+          {/* Top-left corner cell */}
+          <div className="bg-white px-4 py-3 font-semibold text-slate-700 border-r border-slate-200">
+            Room
           </div>
-        ))}
-        {timeSlots.map((slot) => (
-          <Fragment key={`row-${slot.hour}`}>
-            <div className="bg-white px-4 py-3 font-medium text-slate-700 border-t border-slate-200">
+          
+          {/* Header row: Time slots */}
+          {timeSlots.map((slot) => (
+            <div key={`header-${slot.hour}`} className="bg-white px-2 py-3 text-center font-semibold text-slate-600 border-l border-slate-200 text-xs">
               {slot.label}
             </div>
-            {rooms.map((room) => {
-              const key = buildKey(room, slot.hour)
-              const entry = scheduleMap[key]
-              const status = entry?.status || SCHEDULE_STATUS.empty
-              const label = SCHEDULE_STATUS_LABELS[status]
-              const details = entry?.course_name || entry?.booked_by ? [entry?.course_name, entry?.booked_by].filter(Boolean) : []
-              const interactive = canEdit || canRequest
-              const cellClasses = `border-t border-l px-3 py-3 text-left transition-colors duration-150 disabled:opacity-100 disabled:cursor-default ${SCHEDULE_STATUS_STYLES[status]} ${interactive ? 'cursor-pointer hover:bg-slate-200/60' : ''}`
+          ))}
+          
+          {/* Data rows: One row per room */}
+          {rooms.map((room) => (
+            <Fragment key={`room-${room}`}>
+              {/* Room name cell */}
+              <div className="bg-white px-4 py-3 font-medium text-slate-700 border-t border-r border-slate-200">
+                {room}
+              </div>
+              
+              {/* Schedule cells for this room across all time slots */}
+              {timeSlots.map((slot) => {
+                const key = buildKey(room, slot.hour)
+                const entry = scheduleMap[key]
+                const status = entry?.status || SCHEDULE_STATUS.empty
+                const label = SCHEDULE_STATUS_LABELS[status]
+                const details = entry?.course_name || entry?.booked_by ? [entry?.course_name, entry?.booked_by].filter(Boolean) : []
+                const interactive = canEdit || canRequest
+                const cellClasses = `border-t border-l px-2 py-3 text-left transition-colors duration-150 disabled:opacity-100 disabled:cursor-default ${SCHEDULE_STATUS_STYLES[status]} ${interactive ? 'cursor-pointer hover:bg-slate-200/60' : ''}`
 
-              return (
-                <button
-                  type="button"
-                  key={key}
-                  className={cellClasses}
-                  onClick={() => {
-                    if (canEdit && onAdminAction) {
-                      onAdminAction(room, slot.hour)
-                    } else if (canRequest && onTeacherRequest) {
-                      onTeacherRequest(room, slot.hour)
-                    }
-                  }}
-                  disabled={!interactive}
-                >
-                  <span className="block text-xs font-semibold uppercase tracking-wide">
-                    {label}
-                  </span>
-                  {details.length > 0 && (
-                    <span className="mt-1 block space-y-0.5 text-xs text-slate-600">
-                      {details.map((line, index) => (
-                        <span key={`${key}-detail-${index}`} className="block">
-                          {line}
-                        </span>
-                      ))}
+                return (
+                  <button
+                    type="button"
+                    key={key}
+                    className={cellClasses}
+                    onClick={() => {
+                      if (canEdit && onAdminAction) {
+                        onAdminAction(room, slot.hour)
+                      } else if (canRequest && onTeacherRequest) {
+                        onTeacherRequest(room, slot.hour)
+                      }
+                    }}
+                    disabled={!interactive}
+                  >
+                    <span className="block text-xs font-semibold uppercase tracking-wide">
+                      {label}
                     </span>
-                  )}
-                </button>
-              )
-            })}
-          </Fragment>
-        ))}
+                    {details.length > 0 && (
+                      <span className="mt-1 block space-y-0.5 text-xs text-slate-600">
+                        {details.map((line, index) => (
+                          <span key={`${key}-detail-${index}`} className="block truncate">
+                            {line}
+                          </span>
+                        ))}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+            </Fragment>
+          ))}
+        </div>
       </div>
     </div>
-  </div>
-)
+  )
+}
 
 const CAMERA_CONFIG = {
   baseSpeed: 0.6,
@@ -113,7 +144,11 @@ function HomePage() {
   const lastPanPosition = useRef({ x: 0, y: 0 })
   const [building, setBuilding] = useState(null)
   const [buildingLoading, setBuildingLoading] = useState(true)
+  const [selectedBuilding, setSelectedBuilding] = useState(null)
+  const [isBuildingInfoOpen, setIsBuildingInfoOpen] = useState(false)
   const [isScheduleOpen, setScheduleOpen] = useState(false)
+  const [buildingRooms, setBuildingRooms] = useState([])
+  const [buildingRoomsLoading, setBuildingRoomsLoading] = useState(false)
   const [scheduleDate, setScheduleDate] = useState(() => new Date())
   const [scheduleLoading, setScheduleLoading] = useState(false)
   const [scheduleMap, setScheduleMap] = useState({})
@@ -179,9 +214,6 @@ function HomePage() {
     return startLabel === endLabel ? startLabel : `${startLabel} – ${endLabel}`
   }, [getSlotLabel])
 
-  const firstFloorRooms = useMemo(() => Array.from({ length: 10 }, (_, index) => (101 + index).toString()), [])
-  const secondFloorRooms = useMemo(() => Array.from({ length: 10 }, (_, index) => (201 + index).toString()), [])
-
   const canEditSchedule = role === USER_ROLES.administrator || role === USER_ROLES.buildingManager
   const canViewSchedule = role === USER_ROLES.teacher || role === USER_ROLES.student || canEditSchedule
   const canManageRequests = canEditSchedule
@@ -191,6 +223,43 @@ function HomePage() {
   ), [profile, user])
 
   const buildScheduleKey = useCallback((roomNumber, slotHour) => `${roomNumber}-${slotHour}`, [])
+
+  // Group rooms by section and floor
+  const roomsBySection = useMemo(() => {
+    if (!buildingRooms || buildingRooms.length === 0) return []
+    
+    const sections = {}
+    buildingRooms.forEach(room => {
+      const sectionId = room.floors?.sections?.id
+      const sectionName = room.floors?.sections?.section_name || 'Unknown Section'
+      const floorId = room.floors?.id
+      const floorName = room.floors?.floor_name || 'Unknown Floor'
+      
+      if (!sections[sectionId]) {
+        sections[sectionId] = {
+          id: sectionId,
+          name: sectionName,
+          floors: {}
+        }
+      }
+      
+      if (!sections[sectionId].floors[floorId]) {
+        sections[sectionId].floors[floorId] = {
+          id: floorId,
+          name: floorName,
+          rooms: []
+        }
+      }
+      
+      sections[sectionId].floors[floorId].rooms.push(room)
+    })
+    
+    // Convert to array and sort
+    return Object.values(sections).map(section => ({
+      ...section,
+      floors: Object.values(section.floors).sort((a, b) => a.name.localeCompare(b.name))
+    })).sort((a, b) => a.name.localeCompare(b.name))
+  }, [buildingRooms])
 
   const loadRequests = useCallback(async ({ silent = false } = {}) => {
     if (!canManageRequests && !canRequestRoom) {
@@ -571,13 +640,45 @@ function HomePage() {
     requests.filter((request) => request.status !== ROOM_REQUEST_STATUS.pending)
   ), [requests])
 
-  const handleScheduleButtonClick = () => {
+  const handleScheduleButtonClick = async () => {
     if (!canViewSchedule) {
       notifyInfo('Access required', {
         description: 'Your role does not allow viewing the room schedule.'
       })
       return
     }
+    if (!selectedBuilding) {
+      notifyInfo('Building Required', {
+        description: 'Please select a building to view its schedule.'
+      })
+      return
+    }
+    
+    // If opening the panel, load the rooms and schedules
+    if (!isScheduleOpen) {
+      setBuildingRoomsLoading(true)
+      try {
+        const { data, error } = await fetchRoomsByBuildingId(selectedBuilding.id)
+        if (error) {
+          notifyError('Failed to load rooms', {
+            description: error.message || 'Could not fetch classroom rooms for this building.'
+          })
+          setBuildingRoomsLoading(false)
+          return
+        }
+        setBuildingRooms(data || [])
+        setBuildingRoomsLoading(false)
+        // Load schedule data
+        await loadSchedules()
+      } catch (err) {
+        notifyError('Failed to load rooms', {
+          description: err.message || 'An unexpected error occurred.'
+        })
+        setBuildingRoomsLoading(false)
+        return
+      }
+    }
+    
     setScheduleOpen((prev) => !prev)
   }
 
@@ -1086,6 +1187,31 @@ function HomePage() {
     }
   }
 
+  const handleBuildingClick = (clickedBuilding) => {
+    if (selectedBuilding?.id === clickedBuilding?.id) {
+      setSelectedBuilding(null)
+      setIsBuildingInfoOpen(false)
+      setScheduleOpen(false)
+    } else {
+      setSelectedBuilding(clickedBuilding)
+    }
+  }
+
+  const handleToggleBuildingInfo = () => {
+    if (isBuildingInfoOpen) {
+      setIsBuildingInfoOpen(false)
+      setScheduleOpen(false)
+    } else {
+      setIsBuildingInfoOpen(true)
+    }
+  }
+
+  const handleRoomSelect = async () => {
+    // Room selection now only shows the 2D preview popup
+    // The schedule panel doesn't automatically open anymore
+    // Users can manually open it using the schedule button if needed
+  }
+
   const handleLogout = async () => {
     try {
       const { error } = await signOut()
@@ -1123,13 +1249,6 @@ function HomePage() {
         Logout
       </button>
 
-      <button
-        onClick={handleScheduleButtonClick}
-        className={styles.scheduleButton(isScheduleOpen)}
-      >
-        {isScheduleOpen ? 'Hide Schedule' : 'Show Room Schedule'}
-      </button>
-
       {canManageRequests && (
         <button
           onClick={handleRequestsButtonClick}
@@ -1149,12 +1268,21 @@ function HomePage() {
         </button>
       )}
 
-      {isScheduleOpen && (
-        <div
-          className="absolute inset-0 z-10 bg-black/20 backdrop-blur-[1px]"
-          onClick={() => setScheduleOpen(false)}
-        />
-      )}
+      <button
+        onClick={handleToggleBuildingInfo}
+        className={styles.buildingInfoButton(isBuildingInfoOpen, selectedBuilding !== null)}
+        disabled={!selectedBuilding}
+      >
+        {isBuildingInfoOpen ? 'Hide Building Info' : selectedBuilding ? `Building Info: ${selectedBuilding.building_name}` : 'Select a Building'}
+      </button>
+
+      <button
+        onClick={handleScheduleButtonClick}
+        className={styles.scheduleButton(isScheduleOpen, selectedBuilding !== null)}
+        disabled={!selectedBuilding}
+      >
+        {isScheduleOpen ? 'Hide Schedule' : selectedBuilding ? `Schedule: ${selectedBuilding.building_name}` : 'Select a Building'}
+      </button>
 
       {requestsPanelOpen && (
         <div
@@ -1165,83 +1293,6 @@ function HomePage() {
           }}
         />
       )}
-
-      <aside
-        className={`absolute top-0 left-0 z-20 h-full w-full max-w-5xl transition-transform duration-300 ease-in-out ${isScheduleOpen ? 'translate-x-0' : '-translate-x-full'}`}
-        aria-hidden={!isScheduleOpen}
-      >
-        <div className="flex h-full w-full flex-col bg-white/95 backdrop-blur-sm border-r border-slate-200 shadow-2xl">
-          <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-            <div>
-              <h2 className="text-xl font-semibold text-slate-900">Room Schedule</h2>
-              <p className="text-sm text-slate-500">Rooms 101-110 · 201-210 • 7:00 AM – 8:00 PM</p>
-              <p className="text-xs text-slate-400">Viewing as {role ? role.replace('_', ' ') : 'guest'}{!canViewSchedule ? ' • Access required' : ''}</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <input
-                type="date"
-                value={isoDate}
-                onChange={(event) => {
-                  const { value } = event.target
-                  if (!value) return
-                  setScheduleDate(new Date(`${value}T00:00:00`))
-                }}
-                className="border border-slate-300 px-3 py-1 text-sm tracking-tight text-slate-600"
-              />
-              <button
-                onClick={() => setScheduleOpen(false)}
-                className="border border-slate-300 px-3 py-1 text-sm font-medium text-slate-600 transition-colors duration-150 hover:bg-slate-100"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-8">
-            {!canViewSchedule ? (
-              <div className="flex h-full w-full items-center justify-center rounded border border-dashed border-slate-300 bg-white text-sm text-slate-500">
-                Your role does not have access to view schedules.
-              </div>
-            ) : (
-              <>
-                <section className="border border-slate-200 shadow-sm overflow-hidden">
-                  <header className="flex items-center justify-between bg-slate-50 px-6 py-3 text-sm font-semibold uppercase tracking-wide text-slate-600">
-                    <span>First Floor • Rooms 101-110</span>
-                    {scheduleLoading && <span className="text-xs font-medium text-slate-400">Loading…</span>}
-                  </header>
-                  <ScheduleGrid
-                    rooms={firstFloorRooms}
-                    timeSlots={timeSlots}
-                    scheduleMap={scheduleMap}
-                    onAdminAction={handleCellInteraction}
-                    onTeacherRequest={handleTeacherRequest}
-                    buildKey={buildScheduleKey}
-                    canEdit={canEditSchedule}
-                    canRequest={canRequestRoom}
-                  />
-                </section>
-
-                <section className="border border-slate-200 shadow-sm overflow-hidden">
-                  <header className="flex items-center justify-between bg-slate-50 px-6 py-3 text-sm font-semibold uppercase tracking-wide text-slate-600">
-                    <span>Second Floor • Rooms 201-210</span>
-                    {scheduleLoading && <span className="text-xs font-medium text-slate-400">Loading…</span>}
-                  </header>
-                  <ScheduleGrid
-                    rooms={secondFloorRooms}
-                    timeSlots={timeSlots}
-                    scheduleMap={scheduleMap}
-                    onAdminAction={handleCellInteraction}
-                    onTeacherRequest={handleTeacherRequest}
-                    buildKey={buildScheduleKey}
-                    canEdit={canEditSchedule}
-                    canRequest={canRequestRoom}
-                  />
-                </section>
-              </>
-            )}
-          </div>
-        </div>
-      </aside>
 
       <aside
         className={`absolute top-0 right-0 z-40 h-full w-full max-w-4xl transition-transform duration-300 ease-in-out ${requestsPanelOpen ? 'translate-x-0' : 'translate-x-full'}`}
@@ -1623,7 +1674,12 @@ function HomePage() {
           camera={{ position: [40, 25, 40], fov: 50 }}
           style={{ background: 'linear-gradient(to bottom, #e8f4ff, #ffffff)' }}
         >
-          {!buildingLoading && <SchoolModel building={building} />}
+          {!buildingLoading && (
+            <SchoolModel 
+              building={building} 
+              onBuildingClick={handleBuildingClick}
+            />
+          )}
           <OrbitControls 
             ref={controlsRef}
             enableZoom={true}
@@ -1653,7 +1709,7 @@ function HomePage() {
       </p>
 
       {editState.isOpen && canEditSchedule && (
-        <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/60 px-4" role="dialog" aria-modal="true">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" role="dialog" aria-modal="true">
           <div className="w-full max-w-lg bg-white p-6 shadow-2xl">
             <div className="mb-4">
               <h3 className="text-lg font-semibold text-slate-900">Edit Schedule</h3>
@@ -1875,6 +1931,104 @@ function HomePage() {
           </div>
         </div>
       )}
+
+      {isBuildingInfoOpen && selectedBuilding && (
+        <BuildingInfoModal 
+          building={selectedBuilding}
+          onClose={() => setIsBuildingInfoOpen(false)}
+          onRoomSelect={handleRoomSelect}
+          canEdit={canEditSchedule}
+          canRequest={canRequestRoom}
+          onAdminAction={handleCellInteraction}
+          onTeacherRequest={handleTeacherRequest}
+        />
+      )}
+
+      <aside
+        className={`absolute top-0 left-0 z-20 h-full w-full max-w-5xl transition-transform duration-300 ease-in-out ${isScheduleOpen ? 'translate-x-0' : '-translate-x-full'}`}
+        aria-hidden={!isScheduleOpen}
+      >
+        <div className="flex h-full w-full flex-col bg-white/95 backdrop-blur-sm border-r border-slate-200 shadow-2xl">
+          <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+            <div>
+              <h2 className="text-xl font-semibold text-slate-900">
+                {selectedBuilding ? `${selectedBuilding.building_name} Schedule` : 'Room Schedule'}
+              </h2>
+              <p className="text-sm text-slate-500">
+                {buildingRoomsLoading ? 'Loading rooms...' : buildingRooms.length > 0 ? `${buildingRooms.length} Classroom${buildingRooms.length !== 1 ? 's' : ''} • 7:00 AM – 8:00 PM` : 'No classrooms found'}
+              </p>
+              <p className="text-xs text-slate-400">Viewing as {role ? role.replace('_', ' ') : 'guest'}{!canViewSchedule ? ' • Access required' : ''}</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <input
+                type="date"
+                value={isoDate}
+                onChange={(event) => {
+                  const { value } = event.target
+                  if (!value) return
+                  setScheduleDate(new Date(`${value}T00:00:00`))
+                }}
+                className="border border-slate-300 px-3 py-1 text-sm tracking-tight text-slate-600"
+              />
+              <button
+                onClick={() => setScheduleOpen(false)}
+                className="border border-slate-300 px-3 py-1 text-sm font-medium text-slate-600 transition-colors duration-150 hover:bg-slate-100"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-8">
+            {!canViewSchedule ? (
+              <div className="flex h-full w-full items-center justify-center rounded border border-dashed border-slate-300 bg-white text-sm text-slate-500">
+                Your role does not have access to view schedules.
+              </div>
+            ) : buildingRoomsLoading ? (
+              <div className="flex h-full w-full items-center justify-center rounded border border-dashed border-slate-300 bg-white text-sm text-slate-500">
+                Loading classroom rooms...
+              </div>
+            ) : buildingRooms.length === 0 ? (
+              <div className="flex h-full w-full items-center justify-center rounded border border-dashed border-slate-300 bg-white text-sm text-slate-500">
+                No classroom rooms found in this building.
+              </div>
+            ) : (
+              <>
+                {roomsBySection.map(section => (
+                  <div key={section.id} className="space-y-4">
+                    {/* Section Header */}
+                    <div className="bg-gradient-to-r from-blue-600 to-blue-500 px-6 py-4 rounded-t-lg">
+                      <h3 className="text-lg font-bold text-white uppercase tracking-wide">
+                        {section.name}
+                      </h3>
+                      {scheduleLoading && <span className="text-xs font-medium text-blue-100">Loading…</span>}
+                    </div>
+                    
+                    {/* Floors within this section */}
+                    {section.floors.map(floor => (
+                      <section key={floor.id} className="border border-slate-200 shadow-sm overflow-hidden ml-4">
+                        <header className="flex items-center justify-between bg-slate-50 px-6 py-3 text-sm font-semibold uppercase tracking-wide text-slate-600">
+                          <span>{floor.name} • {floor.rooms.length} Room{floor.rooms.length !== 1 ? 's' : ''}</span>
+                        </header>
+                        <ScheduleGrid
+                          rooms={floor.rooms.map(room => room.room_code)}
+                          timeSlots={timeSlots}
+                          scheduleMap={scheduleMap}
+                          onAdminAction={handleCellInteraction}
+                          onTeacherRequest={handleTeacherRequest}
+                          buildKey={buildScheduleKey}
+                          canEdit={canEditSchedule}
+                          canRequest={canRequestRoom}
+                        />
+                      </section>
+                    ))}
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        </div>
+      </aside>
     </div>
   )
 }
