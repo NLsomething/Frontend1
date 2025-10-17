@@ -35,28 +35,9 @@ function SchoolModel({ building, onBuildingClick }) {
     }
   }
 
-  const handleGroundClick = (e) => {
-    e.stopPropagation()
-    // Clicking on ground/empty space deselects the building
-    if (onBuildingClick) {
-      onBuildingClick(null)
-    }
-  }
-
   return (
     <Suspense fallback={null}>
       <Model modelUrl={modelUrl} position={position} onClick={handleClick} />
-      
-      {/* Invisible ground plane to detect clicks outside the building */}
-      <mesh 
-        rotation={[-Math.PI / 2, 0, 0]} 
-        position={[0, -0.1, 0]}
-        onClick={handleGroundClick}
-      >
-        <planeGeometry args={[200, 200]} />
-        <meshBasicMaterial transparent opacity={0} />
-      </mesh>
-      
       <ambientLight intensity={0.5} />
       <directionalLight position={[10, 10, 5]} intensity={1} />
       <directionalLight position={[-10, 5, -5]} intensity={0.3} />

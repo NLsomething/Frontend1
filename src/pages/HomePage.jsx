@@ -57,7 +57,7 @@ const ScheduleGrid = ({ rooms, timeSlots, scheduleMap, onAdminAction, onTeacherR
             display: 'grid',
             gridTemplateColumns: `120px repeat(${timeSlots.length}, minmax(70px, 1fr))`,
             borderTop: '1px solid #e2e8f0',
-            fontSize: '0.875rem'
+            fontSize: '14px'
           }}
         >
           {/* Top-left corner cell */}
@@ -88,7 +88,24 @@ const ScheduleGrid = ({ rooms, timeSlots, scheduleMap, onAdminAction, onTeacherR
                 const label = SCHEDULE_STATUS_LABELS[status]
                 const details = entry?.course_name || entry?.booked_by ? [entry?.course_name, entry?.booked_by].filter(Boolean) : []
                 const interactive = canEdit || canRequest
-                const cellClasses = `border-t border-l px-2 py-3 text-left transition-colors duration-150 disabled:opacity-100 disabled:cursor-default ${SCHEDULE_STATUS_STYLES[status]} ${interactive ? 'cursor-pointer hover:bg-slate-200/60' : ''}`
+                
+                // Get style based on status with explicit colors
+                const getStatusStyle = () => {
+                  switch (status) {
+                    case SCHEDULE_STATUS.empty:
+                      return 'bg-slate-50/80 text-slate-600 border-slate-200'
+                    case SCHEDULE_STATUS.occupied:
+                      return 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    case SCHEDULE_STATUS.maintenance:
+                      return 'bg-amber-50 text-amber-700 border-amber-200'
+                    case SCHEDULE_STATUS.pending:
+                      return 'bg-blue-50 text-blue-700 border-blue-200'
+                    default:
+                      return 'bg-slate-50/80 text-slate-600 border-slate-200'
+                  }
+                }
+                
+                const cellClasses = `border-t border-l px-2 py-3 text-left transition-colors duration-150 ${getStatusStyle()} ${interactive ? 'cursor-pointer hover:bg-slate-200/60' : 'cursor-default'}`
 
                 return (
                   <button
@@ -173,6 +190,18 @@ function HomePage() {
   const [submittingRequest, setSubmittingRequest] = useState(false)
   const [myRequestsPanelOpen, setMyRequestsPanelOpen] = useState(false)
   const [myRequests, setMyRequests] = useState([])
+  
+  // Date filter for historical requests (default to last 7 days)
+  const [historicalDateFilter, setHistoricalDateFilter] = useState({
+    startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    endDate: new Date().toISOString().split('T')[0]
+  })
+  
+  // Date filter for my requests (default to last 7 days)
+  const [myRequestsDateFilter, setMyRequestsDateFilter] = useState({
+    startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    endDate: new Date().toISOString().split('T')[0]
+  })
   const [myRequestsLoading, setMyRequestsLoading] = useState(false)
 
   const isoDate = useMemo(() => {
@@ -632,13 +661,50 @@ function HomePage() {
     }
   }, [])
 
-  const pendingRequests = useMemo(() => (
-    requests.filter((request) => request.status === ROOM_REQUEST_STATUS.pending)
-  ), [requests])
+  const pendingRequests = useMemo(() => {
+    // Filter pending requests and sort by oldest first (first come, first serve)
+    const filtered = requests.filter((request) => request.status === ROOM_REQUEST_STATUS.pending)
+    return filtered.sort((a, b) => {
+      const dateA = new Date(a.created_at)
+      const dateB = new Date(b.created_at)
+      return dateA - dateB // Oldest first
+    })
+  }, [requests])
 
-  const historicalRequests = useMemo(() => (
-    requests.filter((request) => request.status !== ROOM_REQUEST_STATUS.pending)
-  ), [requests])
+  const historicalRequests = useMemo(() => {
+    const filtered = requests.filter((request) => request.status !== ROOM_REQUEST_STATUS.pending)
+    
+    // Filter by date range
+    if (historicalDateFilter.startDate || historicalDateFilter.endDate) {
+      return filtered.filter((request) => {
+        const reviewedDate = request.reviewed_at ? request.reviewed_at.split('T')[0] : request.created_at.split('T')[0]
+        
+        const afterStart = !historicalDateFilter.startDate || reviewedDate >= historicalDateFilter.startDate
+        const beforeEnd = !historicalDateFilter.endDate || reviewedDate <= historicalDateFilter.endDate
+        
+        return afterStart && beforeEnd
+      })
+    }
+    
+    return filtered
+  }, [requests, historicalDateFilter])
+
+  // Filtered My Requests based on date range
+  const filteredMyRequests = useMemo(() => {
+    // Filter by date range
+    if (myRequestsDateFilter.startDate || myRequestsDateFilter.endDate) {
+      return myRequests.filter((request) => {
+        const requestDate = request.reviewed_at ? request.reviewed_at.split('T')[0] : request.created_at.split('T')[0]
+        
+        const afterStart = !myRequestsDateFilter.startDate || requestDate >= myRequestsDateFilter.startDate
+        const beforeEnd = !myRequestsDateFilter.endDate || requestDate <= myRequestsDateFilter.endDate
+        
+        return afterStart && beforeEnd
+      })
+    }
+    
+    return myRequests
+  }, [myRequests, myRequestsDateFilter])
 
   const handleScheduleButtonClick = async () => {
     if (!canViewSchedule) {
@@ -1268,21 +1334,23 @@ function HomePage() {
         </button>
       )}
 
-      <button
-        onClick={handleToggleBuildingInfo}
-        className={styles.buildingInfoButton(isBuildingInfoOpen, selectedBuilding !== null)}
-        disabled={!selectedBuilding}
-      >
-        {isBuildingInfoOpen ? 'Hide Building Info' : selectedBuilding ? `Building Info: ${selectedBuilding.building_name}` : 'Select a Building'}
-      </button>
+      {selectedBuilding && (
+        <>
+          <button
+            onClick={handleToggleBuildingInfo}
+            className={styles.buildingInfoButton(isBuildingInfoOpen, selectedBuilding !== null)}
+          >
+            {isBuildingInfoOpen ? 'Hide Building Info' : `Building Info: ${selectedBuilding.building_name}`}
+          </button>
 
-      <button
-        onClick={handleScheduleButtonClick}
-        className={styles.scheduleButton(isScheduleOpen, selectedBuilding !== null)}
-        disabled={!selectedBuilding}
-      >
-        {isScheduleOpen ? 'Hide Schedule' : selectedBuilding ? `Schedule: ${selectedBuilding.building_name}` : 'Select a Building'}
-      </button>
+          <button
+            onClick={handleScheduleButtonClick}
+            className={styles.scheduleButton(isScheduleOpen, selectedBuilding !== null)}
+          >
+            {isScheduleOpen ? 'Hide Schedule' : `Schedule: ${selectedBuilding.building_name}`}
+          </button>
+        </>
+      )}
 
       {requestsPanelOpen && (
         <div
@@ -1407,9 +1475,47 @@ function HomePage() {
                     <span className="text-xs font-medium text-slate-400">Showing last {historicalRequests.length}</span>
                   </header>
 
+                  {/* Date Filter */}
+                  <div className="rounded border border-slate-200 bg-slate-50 p-4">
+                    <div className="mb-2 flex items-center justify-between">
+                      <label className="text-xs font-semibold uppercase tracking-wide text-slate-600">Filter by Date</label>
+                      <button
+                        onClick={() => {
+                          setHistoricalDateFilter({
+                            startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                            endDate: new Date().toISOString().split('T')[0]
+                          })
+                        }}
+                        className="text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline"
+                      >
+                        Reset to Last 7 Days
+                      </button>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-600">From</label>
+                        <input
+                          type="date"
+                          value={historicalDateFilter.startDate}
+                          onChange={(e) => setHistoricalDateFilter(prev => ({ ...prev, startDate: e.target.value }))}
+                          className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-600">To</label>
+                        <input
+                          type="date"
+                          value={historicalDateFilter.endDate}
+                          onChange={(e) => setHistoricalDateFilter(prev => ({ ...prev, endDate: e.target.value }))}
+                          className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
                   {historicalRequests.length === 0 ? (
                     <div className="rounded border border-dashed border-slate-300 bg-white px-4 py-6 text-center text-sm text-slate-500">
-                      No decisions yet.
+                      No decisions found for the selected date range.
                     </div>
                   ) : (
                     historicalRequests.map((request) => {
@@ -1503,16 +1609,54 @@ function HomePage() {
               </div>
             ) : (
               <>
-                {myRequests.filter((r) => r.status === 'pending').length > 0 && (
+                {/* Date Filter */}
+                <div className="rounded border border-slate-200 bg-slate-50 p-4">
+                  <div className="mb-2 flex items-center justify-between">
+                    <label className="text-xs font-semibold uppercase tracking-wide text-slate-600">Filter by Date</label>
+                    <button
+                      onClick={() => {
+                        setMyRequestsDateFilter({
+                          startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                          endDate: new Date().toISOString().split('T')[0]
+                        })
+                      }}
+                      className="text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline"
+                    >
+                      Reset to Last 7 Days
+                    </button>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-slate-600">From</label>
+                      <input
+                        type="date"
+                        value={myRequestsDateFilter.startDate}
+                        onChange={(e) => setMyRequestsDateFilter(prev => ({ ...prev, startDate: e.target.value }))}
+                        className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-slate-600">To</label>
+                      <input
+                        type="date"
+                        value={myRequestsDateFilter.endDate}
+                        onChange={(e) => setMyRequestsDateFilter(prev => ({ ...prev, endDate: e.target.value }))}
+                        className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {filteredMyRequests.filter((r) => r.status === 'pending').length > 0 && (
                   <section className="space-y-4">
                     <header className="flex items-center justify-between">
                       <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-600">Pending</h3>
                       <span className="text-xs font-medium text-slate-400">
-                        {myRequests.filter((r) => r.status === 'pending').length} awaiting review
+                        {filteredMyRequests.filter((r) => r.status === 'pending').length} awaiting review
                       </span>
                     </header>
 
-                    {myRequests
+                    {filteredMyRequests
                       .filter((r) => r.status === 'pending')
                       .map((request) => {
                         const statusStyle = ROOM_REQUEST_STATUS_STYLES[request.status] || ROOM_REQUEST_STATUS_STYLES.pending
@@ -1556,16 +1700,16 @@ function HomePage() {
                   </section>
                 )}
 
-                {myRequests.filter((r) => r.status === 'approved').length > 0 && (
+                {filteredMyRequests.filter((r) => r.status === 'approved').length > 0 && (
                   <section className="space-y-4">
                     <header className="flex items-center justify-between">
                       <h3 className="text-sm font-semibold uppercase tracking-wide text-emerald-600">Approved</h3>
                       <span className="text-xs font-medium text-slate-400">
-                        {myRequests.filter((r) => r.status === 'approved').length} accepted
+                        {filteredMyRequests.filter((r) => r.status === 'approved').length} accepted
                       </span>
                     </header>
 
-                    {myRequests
+                    {filteredMyRequests
                       .filter((r) => r.status === 'approved')
                       .map((request) => {
                         const statusStyle = ROOM_REQUEST_STATUS_STYLES[request.status]
@@ -1607,16 +1751,16 @@ function HomePage() {
                   </section>
                 )}
 
-                {myRequests.filter((r) => r.status === 'rejected').length > 0 && (
+                {filteredMyRequests.filter((r) => r.status === 'rejected').length > 0 && (
                   <section className="space-y-4">
                     <header className="flex items-center justify-between">
                       <h3 className="text-sm font-semibold uppercase tracking-wide text-rose-600">Rejected</h3>
                       <span className="text-xs font-medium text-slate-400">
-                        {myRequests.filter((r) => r.status === 'rejected').length} declined
+                        {filteredMyRequests.filter((r) => r.status === 'rejected').length} declined
                       </span>
                     </header>
 
-                    {myRequests
+                    {filteredMyRequests
                       .filter((r) => r.status === 'rejected')
                       .map((request) => {
                         const statusStyle = ROOM_REQUEST_STATUS_STYLES[request.status]
@@ -1941,6 +2085,7 @@ function HomePage() {
           canRequest={canRequestRoom}
           onAdminAction={handleCellInteraction}
           onTeacherRequest={handleTeacherRequest}
+          userRole={role}
         />
       )}
 
