@@ -5,22 +5,42 @@ export const createProfile = async ({ id, username, role }) => {
     throw new Error('Missing user id when creating profile')
   }
 
+  if (!role) {
+    throw new Error('Missing role when creating profile')
+  }
+
   const profilePayload = {
     id,
     role,
     username: username || null
   }
 
-  const { error } = await supabase
+  console.log('Inserting profile:', profilePayload)
+
+  const { data, error } = await supabase
     .from('profiles')
     .insert(profilePayload)
     .select()
     .single()
 
-  if (error && error.code !== '23505') {
+  if (error) {
+    console.error('Supabase profile insert error:', {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint
+    })
+    
+    if (error.code === '23505') {
+      // Duplicate key - profile already exists
+      console.log('Profile already exists, ignoring duplicate error')
+      return { error: null }
+    }
+    
     throw error
   }
 
+  console.log('Profile inserted successfully:', data)
   return { error: null }
 }
 

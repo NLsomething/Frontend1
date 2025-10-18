@@ -24,6 +24,11 @@ const BuildingInfoPanel = ({ building, onClose, onRoomSelect, canEdit, canReques
   const [selectedRoomId, setSelectedRoomId] = useState(null)
   const [roomSchedule, setRoomSchedule] = useState([])
   const [scheduleLoading, setScheduleLoading] = useState(false)
+  const [scheduleDate, setScheduleDate] = useState(() => {
+    const today = new Date()
+    const local = new Date(today.getTime() - today.getTimezoneOffset() * 60000)
+    return local.toISOString().split('T')[0]
+  })
   const [devices, setDevices] = useState([])
   const [devicesLoading, setDevicesLoading] = useState(false)
   const [isEditDeviceModalOpen, setIsEditDeviceModalOpen] = useState(false)
@@ -111,14 +116,18 @@ const BuildingInfoPanel = ({ building, onClose, onRoomSelect, canEdit, canReques
     }
   }, [selectedFloor])
 
-  const loadRoomSchedule = async (roomCode) => {
+  // Reload schedule when date changes
+  useEffect(() => {
+    if (selectedRoomCode) {
+      loadRoomSchedule(selectedRoomCode, scheduleDate)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scheduleDate])
+
+  const loadRoomSchedule = async (roomCode, date = scheduleDate) => {
     setScheduleLoading(true)
     try {
-      const today = new Date()
-      const local = new Date(today.getTime() - today.getTimezoneOffset() * 60000)
-      const isoDate = local.toISOString().split('T')[0]
-      
-      const { data, error } = await getSchedulesByDate(isoDate)
+      const { data, error } = await getSchedulesByDate(date)
       
       if (error) {
         console.error('Error loading schedule:', error)
@@ -915,10 +924,42 @@ const BuildingInfoPanel = ({ building, onClose, onRoomSelect, canEdit, canReques
             <p style={{
               fontSize: '13px',
               color: '#6b7280',
-              margin: '4px 0 0 0'
+              margin: '4px 0 8px 0'
             }}>
-              {previewTitle} - Today's Schedule
+              {previewTitle}
             </p>
+            
+            {/* Date Picker */}
+            <div style={{
+              marginTop: '8px'
+            }}>
+              <label style={{
+                display: 'block',
+                fontSize: '11px',
+                fontWeight: '600',
+                color: '#374151',
+                marginBottom: '4px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px'
+              }}>
+                Schedule Date
+              </label>
+              <input
+                type="date"
+                value={scheduleDate}
+                onChange={(e) => setScheduleDate(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '6px 8px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '4px',
+                  fontSize: '13px',
+                  color: '#1f2937',
+                  backgroundColor: 'white',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
           </div>
 
           {/* Schedule Content */}

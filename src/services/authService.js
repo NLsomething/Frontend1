@@ -24,13 +24,20 @@ export const signUp = async (email, password, metadata = {}, role = USER_ROLES.s
 
     if (data?.user?.id) {
       try {
+        console.log('Creating profile with:', { id: data.user.id, username: metadata?.username, role })
         await createProfile({
           id: data.user.id,
           username: metadata?.username,
           role
         })
+        console.log('Profile created successfully')
       } catch (profileError) {
         console.error('Profile creation error:', profileError?.message || profileError)
+        // Delete the auth user since profile creation failed
+        await supabase.auth.admin.deleteUser(data.user.id).catch(err => {
+          console.error('Failed to cleanup user after profile error:', err)
+        })
+        throw new Error(`Profile creation failed: ${profileError?.message || profileError}`)
       }
     }
 

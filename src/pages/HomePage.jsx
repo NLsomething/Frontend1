@@ -909,7 +909,8 @@ function HomePage() {
       ? getSlotLabel(hoursToUpdate[0])
       : `${getSlotLabel(hoursToUpdate[0])} – ${getSlotLabel(hoursToUpdate[hoursToUpdate.length - 1])}`
 
-    if (editForm.status === SCHEDULE_STATUS.empty && !trimmedCourse && !trimmedBookedBy) {
+    // If status is empty, delete the schedule entries instead of updating
+    if (editForm.status === SCHEDULE_STATUS.empty) {
       for (const hour of hoursToUpdate) {
         const { error } = await deleteScheduleEntry({
           schedule_date: isoDate,
@@ -918,8 +919,8 @@ function HomePage() {
         })
 
         if (error) {
-          console.error('Error clearing schedule:', error.message || error)
-          notifyError('Unable to clear selected slots', {
+          console.error('Error deleting schedule:', error.message || error)
+          notifyError('Unable to delete selected slots', {
             description: 'Please try again later.'
           })
           return
@@ -927,8 +928,8 @@ function HomePage() {
       }
 
       await loadSchedules()
-      notifySuccess('Time slots cleared', {
-        description: `Room ${editState.room} • ${rangeLabel} is now empty.`
+      notifySuccess('Schedule entries deleted', {
+        description: `Room ${editState.room} • ${rangeLabel} has been cleared.`
       })
       resetEditor()
       return
@@ -1253,6 +1254,96 @@ function HomePage() {
     }
   }
 
+  const handleRevertRequest = async (request) => {
+    if (requestActionLoading) {
+      return
+    }
+
+    const reason = (rejectionReasons[request.id] || '').trim()
+
+    if (!window.confirm(`Are you sure you want to revert the approved request for Room ${request.room_number}? This will delete all associated schedule entries.`)) {
+      return
+    }
+
+    setRequestActionLoading(true)
+
+    const startHour = Math.min(request.start_hour, request.end_hour)
+    const endHour = Math.max(request.start_hour, request.end_hour)
+    const hoursToBlock = []
+    for (let hour = startHour; hour <= endHour; hour += 1) {
+      hoursToBlock.push(hour)
+    }
+
+    const scheduledDates = []
+    const baseDate = parseDateString(request.base_date)
+    for (let week = 0; week < request.week_count; week += 1) {
+      const date = new Date(baseDate)
+      date.setDate(date.getDate() + week * 7)
+      scheduledDates.push({
+        iso: toIsoDateString(date),
+        display: date
+      })
+    }
+
+    // Delete all schedule entries for this request
+    const deletedEntries = []
+    for (const dateInfo of scheduledDates) {
+      for (const hour of hoursToBlock) {
+        const { error } = await deleteScheduleEntry({
+          schedule_date: dateInfo.iso,
+          room_number: request.room_number,
+          slot_hour: hour
+        })
+
+        if (error) {
+          console.error('Error deleting schedule entry:', error.message || error)
+          // Continue trying to delete other entries even if one fails
+        } else {
+          deletedEntries.push({
+            schedule_date: dateInfo.iso,
+            room_number: request.room_number,
+            slot_hour: hour
+          })
+        }
+      }
+    }
+
+    // Update request status to reverted
+    const reviewerName = profile?.username || profile?.full_name || user?.email || 'Reviewer'
+
+    const { error: statusError } = await updateRoomRequestStatus({
+      id: request.id,
+      status: ROOM_REQUEST_STATUS.reverted,
+      reviewer_id: user?.id || null,
+      reviewer_name: reviewerName,
+      rejection_reason: reason || null
+    })
+
+    if (statusError) {
+      console.error('Error reverting request:', statusError.message || statusError)
+      notifyError('Unable to revert request', {
+        description: 'The request status could not be updated.'
+      })
+      setRequestActionLoading(false)
+      return
+    }
+
+    notifySuccess('Request reverted', {
+      description: `Room ${request.room_number} request has been reverted. ${deletedEntries.length} schedule ${deletedEntries.length === 1 ? 'entry' : 'entries'} deleted.`
+    })
+
+    setRejectionReasons((prev) => ({
+      ...prev,
+      [request.id]: ''
+    }))
+    try {
+      await loadRequests()
+      await loadSchedules()
+    } finally {
+      setRequestActionLoading(false)
+    }
+  }
+
   const handleBuildingClick = (clickedBuilding) => {
     if (selectedBuilding?.id === clickedBuilding?.id) {
       setSelectedBuilding(null)
@@ -1559,6 +1650,31 @@ function HomePage() {
                               </div>
                             )}
                           </div>
+
+                          {request.status === ROOM_REQUEST_STATUS.approved && (
+                            <div className="mt-4 space-y-2">
+                              <label htmlFor={`revert-reason-${request.id}`} className="block text-xs font-semibold text-slate-700">
+                                Reason for reverting (optional)
+                              </label>
+                              <textarea
+                                id={`revert-reason-${request.id}`}
+                                rows={2}
+                                placeholder="Explain why this approval is being reverted..."
+                                value={rejectionReasons[request.id] || ''}
+                                onChange={(event) => setRejectionReasons((prev) => ({ ...prev, [request.id]: event.target.value }))}
+                                className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                              />
+                              <div className="flex justify-end">
+                                <button
+                                  onClick={() => handleRevertRequest(request)}
+                                  disabled={requestActionLoading}
+                                  className="rounded border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  Revert Approval
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )
                     })
@@ -1700,21 +1816,22 @@ function HomePage() {
                   </section>
                 )}
 
-                {filteredMyRequests.filter((r) => r.status === 'approved').length > 0 && (
+                {filteredMyRequests.filter((r) => r.status === 'approved' || r.status === 'reverted').length > 0 && (
                   <section className="space-y-4">
                     <header className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold uppercase tracking-wide text-emerald-600">Approved</h3>
+                      <h3 className="text-sm font-semibold uppercase tracking-wide text-emerald-600">Approved & Reverted</h3>
                       <span className="text-xs font-medium text-slate-400">
-                        {filteredMyRequests.filter((r) => r.status === 'approved').length} accepted
+                        {filteredMyRequests.filter((r) => r.status === 'approved' || r.status === 'reverted').length} requests
                       </span>
                     </header>
 
                     {filteredMyRequests
-                      .filter((r) => r.status === 'approved')
+                      .filter((r) => r.status === 'approved' || r.status === 'reverted')
                       .map((request) => {
                         const statusStyle = ROOM_REQUEST_STATUS_STYLES[request.status]
+                        const isReverted = request.status === 'reverted'
                         return (
-                          <div key={request.id} className="border border-emerald-200 bg-emerald-50/30 px-5 py-4 shadow-sm">
+                          <div key={request.id} className={`border px-5 py-4 shadow-sm ${isReverted ? 'border-slate-300 bg-slate-50/30' : 'border-emerald-200 bg-emerald-50/30'}`}>
                             <div className="flex flex-wrap items-center justify-between gap-3">
                               <div>
                                 <p className="text-sm font-semibold text-slate-800">Room {request.room_number}</p>
@@ -1740,8 +1857,14 @@ function HomePage() {
                               )}
                               {request.reviewer_name && (
                                 <div>
-                                  <span className="font-semibold text-slate-700">Approved by:</span> {request.reviewer_name}
+                                  <span className="font-semibold text-slate-700">{isReverted ? 'Reverted by' : 'Approved by'}:</span> {request.reviewer_name}
                                   {request.reviewed_at && ` • ${formatDateDisplay(request.reviewed_at.slice(0, 10))}`}
+                                </div>
+                              )}
+                              {isReverted && request.rejection_reason && (
+                                <div className="bg-amber-50 px-3 py-2 rounded border border-amber-200 mt-2">
+                                  <span className="font-semibold text-amber-700 block mb-1">Reason for revert:</span>
+                                  <span className="text-amber-600">{request.rejection_reason}</span>
                                 </div>
                               )}
                             </div>

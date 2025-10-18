@@ -412,7 +412,7 @@ create table if not exists room_requests (
   course_name text,
   booked_by text,
   notes text,
-  status text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
+  status text not null default 'pending' check (status in ('pending', 'approved', 'rejected', 'reverted')),
   rejection_reason text,
   reviewer_id uuid references auth.users on delete set null,
   reviewer_name text,
