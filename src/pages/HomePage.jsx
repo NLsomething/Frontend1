@@ -7,6 +7,7 @@ import { useEffect, useState, useMemo, useCallback, Fragment, useRef } from 'rea
 import * as THREE from 'three'
 import SchoolModel from '../components/SchoolModel'
 import BuildingInfoModal from '../components/BuildingInfoModal'
+import UserManagementModal from '../components/UserManagementModal'
 import { useNotifications } from '../context/NotificationContext'
 import { USER_ROLES } from '../constants/roles'
 import { SCHEDULE_STATUS, SCHEDULE_STATUS_LABELS, SCHEDULE_STATUS_STYLES } from '../constants/schedule'
@@ -190,6 +191,7 @@ function HomePage() {
   const [submittingRequest, setSubmittingRequest] = useState(false)
   const [myRequestsPanelOpen, setMyRequestsPanelOpen] = useState(false)
   const [myRequests, setMyRequests] = useState([])
+  const [userManagementOpen, setUserManagementOpen] = useState(false)
   
   // Date filter for historical requests (default to last 7 days)
   const [historicalDateFilter, setHistoricalDateFilter] = useState({
@@ -1416,6 +1418,18 @@ function HomePage() {
         </button>
       )}
 
+      {role === USER_ROLES.administrator && (
+        <button
+          onClick={() => setUserManagementOpen(true)}
+          className={cn(
+            "absolute top-6 left-56 z-20 bg-white text-purple-600 font-semibold py-3 px-5 border border-purple-600 shadow-lg transition-all duration-200 rounded-lg",
+            "hover:bg-purple-600 hover:text-white hover:shadow-xl"
+          )}
+        >
+          👥 Manage Users
+        </button>
+      )}
+
       {canRequestRoom && !canManageRequests && (
         <button
           onClick={() => setMyRequestsPanelOpen((prev) => !prev)}
@@ -2297,6 +2311,13 @@ function HomePage() {
           </div>
         </div>
       </aside>
+
+      {/* User Management Modal (Admin Only) */}
+      <UserManagementModal
+        isOpen={userManagementOpen}
+        onClose={() => setUserManagementOpen(false)}
+        currentUserId={user?.id}
+      />
     </div>
   )
 }

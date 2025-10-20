@@ -17,8 +17,7 @@ import {
 
 const REGISTRATION_ROLES = [
   USER_ROLES.student,
-  USER_ROLES.teacher,
-  USER_ROLES.buildingManager
+  USER_ROLES.teacher
 ]
 
 const styles = {
