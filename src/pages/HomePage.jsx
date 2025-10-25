@@ -62,7 +62,10 @@ const styles = {
   heroControlsVisible: "translate-x-0 opacity-100 pointer-events-auto",
   heroControlsHidden: "-translate-x-full opacity-0 pointer-events-none",
   heroControls: "flex flex-col gap-2.5",
-  heroControlRow: "flex flex-wrap items-center justify-start gap-2.5"
+  heroControlRow: "flex flex-wrap items-center justify-start gap-2.5",
+  buildingControlsWrapper: "absolute top-[5.5rem] left-8 md:left-12 z-30 pointer-events-auto flex flex-col gap-2.5 transition-all duration-300 ease-in-out transform",
+  buildingControlsVisible: "translate-x-0 opacity-100",
+  buildingControlsHidden: "-translate-x-full opacity-0"
 }
 
 const ScheduleGrid = ({ rooms, timeSlots, scheduleMap, onAdminAction, onTeacherRequest, buildKey, canEdit, canRequest }) => {
@@ -521,6 +524,9 @@ function HomePage() {
     const maxZ = 60
 
     const handleKeyDown = (event) => {
+      // Don't allow keyboard controls until hero is collapsed
+      if (!heroCollapsed) return
+      
       const target = event.target
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') {
         return
@@ -544,7 +550,8 @@ function HomePage() {
     }
 
     const updateMovement = () => {
-      if (!controlsRef.current || keysPressed.size === 0) {
+      // Only process movement if hero is collapsed
+      if (!controlsRef.current || keysPressed.size === 0 || !heroCollapsed) {
         requestAnimationFrame(updateMovement)
         return
       }
@@ -610,10 +617,13 @@ function HomePage() {
       window.removeEventListener('keyup', handleKeyUp)
       cancelAnimationFrame(animationId)
     }
-  }, [])
+  }, [heroCollapsed])
 
   useEffect(() => {
     const handleMouseDown = (event) => {
+      // Only allow panning after hero is collapsed
+      if (!heroCollapsed) return
+      
       if (event.button === 2) {
         event.preventDefault()
         isPanning.current = true
@@ -626,7 +636,7 @@ function HomePage() {
     }
 
     const handleMouseMove = (event) => {
-      if (!isPanning.current || !controlsRef.current) return
+      if (!isPanning.current || !controlsRef.current || !heroCollapsed) return
 
       const deltaX = event.clientX - lastPanPosition.current.x
       const deltaY = event.clientY - lastPanPosition.current.y
@@ -647,11 +657,16 @@ function HomePage() {
       
       right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize()
 
+      // Horizontal panning: left-right with deltaX (horizontal mouse movement)
       const horizontalOffset = right.multiplyScalar(-deltaX * dynamicPanSpeed * 0.1)
+      
+      // Forward/backward panning: move forward/backward with deltaY (vertical mouse movement)
+      // Mouse down = move forward (positive forward direction)
+      // Mouse up = move backward (negative forward direction)
       const forwardOffset = forward.multiplyScalar(deltaY * dynamicPanSpeed * 0.1)
 
       const offset = new THREE.Vector3().add(horizontalOffset).add(forwardOffset)
-      
+
       controls.target.add(offset)
       camera.position.add(offset)
       controls.update()
@@ -678,7 +693,7 @@ function HomePage() {
       window.removeEventListener('mouseup', handleMouseUp)
       window.removeEventListener('contextmenu', handleContextMenu)
     }
-  }, [])
+  }, [heroCollapsed])
 
   const pendingRequests = useMemo(() => {
     // Filter pending requests and sort by oldest first (first come, first serve)
@@ -774,10 +789,6 @@ function HomePage() {
     if (controlsRef.current) {
       controlsRef.current.autoRotate = false
     }
-
-    notifyInfo('3D Map Active', {
-      description: 'Click and drag to explore, scroll to zoom'
-    })
   }
 
   const handleRequestsButtonClick = () => {
@@ -1444,19 +1455,19 @@ function HomePage() {
           )}
           <OrbitControls
             ref={controlsRef}
-            enabled={heroCollapsed}
+            enabled={true}
             enableZoom={heroCollapsed}
             enablePan={false}
             enableRotate={heroCollapsed}
             minDistance={10}
             maxDistance={100}
             maxPolarAngle={Math.PI / 2}
-            autoRotate={!heroCollapsed}
+            autoRotate={true}
             autoRotateSpeed={2}
             mouseButtons={{
               LEFT: THREE.MOUSE.ROTATE,
               MIDDLE: THREE.MOUSE.DOLLY,
-              RIGHT: undefined
+              RIGHT: THREE.MOUSE.PAN
             }}
             onStart={() => {
               if (controlsRef.current && heroCollapsed) {
@@ -1545,37 +1556,43 @@ function HomePage() {
                   </button>
                 </div>
               )}
-
-              <div className={styles.heroControlRow}>
-                <button
-                  type="button"
-                  onClick={handleToggleBuildingInfo}
-                  className={styles.buildingInfoButton(isBuildingInfoOpen, selectedBuilding !== null)}
-                  disabled={!selectedBuilding}
-                >
-                  {isBuildingInfoOpen ? 'Hide Building Info' : selectedBuilding ? `Building Info: ${selectedBuilding.building_name}` : 'Select a Building'}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleScheduleButtonClick}
-                  className={styles.scheduleButton(isScheduleOpen, selectedBuilding !== null)}
-                  disabled={!selectedBuilding}
-                >
-                  {isScheduleOpen ? 'Hide Schedule' : selectedBuilding ? `Schedule: ${selectedBuilding.building_name}` : 'Select a Building'}
-                </button>
-              </div>
             </div>
           </div>
         </div>
 
       </div>
 
+      {/* Building Controls - Top Left */}
+      <div 
+        className={cn(
+          styles.buildingControlsWrapper,
+          heroCollapsed && !isBuildingInfoOpen && !isScheduleOpen ? styles.buildingControlsVisible : styles.buildingControlsHidden
+        )}
+      >
+        <button
+          type="button"
+          onClick={handleToggleBuildingInfo}
+          className={styles.buildingInfoButton(isBuildingInfoOpen, selectedBuilding !== null)}
+          disabled={!selectedBuilding}
+        >
+          {isBuildingInfoOpen ? 'Hide Building Info' : selectedBuilding ? `Building Info: ${selectedBuilding.building_name}` : 'Select a Building'}
+        </button>
+
+        <button
+          type="button"
+          onClick={handleScheduleButtonClick}
+          className={styles.scheduleButton(isScheduleOpen, selectedBuilding !== null)}
+          disabled={!selectedBuilding}
+        >
+          {isScheduleOpen ? 'Hide Schedule' : selectedBuilding ? `Schedule: ${selectedBuilding.building_name}` : 'Select a Building'}
+        </button>
+      </div>
+
       <p className={cn(
         styles.canvasInstructions,
         heroCollapsed ? styles.canvasInstructionsVisible : styles.canvasInstructionsHidden
       )}>
-        🖱️ Click & drag to rotate • Scroll to zoom • ⌨️ WASD to move
+        🖱️ Drag to rotate • Scroll to zoom • Right-click to pan • ⌨️ WASD to move
       </p>
 
       {requestsPanelOpen && (
@@ -2296,17 +2313,29 @@ function HomePage() {
       )}
 
       {isBuildingInfoOpen && selectedBuilding && (
-        <BuildingInfoModal 
-          building={selectedBuilding}
-          onClose={() => setIsBuildingInfoOpen(false)}
-          onRoomSelect={handleRoomSelect}
-          canEdit={canEditSchedule}
-          canRequest={canRequestRoom}
-          onAdminAction={handleCellInteraction}
-          onTeacherRequest={handleTeacherRequest}
-          userRole={role}
+        <div
+          className="absolute inset-0 z-30 bg-black/10"
+          onClick={() => setIsBuildingInfoOpen(false)}
         />
       )}
+
+      <aside
+        className={`absolute top-0 left-0 z-40 h-full w-full max-w-5xl transition-transform duration-300 ease-in-out ${isBuildingInfoOpen ? 'translate-x-0' : '-translate-x-full'}`}
+        aria-hidden={!isBuildingInfoOpen}
+      >
+        {selectedBuilding && (
+          <BuildingInfoModal 
+            building={selectedBuilding}
+            onClose={() => setIsBuildingInfoOpen(false)}
+            onRoomSelect={handleRoomSelect}
+            canEdit={canEditSchedule}
+            canRequest={canRequestRoom}
+            onAdminAction={handleCellInteraction}
+            onTeacherRequest={handleTeacherRequest}
+            userRole={role}
+          />
+        )}
+      </aside>
 
       <aside
         className={`absolute top-0 left-0 z-20 h-full w-full max-w-5xl transition-transform duration-300 ease-in-out ${isScheduleOpen ? 'translate-x-0' : '-translate-x-full'}`}
