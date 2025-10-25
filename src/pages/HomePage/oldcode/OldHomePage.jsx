@@ -6,7 +6,7 @@ import { signOut } from '../services/authService'
 import { useEffect, useState, useMemo, useCallback, Fragment, useRef } from 'react'
 import * as THREE from 'three'
 import SchoolModel from '../components/SchoolModel'
-import BuildingInfoModal from '../components/BuildingInfo'
+import BuildingInfoPanel from '../components/BuildingInfoModal/BuildingInfoPanel'
 import UserManagementModal from '../components/UserManagementModal'
 import { useNotifications } from '../context/NotificationContext'
 import { USER_ROLES } from '../constants/roles'
@@ -2313,7 +2313,7 @@ function HomePage() {
       )}
 
       {isBuildingInfoOpen && selectedBuilding && (
-        <BuildingInfoModal 
+        <BuildingInfoPanel
           building={selectedBuilding}
           onClose={() => setIsBuildingInfoOpen(false)}
           onRoomSelect={handleRoomSelect}

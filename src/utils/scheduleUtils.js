@@ -37,7 +37,8 @@ export const formatTimeSlot = (hour) => {
  * @param {number} endHour - Ending hour (default: 20)
  * @returns {Array} - Array of hour numbers
  */
-export const generateTimeSlots = (startHour = 7, endHour = 20) => {
+// Renamed to avoid conflict with homePageUtils.generateTimeSlots
+export const generateHourSlots = (startHour = 7, endHour = 20) => {
   const slots = []
   for (let hour = startHour; hour <= endHour; hour++) {
     slots.push(hour)
