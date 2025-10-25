@@ -1,45 +1,24 @@
 import { supabase } from '../lib/supabaseClient'
-import { createProfile, upsertProfile } from './profileService'
-import { USER_ROLES } from '../constants/roles'
 
 /**
  * Sign up a new user with email and password
+ * Profile will be automatically created by database trigger
  * @param {string} email - User's email address
  * @param {string} password - User's password
  * @param {object} metadata - Additional user metadata (optional)
  * @returns {Promise<{user, session, error}>}
  */
-export const signUp = async (email, password, metadata = {}, role = USER_ROLES.student) => {
+export const signUp = async (email, password, metadata = {}) => {
   try {
-    const userMetadata = { ...metadata, role }
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: userMetadata
+        data: metadata
       }
     })
 
     if (error) throw error
-
-    if (data?.user?.id) {
-      try {
-        console.log('Creating profile with:', { id: data.user.id, username: metadata?.username, role })
-        await createProfile({
-          id: data.user.id,
-          username: metadata?.username,
-          role
-        })
-        console.log('Profile created successfully')
-      } catch (profileError) {
-        console.error('Profile creation error:', profileError?.message || profileError)
-        // Delete the auth user since profile creation failed
-        await supabase.auth.admin.deleteUser(data.user.id).catch(err => {
-          console.error('Failed to cleanup user after profile error:', err)
-        })
-        throw new Error(`Profile creation failed: ${profileError?.message || profileError}`)
-      }
-    }
 
     return { user: data.user, session: data.session, error: null }
   } catch (error) {
@@ -172,22 +151,10 @@ export const onAuthStateChange = (callback) => {
   })
 }
 
-export const syncProfileRole = async (user) => {
-  if (!user?.id) {
-    return { error: new Error('Missing user id') }
-  }
-
-  const metadataRole = user.user_metadata?.role
-
-  if (!metadataRole) {
-    return { error: null }
-  }
-
-  const { error } = await upsertProfile({
-    id: user.id,
-    username: user.user_metadata?.username,
-    role: metadataRole
-  })
-
-  return { error }
+export const syncProfileRole = async () => {
+  // DISABLED: This function was causing role reversion issues
+  // When admins change a user's role in the database, this would overwrite it
+  // with the old role from user_metadata on next login
+  // The source of truth for roles should be the profiles table, not user_metadata
+  return { error: null }
 }

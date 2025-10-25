@@ -16,37 +16,53 @@ import { ROOM_REQUEST_STATUS, ROOM_REQUEST_STATUS_LABELS, ROOM_REQUEST_STATUS_ST
 import { createRoomRequest, fetchRoomRequests, updateRoomRequestStatus } from '../services/roomRequestService'
 import { fetchBuildings } from '../services/buildingService'
 import { fetchRoomsByBuildingId } from '../services/roomService'
-import { createButton, cn } from '../styles/shared'
+import { cn } from '../styles/shared'
 
 // Styles
 const styles = {
-  screen: "relative w-full h-screen overflow-hidden",
-  canvasContainer: "w-full h-full",
-  logoutBtn: cn(createButton('secondary', 'lg'), "absolute top-6 right-6 z-10 shadow-lg"),
-  canvasInstructions: "absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10 text-white bg-black/50 backdrop-blur-sm px-6 py-3 rounded-full text-sm font-medium shadow-lg",
-  requestsButton: (isOpen, loading) => cn(
-    "absolute top-6 left-6 z-20 bg-white text-[#0b7a4b] font-semibold py-3 px-5 border border-[#0b7a4b] shadow-lg transition-all duration-200 rounded-lg",
-    loading ? "opacity-60 cursor-not-allowed" : "hover:bg-[#0b7a4b] hover:text-white hover:shadow-xl",
-    isOpen ? "scale-95" : "scale-100"
+  screen: "relative min-h-screen overflow-hidden bg-gradient-to-br from-[#e6f1ff] via-[#f7fbff] to-white text-[#0a1f44]",
+  canvasContainer: "absolute inset-0 z-0",
+  logoutBtn: "uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 border border-white/70 bg-white/15 text-white shadow-lg backdrop-blur-md transition-colors duration-200 hover:bg-white hover:text-[#0a2a5f] hover:border-white",
+  headerRequestsButton: (isOpen, loading) => cn(
+    "uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 border border-white/50 bg-white/15 text-white shadow-lg backdrop-blur-md transition-colors duration-200",
+    loading ? "opacity-50 cursor-not-allowed" : "hover:bg-white hover:text-[#0a2a5f] hover:border-white",
+    isOpen ? "bg-white text-[#0a2a5f]" : ""
   ),
+  headerUserManagementButton: "uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 border border-white/50 bg-white/15 text-white shadow-lg backdrop-blur-md transition-colors duration-200 hover:bg-white hover:text-[#0a2a5f] hover:border-white",
+  canvasInstructions: "absolute bottom-6 left-1/2 -translate-x-1/2 z-30 text-[0.6rem] uppercase tracking-[0.3em] text-[#0a2a5f] bg-white/90 border border-[#c8dcff] backdrop-blur-sm px-5 py-2 rounded-full pointer-events-none select-none transition-all duration-500 ease-in-out transform",
+  canvasInstructionsVisible: "translate-y-0 opacity-100",
+  canvasInstructionsHidden: "translate-y-full opacity-0",
   myRequestsButton: (isOpen) => cn(
-    "absolute top-6 left-6 z-20 bg-white text-[#096ecc] font-semibold py-3 px-5 border border-[#096ecc] shadow-lg transition-all duration-200 hover:bg-[#096ecc] hover:text-white hover:shadow-xl rounded-lg",
-    isOpen ? "scale-95" : "scale-100"
+    "uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 border border-[#c4dbff] bg-white/90 text-[#0a2a5f] shadow-lg backdrop-blur-sm transition-colors duration-200",
+    isOpen ? "border-[#0a62c2] text-[#0a62c2]" : "hover:text-[#0a62c2] hover:bg-[#e4f1ff] hover:border-[#0a62c2]"
   ),
   buildingInfoButton: (isOpen, hasBuilding) => cn(
-    "absolute top-[5.5rem] left-6 z-20 font-semibold py-3 px-5 border shadow-lg transition-all duration-200 rounded-lg",
+    "uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 border border-[#d3e4ff] bg-white/85 text-[#0a2a5f] shadow-lg backdrop-blur-sm transition-colors duration-200",
     hasBuilding 
-      ? "bg-white text-[#f97316] border-[#f97316] hover:bg-[#f97316] hover:text-white hover:shadow-xl" 
-      : "bg-gray-100 text-gray-400 border-gray-300 cursor-not-allowed",
-    isOpen ? "scale-95" : "scale-100"
+      ? isOpen ? "border-[#0a62c2] text-[#0a62c2]" : "hover:text-[#0a62c2] hover:bg-[#e9f4ff] hover:border-[#0a62c2]"
+      : "border-[#e0ecff] text-[#9fb7dd] cursor-not-allowed"
   ),
   scheduleButton: (isOpen, hasBuilding) => cn(
-    "absolute top-[10rem] left-6 z-20 font-semibold py-3 px-5 border shadow-lg transition-all duration-200 rounded-lg",
+    "uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 border border-[#d3e4ff] bg-white/85 text-[#0a2a5f] shadow-lg backdrop-blur-sm transition-colors duration-200",
     hasBuilding 
-      ? "bg-white text-[#096ecc] border-[#096ecc] hover:bg-[#096ecc] hover:text-white hover:shadow-xl" 
-      : "bg-gray-100 text-gray-400 border-gray-300 cursor-not-allowed",
-    isOpen ? "scale-95" : "scale-100"
-  )
+      ? isOpen ? "border-[#0a62c2] text-[#0a62c2]" : "hover:text-[#0a62c2] hover:bg-[#e9f4ff] hover:border-[#0a62c2]"
+      : "border-[#e0ecff] text-[#9fb7dd] cursor-not-allowed"
+  ),
+  heroOverlay: "absolute inset-0 z-20 pointer-events-none flex flex-col items-stretch justify-start gap-6 px-0 pt-0 pb-12",
+  heroHeader: "relative z-10 pointer-events-auto w-full px-8 md:px-12 py-4 bg-gradient-to-r from-[#0a62c2] via-[#084d9d] to-[#052863] text-white shadow-lg",
+  heroHeaderTop: "flex w-full flex-wrap items-center justify-between gap-3",
+  heroHeaderTitle: "flex flex-col gap-0.5 text-[0.6rem] uppercase tracking-[0.35em]",
+  heroHeaderActions: "flex flex-wrap items-center justify-end gap-2.5",
+  heroContent: "relative z-10 flex w-full max-w-xl flex-col gap-6 mt-2 self-start px-8 md:px-12 overflow-hidden",
+  heroIntro: "flex flex-col gap-6 text-[#0a1f44] transition-all duration-500 ease-in-out transform",
+  heroIntroVisible: "translate-x-0 opacity-100 pointer-events-auto",
+  heroIntroHidden: "-translate-x-full opacity-0 pointer-events-none",
+  heroActions: "flex flex-wrap items-center gap-4",
+  heroControlsWrapper: "relative flex flex-col gap-3 transition-all duration-500 ease-in-out transform",
+  heroControlsVisible: "translate-x-0 opacity-100 pointer-events-auto",
+  heroControlsHidden: "-translate-x-full opacity-0 pointer-events-none",
+  heroControls: "flex flex-col gap-2.5",
+  heroControlRow: "flex flex-wrap items-center justify-start gap-2.5"
 }
 
 const ScheduleGrid = ({ rooms, timeSlots, scheduleMap, onAdminAction, onTeacherRequest, buildKey, canEdit, canRequest }) => {
@@ -192,6 +208,7 @@ function HomePage() {
   const [myRequestsPanelOpen, setMyRequestsPanelOpen] = useState(false)
   const [myRequests, setMyRequests] = useState([])
   const [userManagementOpen, setUserManagementOpen] = useState(false)
+  const [heroCollapsed, setHeroCollapsed] = useState(false)
   
   // Date filter for historical requests (default to last 7 days)
   const [historicalDateFilter, setHistoricalDateFilter] = useState({
@@ -748,6 +765,19 @@ function HomePage() {
     }
     
     setScheduleOpen((prev) => !prev)
+  }
+
+  const handleHeroExplore = () => {
+    setHeroCollapsed(true)
+    
+    // Auto-rotate off when user starts exploring
+    if (controlsRef.current) {
+      controlsRef.current.autoRotate = false
+    }
+
+    notifyInfo('3D Map Active', {
+      description: 'Click and drag to explore, scroll to zoom'
+    })
   }
 
   const handleRequestsButtonClick = () => {
@@ -1401,61 +1431,152 @@ function HomePage() {
 
   return (
     <div className={styles.screen}>
-      <button
-        onClick={handleLogout}
-        className={styles.logoutBtn}
-      >
-        Logout
-      </button>
-
-      {canManageRequests && (
-        <button
-          onClick={handleRequestsButtonClick}
-          className={styles.requestsButton(requestsPanelOpen, requestActionLoading)}
-          disabled={requestActionLoading}
+      <div className={styles.canvasContainer}>
+        <Canvas
+          camera={{ position: [40, 25, 40], fov: 50 }}
+          style={{ background: 'radial-gradient(circle at 32% 18%, rgba(205,229,255,0.95) 0%, rgba(170,207,255,0.65) 55%, rgba(220,238,255,0.35) 100%)' }}
         >
-          {requestsPanelOpen ? 'Hide Requests' : `Manage Requests${pendingRequests.length ? ` (${pendingRequests.length})` : ''}`}
-        </button>
-      )}
-
-      {role === USER_ROLES.administrator && (
-        <button
-          onClick={() => setUserManagementOpen(true)}
-          className={cn(
-            "absolute top-6 left-56 z-20 bg-white text-purple-600 font-semibold py-3 px-5 border border-purple-600 shadow-lg transition-all duration-200 rounded-lg",
-            "hover:bg-purple-600 hover:text-white hover:shadow-xl"
+          {!buildingLoading && (
+            <SchoolModel
+              building={building}
+              onBuildingClick={heroCollapsed ? handleBuildingClick : null}
+            />
           )}
-        >
-          👥 Manage Users
-        </button>
-      )}
+          <OrbitControls
+            ref={controlsRef}
+            enabled={heroCollapsed}
+            enableZoom={heroCollapsed}
+            enablePan={false}
+            enableRotate={heroCollapsed}
+            minDistance={10}
+            maxDistance={100}
+            maxPolarAngle={Math.PI / 2}
+            autoRotate={!heroCollapsed}
+            autoRotateSpeed={2}
+            mouseButtons={{
+              LEFT: THREE.MOUSE.ROTATE,
+              MIDDLE: THREE.MOUSE.DOLLY,
+              RIGHT: undefined
+            }}
+            onStart={() => {
+              if (controlsRef.current && heroCollapsed) {
+                controlsRef.current.autoRotate = false
+              }
+            }}
+          />
+        </Canvas>
+      </div>
 
-      {canRequestRoom && !canManageRequests && (
-        <button
-          onClick={() => setMyRequestsPanelOpen((prev) => !prev)}
-          className={styles.myRequestsButton(myRequestsPanelOpen)}
-        >
-          {myRequestsPanelOpen ? 'Hide My Requests' : `My Requests${myRequests.length ? ` (${myRequests.length})` : ''}`}
-        </button>
-      )}
+      <div className={styles.heroOverlay}>
+        <div
+          className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_left,_rgba(198,222,255,0.6)_0%,_rgba(166,206,255,0.35)_55%,_rgba(216,236,255,0.2)_100%)]"
+          aria-hidden="true"
+        />
 
-      {selectedBuilding && (
-        <>
-          <button
-            onClick={handleToggleBuildingInfo}
-            className={styles.buildingInfoButton(isBuildingInfoOpen, selectedBuilding !== null)}
+        <header className={styles.heroHeader}>
+          <div className={styles.heroHeaderTop}>
+            <div className={styles.heroHeaderTitle}>
+              <span className="text-[0.85rem] tracking-[0.8em] text-white/80">CTU</span>
+              <span className="text-[0.85rem] tracking-[0.8em] text-white">Building Monitoring</span>
+            </div>
+            <div className={styles.heroHeaderActions}>
+              {canManageRequests && (
+                <button
+                  type="button"
+                  onClick={handleRequestsButtonClick}
+                  className={styles.headerRequestsButton(requestsPanelOpen, requestActionLoading)}
+                  disabled={requestActionLoading}
+                >
+                  {requestsPanelOpen ? 'Hide Requests' : `Manage Requests${pendingRequests.length ? ` (${pendingRequests.length})` : ''}`}
+                </button>
+              )}
+              {role === USER_ROLES.administrator && (
+                <button
+                  type="button"
+                  onClick={() => setUserManagementOpen(true)}
+                  className={styles.headerUserManagementButton}
+                >
+                  Manage Users
+                </button>
+              )}
+              <button
+                onClick={handleLogout}
+                className={styles.logoutBtn}
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <div className={styles.heroContent}>
+          <div
+            className={cn(styles.heroIntro, heroCollapsed ? styles.heroIntroHidden : styles.heroIntroVisible)}
+            style={{ transitionDelay: heroCollapsed ? '0s' : '0.2s' }}
           >
-            {isBuildingInfoOpen ? 'Hide Building Info' : `Building Info: ${selectedBuilding.building_name}`}
-          </button>
+            <h1 className="text-4xl font-semibold leading-tight text-[#072c63] sm:text-5xl md:text-6xl">
+              <span className="block">See the school from within</span>
+              <span className="mt-4 block text-2xl font-light uppercase tracking-[0.4em] text-[#0a62c2]">Kham pha khuon vien</span>
+            </h1>
+            <div className={styles.heroActions}>
+              <button
+                type="button"
+                onClick={handleHeroExplore}
+                className="px-6 py-3 text-sm uppercase tracking-[0.35em] bg-[#0a62c2] text-white shadow-lg transition hover:bg-[#084f9b]"
+              >
+                Explore 3D Map
+              </button>
+            </div>
+          </div>
 
-          <button
-            onClick={handleScheduleButtonClick}
-            className={styles.scheduleButton(isScheduleOpen, selectedBuilding !== null)}
+          <div
+            className={cn(styles.heroControlsWrapper, heroCollapsed ? styles.heroControlsVisible : styles.heroControlsHidden)}
+            style={{ transitionDelay: heroCollapsed ? '0.2s' : '0s' }}
           >
-            {isScheduleOpen ? 'Hide Schedule' : `Schedule: ${selectedBuilding.building_name}`}
-          </button>
-        </>
-      )}
+            <div className={styles.heroControls}>
+              {canRequestRoom && !canManageRequests && (
+                <div className={styles.heroControlRow}>
+                  <button
+                    type="button"
+                    onClick={() => setMyRequestsPanelOpen((prev) => !prev)}
+                    className={styles.myRequestsButton(myRequestsPanelOpen)}
+                  >
+                    {myRequestsPanelOpen ? 'Hide My Requests' : `My Requests${filteredMyRequests.length ? ` (${filteredMyRequests.length})` : ''}`}
+                  </button>
+                </div>
+              )}
+
+              <div className={styles.heroControlRow}>
+                <button
+                  type="button"
+                  onClick={handleToggleBuildingInfo}
+                  className={styles.buildingInfoButton(isBuildingInfoOpen, selectedBuilding !== null)}
+                  disabled={!selectedBuilding}
+                >
+                  {isBuildingInfoOpen ? 'Hide Building Info' : selectedBuilding ? `Building Info: ${selectedBuilding.building_name}` : 'Select a Building'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleScheduleButtonClick}
+                  className={styles.scheduleButton(isScheduleOpen, selectedBuilding !== null)}
+                  disabled={!selectedBuilding}
+                >
+                  {isScheduleOpen ? 'Hide Schedule' : selectedBuilding ? `Schedule: ${selectedBuilding.building_name}` : 'Select a Building'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <p className={cn(
+        styles.canvasInstructions,
+        heroCollapsed ? styles.canvasInstructionsVisible : styles.canvasInstructionsHidden
+      )}>
+        🖱️ Click & drag to rotate • Scroll to zoom • ⌨️ WASD to move
+      </p>
 
       {requestsPanelOpen && (
         <div
@@ -1949,45 +2070,6 @@ function HomePage() {
           </div>
         </div>
       </aside>
-
-      <div className={styles.canvasContainer}>
-        <Canvas 
-          camera={{ position: [40, 25, 40], fov: 50 }}
-          style={{ background: 'linear-gradient(to bottom, #e8f4ff, #ffffff)' }}
-        >
-          {!buildingLoading && (
-            <SchoolModel 
-              building={building} 
-              onBuildingClick={handleBuildingClick}
-            />
-          )}
-          <OrbitControls 
-            ref={controlsRef}
-            enableZoom={true}
-            enablePan={false}
-            enableRotate={true}
-            minDistance={10}
-            maxDistance={100}
-            maxPolarAngle={Math.PI / 2}
-            autoRotate={true}
-            autoRotateSpeed={2}
-            mouseButtons={{
-              LEFT: THREE.MOUSE.ROTATE,
-              MIDDLE: THREE.MOUSE.DOLLY,
-              RIGHT: undefined
-            }}
-            onStart={() => {
-              if (controlsRef.current) {
-                controlsRef.current.autoRotate = false
-              }
-            }}
-          />
-        </Canvas>
-      </div>
-
-      <p className={styles.canvasInstructions}>
-        🖱️ Click and drag to rotate • Scroll to zoom • Right-click to move • ⌨️ WASD to move
-      </p>
 
       {editState.isOpen && canEditSchedule && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" role="dialog" aria-modal="true">

@@ -1,9 +1,10 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { onAuthStateChange, getCurrentUser, syncProfileRole } from '../services/authService'
+import { onAuthStateChange, getCurrentUser } from '../services/authService'
 import { getProfile } from '../services/profileService'
 
 const AuthContext = createContext({})
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext)
   if (!context) {
@@ -25,9 +26,6 @@ export const AuthProvider = ({ children }) => {
       try {
         const { user: currentUser } = await getCurrentUser()
         setUser(currentUser)
-        if (currentUser) {
-          await syncProfileRole(currentUser)
-        }
       } catch (error) {
         console.error('Error initializing auth:', error)
       } finally {
@@ -43,9 +41,6 @@ export const AuthProvider = ({ children }) => {
       setSession(session)
       setUser(session?.user ?? null)
       setLoading(false)
-      if (session?.user) {
-        await syncProfileRole(session.user)
-      }
     })
 
     // Cleanup subscription on unmount
@@ -76,6 +71,21 @@ export const AuthProvider = ({ children }) => {
     fetchProfile()
   }, [user])
 
+  // Force refresh profile - useful after role changes
+  const refreshProfile = async () => {
+    if (!user?.id) return
+    
+    setProfileLoading(true)
+    const { data, error } = await getProfile(user.id)
+
+    if (error) {
+      console.error('Error refreshing profile:', error.message || error)
+    }
+
+    setProfile(data || null)
+    setProfileLoading(false)
+  }
+
   const value = {
     user,
     session,
@@ -83,6 +93,7 @@ export const AuthProvider = ({ children }) => {
     profile,
     role: profile?.role || user?.user_metadata?.role || null,
     profileLoading,
+    refreshProfile,
     signOut: async () => {
       setUser(null)
       setSession(null)

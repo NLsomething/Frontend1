@@ -4,7 +4,6 @@ import { signUp } from '../services/authService'
 import { useAuth } from '../context/AuthContext'
 import loginbg from '../assets/images/loginbg.jpg'
 import { useNotifications } from '../context/NotificationContext'
-import { USER_ROLES, USER_ROLE_LABELS } from '../constants/roles'
 import { 
   createButton, 
   cn,
@@ -14,11 +13,6 @@ import {
   authPages,
   buttons
 } from '../styles/shared'
-
-const REGISTRATION_ROLES = [
-  USER_ROLES.student,
-  USER_ROLES.teacher
-]
 
 const styles = {
   screen: authPages.screenWithScroll,
@@ -51,8 +45,7 @@ function RegisterPage() {
     username: '',
     email: '',
     password: '',
-    confirmPassword: '',
-    role: USER_ROLES.student
+    confirmPassword: ''
   })
   const [loading, setLoading] = useState(false)
   const [registerError, setRegisterError] = useState('')
@@ -62,7 +55,6 @@ function RegisterPage() {
   const regEmailRef = useRef(null)
   const regPasswordRef = useRef(null)
   const regConfirmPasswordRef = useRef(null)
-  const regRoleRef = useRef(null)
 
   useEffect(() => {
     if (user) {
@@ -97,19 +89,13 @@ function RegisterPage() {
       return
     }
 
-    if (!REGISTRATION_ROLES.includes(registerData.role)) {
-      setRegisterError('Please choose a valid role.')
-      return
-    }
-
     setLoading(true)
 
     try {
       const { user, error } = await signUp(
         registerData.email,
         registerData.password,
-        { username: registerData.username },
-        registerData.role
+        { username: registerData.username }
       )
       
       if (error) {
@@ -230,37 +216,13 @@ function RegisterPage() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault()
-                    regRoleRef.current?.focus()
+                    handleRegister(e)
                   }
                 }}
                 placeholder="Confirm your password"
                 className={styles.input}
                 disabled={loading}
               />
-            </div>
-
-            <div>
-              <label className={styles.label}>Role</label>
-              <select
-                ref={regRoleRef}
-                name="role"
-                value={registerData.role}
-                onChange={handleRegisterChange}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault()
-                    handleRegister(e)
-                  }
-                }}
-                className={styles.input}
-                disabled={loading}
-              >
-                {REGISTRATION_ROLES.map((roleOption) => (
-                  <option key={roleOption} value={roleOption}>
-                    {USER_ROLE_LABELS[roleOption]}
-                  </option>
-                ))}
-              </select>
             </div>
             
             <button 

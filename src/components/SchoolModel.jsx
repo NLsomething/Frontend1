@@ -21,7 +21,7 @@ function Model({ modelUrl, position, onClick }) {
 }
 
 function SchoolModel({ building, onBuildingClick }) {
-  const modelUrl = building?.model_url || '/assets/3dmodel/SuburbanSchool2.glb'
+  const modelUrl = building?.model_url
   const position = [
     building?.pos_x ?? 0,
     building?.pos_y ?? 0,
