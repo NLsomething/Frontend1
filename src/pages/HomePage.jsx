@@ -2313,29 +2313,17 @@ function HomePage() {
       )}
 
       {isBuildingInfoOpen && selectedBuilding && (
-        <div
-          className="absolute inset-0 z-30 bg-black/10"
-          onClick={() => setIsBuildingInfoOpen(false)}
+        <BuildingInfoModal 
+          building={selectedBuilding}
+          onClose={() => setIsBuildingInfoOpen(false)}
+          onRoomSelect={handleRoomSelect}
+          canEdit={canEditSchedule}
+          canRequest={canRequestRoom}
+          onAdminAction={handleCellInteraction}
+          onTeacherRequest={handleTeacherRequest}
+          userRole={role}
         />
       )}
-
-      <aside
-        className={`absolute top-0 left-0 z-40 h-full w-full max-w-5xl transition-transform duration-300 ease-in-out ${isBuildingInfoOpen ? 'translate-x-0' : '-translate-x-full'}`}
-        aria-hidden={!isBuildingInfoOpen}
-      >
-        {selectedBuilding && (
-          <BuildingInfoModal 
-            building={selectedBuilding}
-            onClose={() => setIsBuildingInfoOpen(false)}
-            onRoomSelect={handleRoomSelect}
-            canEdit={canEditSchedule}
-            canRequest={canRequestRoom}
-            onAdminAction={handleCellInteraction}
-            onTeacherRequest={handleTeacherRequest}
-            userRole={role}
-          />
-        )}
-      </aside>
 
       <aside
         className={`absolute top-0 left-0 z-20 h-full w-full max-w-5xl transition-transform duration-300 ease-in-out ${isScheduleOpen ? 'translate-x-0' : '-translate-x-full'}`}
