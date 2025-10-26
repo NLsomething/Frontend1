@@ -310,7 +310,15 @@ export const useRoomRequests = (canManage, canRequest, user, profile) => {
 
   const submitRequest = useCallback(async (requestData) => {
     try {
-      const { error } = await createRoomRequest(requestData)
+      // Add requester information to the request data
+      const fullRequestData = {
+        ...requestData,
+        requester_id: user?.id,
+        requester_name: profile?.username || profile?.full_name || user?.user_metadata?.username || user?.email || 'Teacher',
+        requester_email: user?.email || null
+      }
+
+      const { error } = await createRoomRequest(fullRequestData)
 
       if (error) {
         throw new Error(error.message || 'Failed to create request')
@@ -328,7 +336,7 @@ export const useRoomRequests = (canManage, canRequest, user, profile) => {
       })
       return false
     }
-  }, [notifySuccess, notifyError])
+  }, [user, profile, notifySuccess, notifyError])
 
   // UI state for panels
   const [requestsPanelOpen, setRequestsPanelOpen] = useState(false)

@@ -62,11 +62,13 @@ const ScheduleEditModal = ({
               onChange={onFormChange}
               className="w-full border border-slate-300 px-3 py-2 text-sm text-slate-700"
             >
-              {Object.values(SCHEDULE_STATUS).map((status) => (
-                <option key={status} value={status}>
-                  {SCHEDULE_STATUS_LABELS[status]}
-                </option>
-              ))}
+              {Object.values(SCHEDULE_STATUS)
+                .filter(status => status !== SCHEDULE_STATUS.pending)
+                .map((status) => (
+                  <option key={status} value={status}>
+                    {SCHEDULE_STATUS_LABELS[status]}
+                  </option>
+                ))}
             </select>
           </div>
 

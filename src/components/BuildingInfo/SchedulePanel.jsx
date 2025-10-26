@@ -1,6 +1,7 @@
 import { Fragment } from 'react'
 import { SCHEDULE_STATUS, SCHEDULE_STATUS_LABELS } from '../../constants/schedule'
 import { getScheduleStatusColors, formatTimeSlot } from '../../utils/scheduleUtils'
+import ScheduleCellTooltip from '../common/ScheduleCellTooltip'
 
 const SchedulePanel = ({ 
   isOpen,
@@ -36,7 +37,7 @@ const SchedulePanel = ({
     }}>
       {/* Schedule Header */}
       <div style={{
-        padding: '16px 20px',
+        padding: '14px 21px',
         borderBottom: '2px solid #e5e7eb',
         backgroundColor: '#f9fafb',
         flexShrink: 0
@@ -47,7 +48,7 @@ const SchedulePanel = ({
           alignItems: 'center'
         }}>
           <h3 style={{
-            fontSize: '16px',
+            fontSize: '15px',
             fontWeight: '600',
             color: '#1f2937',
             margin: 0
@@ -77,7 +78,7 @@ const SchedulePanel = ({
           </button>
         </div>
         <p style={{
-          fontSize: '13px',
+          fontSize: '12px',
           color: '#6b7280',
           margin: '4px 0 8px 0'
         }}>
@@ -90,7 +91,7 @@ const SchedulePanel = ({
         }}>
           <label style={{
             display: 'block',
-            fontSize: '11px',
+            fontSize: '10px',
             fontWeight: '600',
             color: '#374151',
             marginBottom: '4px',
@@ -108,7 +109,7 @@ const SchedulePanel = ({
               padding: '6px 8px',
               border: '1px solid #d1d5db',
               borderRadius: '4px',
-              fontSize: '13px',
+              fontSize: '12px',
               color: '#1f2937',
               backgroundColor: 'white',
               boxSizing: 'border-box'
@@ -128,9 +129,9 @@ const SchedulePanel = ({
           </div>
         ) : (
           <div style={{ 
-            fontSize: '14px',
+            fontSize: '12px',
             display: 'grid',
-            gridTemplateColumns: '70px 1fr',
+            gridTemplateColumns: '65px 1fr',
             borderTop: '1px solid #e2e8f0'
           }}>
             {/* Generate time slots */}
@@ -153,79 +154,89 @@ const SchedulePanel = ({
               
               const details = [courseName, bookedBy].filter(Boolean)
               
+              // Use smaller font for maintenance status
+              const statusFontSize = status === SCHEDULE_STATUS.maintenance ? '7px' : '9px'
+              
               return (
                 <Fragment key={hour}>
                   {/* Time label cell */}
                   <div style={{
                     backgroundColor: 'white',
-                    padding: '12px 8px',
+                    padding: '10px 7px',
                     fontWeight: '500',
                     color: '#334155',
                     borderTop: '1px solid #e2e8f0',
                     borderRight: '1px solid #cbd5e1',
-                    fontSize: '12px',
+                    fontSize: '10px',
                     textAlign: 'center'
                   }}>
                     {timeLabel}
                   </div>
                   
                   {/* Schedule content cell */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (canEdit && onAdminAction) {
-                        onAdminAction(roomCode, hour)
-                      } else if (canRequest && onTeacherRequest) {
-                        onTeacherRequest(roomCode, hour)
-                      }
-                    }}
-                    disabled={!interactive}
-                    style={{
-                      backgroundColor: colors.bg,
-                      color: colors.text,
-                      padding: '12px 8px',
-                      textAlign: 'left',
-                      transition: 'background-color 0.15s',
-                      cursor: interactive ? 'pointer' : 'default',
-                      border: 'none',
-                      borderTop: `1px solid ${colors.border}`,
-                      borderLeft: `1px solid ${colors.border}`
-                    }}
-                    onMouseEnter={(e) => {
-                      if (interactive) {
-                        e.currentTarget.style.backgroundColor = '#cbd5e180'
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (interactive) {
-                        e.currentTarget.style.backgroundColor = colors.bg
-                      }
-                    }}
+                  <ScheduleCellTooltip
+                    status={status}
+                    room={roomCode}
+                    timeSlot={timeLabel}
+                    entry={entry}
                   >
-                    <span style={{
-                      display: 'block',
-                      fontSize: '12px',
-                      fontWeight: '600',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.6px'
-                    }}>
-                      {statusLabel}
-                    </span>
-                    {details.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (canEdit && onAdminAction) {
+                          onAdminAction(roomCode, hour)
+                        } else if (canRequest && onTeacherRequest) {
+                          onTeacherRequest(roomCode, hour)
+                        }
+                      }}
+                      disabled={!interactive}
+                      style={{
+                        backgroundColor: colors.bg,
+                        color: colors.text,
+                        padding: '10px 7px',
+                        textAlign: 'left',
+                        transition: 'background-color 0.15s',
+                        cursor: interactive ? 'pointer' : 'default',
+                        border: 'none',
+                        borderTop: `1px solid ${colors.border}`,
+                        borderLeft: `1px solid ${colors.border}`
+                      }}
+                      onMouseEnter={(e) => {
+                        if (interactive) {
+                          e.currentTarget.style.backgroundColor = '#cbd5e180'
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (interactive) {
+                          e.currentTarget.style.backgroundColor = colors.bg
+                        }
+                      }}
+                    >
                       <span style={{
-                        marginTop: '4px',
                         display: 'block',
-                        fontSize: '12px',
-                        color: '#475569'
+                        fontSize: statusFontSize,
+                        fontWeight: '600',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.6px'
                       }}>
-                        {details.map((line, idx) => (
-                          <span key={idx} style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {line}
-                          </span>
-                        ))}
+                        {statusLabel}
                       </span>
-                    )}
-                  </button>
+                      {details.length > 0 && (
+                        <span style={{
+                          marginTop: '4px',
+                          display: 'block',
+                          fontSize: '8px',
+                          color: '#475569'
+                        }}>
+                          {details.map((line, idx) => (
+                            <span key={idx} style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {line}
+                            </span>
+                          ))}
+                        </span>
+                      )}
+                    </button>
+                  </ScheduleCellTooltip>
                 </Fragment>
               )
             })}

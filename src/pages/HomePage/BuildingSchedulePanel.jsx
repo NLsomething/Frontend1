@@ -64,7 +64,8 @@ const BuildingSchedulePanel = ({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-8">
+        <div className="flex-1 overflow-y-auto" style={{ padding: '20px', paddingTop: '20px', paddingBottom: '20px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '27px' }}>
           {buildingRoomsLoading ? (
             <div className="flex h-full w-full items-center justify-center rounded border border-dashed border-slate-300 bg-white text-sm text-slate-500">
               Loading classroom rooms...
@@ -76,19 +77,19 @@ const BuildingSchedulePanel = ({
           ) : (
             <>
               {roomsBySection.map(section => (
-                <div key={section.id} className="space-y-4">
+                <div key={section.id} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   {/* Section Header */}
-                  <div className="bg-gradient-to-r from-blue-600 to-blue-500 px-6 py-4 rounded-t-lg">
-                    <h3 className="text-lg font-bold text-white uppercase tracking-wide">
+                  <div className="bg-gradient-to-r from-blue-600 to-blue-500 rounded-t-lg" style={{ padding: '14px 21px' }}>
+                    <h3 className="font-bold text-white uppercase tracking-wide" style={{ fontSize: '15px' }}>
                       {section.name}
                     </h3>
-                    {scheduleLoading && <span className="text-xs font-medium text-blue-100">Loading…</span>}
+                    {scheduleLoading && <span className="font-medium text-blue-100" style={{ fontSize: '10px' }}>Loading…</span>}
                   </div>
                   
                   {/* Floors within this section */}
                   {section.floors.map(floor => (
-                    <section key={floor.id} className="border border-slate-200 shadow-sm overflow-hidden ml-4">
-                      <header className="flex items-center justify-between bg-slate-50 px-6 py-3 text-sm font-semibold uppercase tracking-wide text-slate-600">
+                    <section key={floor.id} className="border border-slate-200 shadow-sm overflow-hidden" style={{ marginLeft: '14px' }}>
+                      <header className="flex items-center justify-between bg-slate-50 font-semibold uppercase tracking-wide text-slate-600" style={{ padding: '10px 21px', fontSize: '12px' }}>
                         <span>{floor.name} • {floor.rooms.length} Room{floor.rooms.length !== 1 ? 's' : ''}</span>
                       </header>
                       <ScheduleGrid
@@ -107,6 +108,7 @@ const BuildingSchedulePanel = ({
               ))}
             </>
           )}
+          </div>
         </div>
       </div>
     </aside>

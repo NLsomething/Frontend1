@@ -1,5 +1,6 @@
 import { Fragment } from 'react'
 import { SCHEDULE_STATUS, SCHEDULE_STATUS_LABELS } from '../../constants/schedule'
+import ScheduleCellTooltip from '../../components/common/ScheduleCellTooltip'
 
 const ScheduleGrid = ({ 
   rooms, 
@@ -28,23 +29,23 @@ const ScheduleGrid = ({
 
   return (
     <div className="overflow-x-auto">
-      <div className="min-w-[960px]">
+      <div style={{ minWidth: '821px' }}>
         <div 
           style={{
             display: 'grid',
-            gridTemplateColumns: `120px repeat(${timeSlots.length}, minmax(70px, 1fr))`,
+            gridTemplateColumns: `82px repeat(${timeSlots.length}, minmax(60px, 1fr))`,
             borderTop: '1px solid #e2e8f0',
-            fontSize: '14px'
+            fontSize: '12px'
           }}
         >
           {/* Top-left corner cell */}
-          <div className="bg-white px-4 py-3 font-semibold text-slate-700 border-r border-slate-200">
+          <div className="bg-white font-semibold text-slate-700 border-r border-slate-200" style={{ padding: '10px 14px' }}>
             Room
           </div>
           
           {/* Header row: Time slots */}
           {timeSlots.map((slot) => (
-            <div key={`header-${slot.hour}`} className="bg-white px-2 py-3 text-center font-semibold text-slate-600 border-l border-slate-200 text-xs">
+            <div key={`header-${slot.hour}`} className="bg-white text-center font-semibold text-slate-600 border-l border-slate-200" style={{ padding: '10px 7px', fontSize: '10px' }}>
               {slot.label}
             </div>
           ))}
@@ -53,7 +54,7 @@ const ScheduleGrid = ({
           {rooms.map((room) => (
             <Fragment key={`room-${room}`}>
               {/* Room name cell */}
-              <div className="bg-white px-4 py-3 font-medium text-slate-700 border-t border-r border-slate-200">
+              <div className="bg-white font-medium text-slate-700 border-t border-r border-slate-200" style={{ padding: '10px 14px' }}>
                 {room}
               </div>
               
@@ -66,35 +67,46 @@ const ScheduleGrid = ({
                 const details = entry?.course_name || entry?.booked_by ? [entry?.course_name, entry?.booked_by].filter(Boolean) : []
                 const interactive = canEdit || canRequest
                 
-                const cellClasses = `border-t border-l px-2 py-3 text-left transition-colors duration-150 ${getStatusStyle(status)} ${interactive ? 'cursor-pointer hover:bg-slate-200/60' : 'cursor-default'}`
+                const cellClasses = `border-t border-l text-left transition-colors duration-150 ${getStatusStyle(status)} ${interactive ? 'cursor-pointer hover:bg-slate-200/60' : 'cursor-default'}`
+                
+                // Use smaller font for maintenance status
+                const statusFontSize = status === SCHEDULE_STATUS.maintenance ? '7px' : '9px'
 
                 return (
-                  <button
-                    type="button"
+                  <ScheduleCellTooltip
                     key={key}
-                    className={cellClasses}
-                    onClick={() => {
-                      if (canEdit && onAdminAction) {
-                        onAdminAction(room, slot.hour)
-                      } else if (canRequest && onTeacherRequest) {
-                        onTeacherRequest(room, slot.hour)
-                      }
-                    }}
-                    disabled={!interactive}
+                    status={status}
+                    room={room}
+                    timeSlot={slot.label}
+                    entry={entry}
                   >
-                    <span className="block text-xs font-semibold uppercase tracking-wide">
-                      {label}
-                    </span>
-                    {details.length > 0 && (
-                      <span className="mt-1 block space-y-0.5 text-xs text-slate-600">
-                        {details.map((line, index) => (
-                          <span key={`${key}-detail-${index}`} className="block truncate">
-                            {line}
-                          </span>
-                        ))}
+                    <button
+                      type="button"
+                      className={cellClasses}
+                      style={{ padding: '10px 7px', width: '100%' }}
+                      onClick={() => {
+                        if (canEdit && onAdminAction) {
+                          onAdminAction(room, slot.hour)
+                        } else if (canRequest && onTeacherRequest) {
+                          onTeacherRequest(room, slot.hour)
+                        }
+                      }}
+                      disabled={!interactive}
+                    >
+                      <span className="block font-semibold uppercase tracking-wide" style={{ fontSize: statusFontSize }}>
+                        {label}
                       </span>
-                    )}
-                  </button>
+                      {details.length > 0 && (
+                        <span className="block space-y-0.5 text-slate-600" style={{ fontSize: '8px', marginTop: '4px' }}>
+                          {details.map((line, index) => (
+                            <span key={`${key}-detail-${index}`} className="block truncate">
+                              {line}
+                            </span>
+                          ))}
+                        </span>
+                      )}
+                    </button>
+                  </ScheduleCellTooltip>
                 )
               })}
             </Fragment>

@@ -3,12 +3,13 @@ import { Canvas } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import { useAuth } from '../../context/AuthContext'
 import { signOut } from '../../services/authService'
-import { useEffect, useState, useMemo, useRef } from 'react'
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import SchoolModel from '../../components/SchoolModel'
 import BuildingInfoModal from '../../components/BuildingInfo'
 import UserManagementModal from '../../components/UserManagementModal'
 import { useNotifications } from '../../context/NotificationContext'
 import { USER_ROLES } from '../../constants/roles'
+import { SCHEDULE_STATUS, SCHEDULE_STATUS_LABELS } from '../../constants/schedule'
 import { fetchBuildings } from '../../services/buildingService'
 import { fetchRoomsByBuildingId } from '../../services/roomService'
 import { cn } from '../../styles/shared'
@@ -31,6 +32,7 @@ import { useCameraControls } from '../../hooks/useCameraControls'
 import {
   generateTimeSlots,
   toIsoDateString,
+  parseDateString,
   groupRoomsBySection
 } from '../../utils'
 
@@ -45,7 +47,7 @@ const styles = {
     isOpen ? "bg-white text-[#0a2a5f]" : ""
   ),
   headerUserManagementButton: "uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 border border-white/50 bg-white/15 text-white shadow-lg backdrop-blur-md transition-colors duration-200 hover:bg-white hover:text-[#0a2a5f] hover:border-white",
-  canvasInstructions: "absolute bottom-6 left-1/2 -translate-x-1/2 z-30 text-[0.6rem] uppercase tracking-[0.3em] text-[#0a2a5f] bg-white/90 border border-[#c8dcff] backdrop-blur-sm px-5 py-2 rounded-full pointer-events-none select-none transition-all duration-500 ease-in-out transform",
+  canvasInstructions: "absolute bottom-2 left-1/2 -translate-x-1/2 z-10 text-[0.6rem] uppercase tracking-[0.3em] text-[#0a2a5f] bg-white/90 border border-[#c8dcff] backdrop-blur-sm px-5 py-2 rounded-full pointer-events-none select-none transition-all duration-500 ease-in-out transform",
   canvasInstructionsVisible: "translate-y-0 opacity-100",
   canvasInstructionsHidden: "translate-y-full opacity-0",
   myRequestsButton: (isOpen) => cn(
@@ -114,6 +116,15 @@ function HomePage() {
   // Generate time slots
   const timeSlots = useMemo(() => generateTimeSlots(), [])
 
+  // Utility functions for hooks
+  const getSlotLabel = useCallback((hour) => {
+    return timeSlots.find((slot) => slot.hour === hour)?.label || ''
+  }, [timeSlots])
+
+  const parseDateStringWrapper = useCallback((dateString) => {
+    return parseDateString(dateString)
+  }, [])
+
   // Role permissions
   const canEditSchedule = role === USER_ROLES.administrator || role === USER_ROLES.buildingManager
   const canViewSchedule = role === USER_ROLES.teacher || role === USER_ROLES.student || canEditSchedule
@@ -142,6 +153,9 @@ function HomePage() {
     historicalRequests,
     historicalDateFilter,
     setHistoricalDateFilter,
+    requestActionLoading,
+    rejectionReasons,
+    setRejectionReasons,
     
     // My requests (teacher view)
     myRequests,
@@ -365,6 +379,20 @@ function HomePage() {
                       <span className="text-[0.85rem] tracking-[0.8em] text-white">Building Monitoring</span>
                     </div>
             <div className={styles.heroHeaderActions}>
+              {canRequestRoom && !canManageRequests && (
+                <button
+                  type="button"
+                  onClick={() => setMyRequestsPanelOpen((prev) => !prev)}
+                  className={styles.headerRequestsButton(myRequestsPanelOpen, false)}
+                >
+                  {myRequestsPanelOpen ? 'Hide My Requests' : `My Requests`}
+                  {filteredMyRequests.length > 0 && (
+                    <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-white bg-blue-600 rounded-full">
+                      {filteredMyRequests.length}
+                    </span>
+                  )}
+                </button>
+              )}
               {canManageRequests && (
                 <button
                   type="button"
@@ -424,27 +452,6 @@ function HomePage() {
                     </div>
                   </div>
 
-                  {/* Controls Section */}
-                  <div 
-                    className={`${styles.heroControlsWrapper} ${
-                      heroCollapsed ? styles.heroControlsVisible : styles.heroControlsHidden
-                    }`}
-                    style={{ transitionDelay: heroCollapsed ? '0.2s' : '0s' }}
-                  >
-                    <div className={styles.heroControls}>
-                      {canRequestRoom && !canManageRequests && (
-                        <div className={styles.heroControlRow}>
-                          <button
-                            type="button"
-                            onClick={() => setMyRequestsPanelOpen((prev) => !prev)}
-                            className={styles.myRequestsButton(myRequestsPanelOpen)}
-                          >
-                            {myRequestsPanelOpen ? 'Hide My Requests' : `My Requests${filteredMyRequests.length ? ` (${filteredMyRequests.length})` : ''}`}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
         </div>
 
                 {/* Building-specific Controls */}
@@ -501,16 +508,29 @@ function HomePage() {
             }
           }}
           onTeacherRequest={(roomNumber, slotHour) => {
-            if (canRequestRoom) {
-              // Open request modal for teacher
-              setRequestState({
-                isOpen: true,
-                isEditMode: false,
-                room: roomNumber,
-                startHour: slotHour,
-                endHour: slotHour
-              })
+            if (!canRequestRoom) {
+              return
             }
+
+            // Check if slot is available
+            const key = buildScheduleKey(roomNumber, slotHour)
+            const entry = scheduleMap[key]
+            
+            if (entry && entry.status !== SCHEDULE_STATUS.empty && entry.status !== SCHEDULE_STATUS.pending) {
+              notifyError('Slot not available', {
+                description: `Room ${roomNumber} at ${getSlotLabel(slotHour)} is already ${SCHEDULE_STATUS_LABELS[entry.status].toLowerCase()}.`
+              })
+              return
+            }
+
+            // Open request modal for teacher
+            setRequestState({
+              isOpen: true,
+              isEditMode: false,
+              room: roomNumber,
+              startHour: slotHour,
+              endHour: slotHour
+            })
           }}
           userRole={role}
         />
@@ -547,6 +567,17 @@ function HomePage() {
               existingEntry: existing
             })
           } else if (canRequestRoom) {
+            // Check if slot is available
+            const key = buildScheduleKey(roomNumber, slotHour)
+            const entry = scheduleMap[key]
+            
+            if (entry && entry.status !== SCHEDULE_STATUS.empty && entry.status !== SCHEDULE_STATUS.pending) {
+              notifyError('Slot not available', {
+                description: `Room ${roomNumber} at ${getSlotLabel(slotHour)} is already ${SCHEDULE_STATUS_LABELS[entry.status].toLowerCase()}.`
+              })
+              return
+            }
+
             // Open request modal for teacher
             setRequestState({
               isOpen: true,
@@ -613,8 +644,47 @@ function HomePage() {
           }}
           onSubmit={async (e) => {
             e.preventDefault()
-            const result = await submitRequest(requestState, scheduleDate)
-            if (result.success) {
+            
+            if (!requestState.room || requestState.startHour === null || requestState.endHour === null) {
+              notifyError('Missing time selection', {
+                description: 'Please choose a valid time range before submitting your request.'
+              })
+              return
+            }
+
+            // Convert scheduleDate to ISO string
+            const toIsoDateString = (dateObj) => {
+              const local = new Date(dateObj.getTime() - dateObj.getTimezoneOffset() * 60000)
+              return local.toISOString().split('T')[0]
+            }
+            
+            const isoDate = toIsoDateString(scheduleDate)
+            const startHour = Math.min(requestState.startHour, requestState.endHour)
+            const endHour = Math.max(requestState.startHour, requestState.endHour)
+            const weekCount = requestForm.weekCount
+            const trimmedCourse = requestForm.courseName?.trim() || ''
+            const trimmedBookedBy = requestForm.bookedBy?.trim() || ''
+            const trimmedNotes = requestForm.notes?.trim() || ''
+
+            if (!trimmedBookedBy) {
+              notifyError('Missing usage information', {
+                description: 'Please provide who will use the room.'
+              })
+              return
+            }
+
+            const result = await submitRequest({
+              room_number: requestState.room,
+              base_date: isoDate,
+              start_hour: startHour,
+              end_hour: endHour,
+              week_count: weekCount,
+              course_name: trimmedCourse || null,
+              booked_by: trimmedBookedBy || null,
+              notes: trimmedNotes || null
+            })
+            
+            if (result) {
               resetRequestModal()
             }
           }}
@@ -630,11 +700,14 @@ function HomePage() {
           historicalRequests={historicalRequests}
           requestsLoading={requestsLoading}
           historicalDateFilter={historicalDateFilter}
+          rejectionReasons={rejectionReasons}
+          setRejectionReasons={setRejectionReasons}
+          requestActionLoading={requestActionLoading}
           onClose={() => setRequestsPanelOpen(false)}
           onDateFilterChange={setHistoricalDateFilter}
-          onApprove={approveRequest}
+          onApprove={(request) => approveRequest(request, { parseDateString: parseDateStringWrapper, toIsoDateString, getSlotLabel })}
           onReject={rejectRequest}
-          onRevert={revertRequest}
+          onRevert={(request) => revertRequest(request, { parseDateString: parseDateStringWrapper, toIsoDateString })}
         />
       )}
 
