@@ -52,7 +52,7 @@ const BuildingInfoPanel = ({
   useEffect(() => {
     if (selectedFloor?.model_url) {
       setPreviewImage(selectedFloor.model_url)
-      setPreviewTitle(`${selectedFloor.floor_name} - 2D Layout`)
+      setPreviewTitle('2D Layout')
       // Clear room schedule and devices when switching to floor view
       setSelectedRoomCode(null)
       setSelectedRoomId(null)
@@ -67,7 +67,7 @@ const BuildingInfoPanel = ({
   const handleRoomClick = async (room) => {
     if (room.model_url) {
       setPreviewImage(room.model_url)
-      setPreviewTitle(`${room.room_name} - 2D Layout`)
+      setPreviewTitle('2D Layout')
     }
     setSelectedRoomCode(room.room_code)
     setSelectedRoomId(room.id)
@@ -119,7 +119,6 @@ const BuildingInfoPanel = ({
       <SchedulePanel
         isOpen={!!selectedRoomCode}
         roomCode={selectedRoomCode}
-        roomTitle={previewTitle}
         schedule={roomSchedule}
         scheduleLoading={scheduleLoading}
         scheduleDate={scheduleDate}

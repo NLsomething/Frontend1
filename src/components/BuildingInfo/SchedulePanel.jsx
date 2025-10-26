@@ -2,11 +2,11 @@ import { Fragment } from 'react'
 import { SCHEDULE_STATUS, SCHEDULE_STATUS_LABELS } from '../../constants/schedule'
 import { getScheduleStatusColors, formatTimeSlot } from '../../utils/scheduleUtils'
 import ScheduleCellTooltip from '../common/ScheduleCellTooltip'
+import { COLORS } from '../../constants/colors'
 
 const SchedulePanel = ({ 
   isOpen,
   roomCode, 
-  roomTitle,
   schedule, 
   scheduleLoading, 
   scheduleDate, 
@@ -28,8 +28,8 @@ const SchedulePanel = ({
       minWidth: '140px',
       maxWidth: '160px',
       height: '100vh',
-      backgroundColor: 'white',
-      boxShadow: '2px 0 10px rgba(0, 0, 0, 0.1)',
+      backgroundColor: '#393E46',
+      boxShadow: '2px 0 10px rgba(0, 0, 0, 0.5)',
       zIndex: 29,
       display: 'flex',
       flexDirection: 'column',
@@ -38,8 +38,8 @@ const SchedulePanel = ({
       {/* Schedule Header */}
       <div style={{
         padding: '14px 21px',
-        borderBottom: '2px solid #e5e7eb',
-        backgroundColor: '#f9fafb',
+        borderBottom: '2px solid rgba(238,238,238,0.1)',
+        backgroundColor: '#222831',
         flexShrink: 0
       }}>
         <div style={{
@@ -50,7 +50,7 @@ const SchedulePanel = ({
           <h3 style={{
             fontSize: '15px',
             fontWeight: '600',
-            color: '#1f2937',
+            color: '#EEEEEE',
             margin: 0
           }}>
             Room Schedule
@@ -62,7 +62,7 @@ const SchedulePanel = ({
               border: 'none',
               fontSize: '24px',
               cursor: 'pointer',
-              color: '#6b7280',
+              color: '#EEEEEE',
               padding: '0',
               width: '32px',
               height: '32px',
@@ -71,19 +71,12 @@ const SchedulePanel = ({
               justifyContent: 'center',
               transition: 'color 0.2s'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.color = '#1f2937'}
-            onMouseLeave={(e) => e.currentTarget.style.color = '#6b7280'}
+            onMouseEnter={(e) => e.currentTarget.style.color = '#3282B8'}
+            onMouseLeave={(e) => e.currentTarget.style.color = '#EEEEEE'}
           >
             ×
           </button>
         </div>
-        <p style={{
-          fontSize: '12px',
-          color: '#6b7280',
-          margin: '4px 0 8px 0'
-        }}>
-          {roomTitle}
-        </p>
         
         {/* Date Picker */}
         <div style={{
@@ -93,7 +86,7 @@ const SchedulePanel = ({
             display: 'block',
             fontSize: '10px',
             fontWeight: '600',
-            color: '#374151',
+            color: '#EEEEEE',
             marginBottom: '4px',
             textTransform: 'uppercase',
             letterSpacing: '0.5px'
@@ -107,24 +100,52 @@ const SchedulePanel = ({
             style={{
               width: '100%',
               padding: '6px 8px',
-              border: '1px solid #d1d5db',
+              border: '1px solid rgba(238,238,238,0.2)',
               borderRadius: '4px',
               fontSize: '12px',
-              color: '#1f2937',
-              backgroundColor: 'white',
+              color: '#EEEEEE',
+              backgroundColor: '#393E46',
               boxSizing: 'border-box'
             }}
+            className="dark-date-input"
           />
+          <style>
+            {`
+              .dark-date-input::-webkit-calendar-picker-indicator {
+                filter: invert(1);
+                cursor: pointer;
+              }
+            `}
+          </style>
         </div>
       </div>
 
       {/* Schedule Content */}
       <div style={{
         flex: 1,
-        overflowY: 'auto'
+        overflowY: 'auto',
+        scrollbarWidth: 'thin',
+        scrollbarColor: '#3282B8 #393E46'
       }}>
+        <style>
+          {`
+            ::-webkit-scrollbar {
+              width: 8px;
+            }
+            ::-webkit-scrollbar-track {
+              background: #393E46;
+            }
+            ::-webkit-scrollbar-thumb {
+              background: #3282B8;
+              border-radius: 4px;
+            }
+            ::-webkit-scrollbar-thumb:hover {
+              background: #0F4C75;
+            }
+          `}
+        </style>
         {scheduleLoading ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: '#6b7280', fontSize: '14px' }}>
+          <div style={{ padding: '40px', textAlign: 'center', color: '#EEEEEE80', fontSize: '14px' }}>
             Loading schedule...
           </div>
         ) : (
@@ -132,7 +153,7 @@ const SchedulePanel = ({
             fontSize: '12px',
             display: 'grid',
             gridTemplateColumns: '65px 1fr',
-            borderTop: '1px solid #e2e8f0'
+            borderTop: '1px solid rgba(238,238,238,0.1)'
           }}>
             {/* Generate time slots */}
             {Array.from({ length: 14 }, (_, index) => {
@@ -152,21 +173,82 @@ const SchedulePanel = ({
               // Check if interactive
               const interactive = canEdit || canRequest
               
-              const details = [courseName, bookedBy].filter(Boolean)
+              const details = status === SCHEDULE_STATUS.pending ? [] : [courseName, bookedBy].filter(Boolean)
               
               // Use smaller font for maintenance status
               const statusFontSize = status === SCHEDULE_STATUS.maintenance ? '7px' : '9px'
+              
+              // For pending status, show simple "Pending Request" without tooltip
+              const buttonContent = (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (canEdit && onAdminAction) {
+                      onAdminAction(roomCode, hour)
+                    } else if (canRequest && onTeacherRequest) {
+                      onTeacherRequest(roomCode, hour)
+                    }
+                  }}
+                  disabled={!interactive}
+                  style={{
+                    backgroundColor: colors.bg,
+                    color: colors.text,
+                    padding: '10px 7px',
+                    textAlign: 'left',
+                    transition: 'filter 0.15s',
+                    cursor: interactive ? 'pointer' : 'default',
+                    border: 'none',
+                    borderTop: '1px solid rgba(238,238,238,0.1)',
+                    borderLeft: '1px solid rgba(238,238,238,0.1)'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (interactive) {
+                      e.currentTarget.style.filter = 'brightness(1.1)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (interactive) {
+                      e.currentTarget.style.filter = 'none'
+                    }
+                  }}
+                >
+                  <span style={{
+                    display: 'block',
+                    fontSize: statusFontSize,
+                    fontWeight: '600',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.6px',
+                    color: colors.text
+                  }}>
+                    {statusLabel}
+                  </span>
+                  {details.length > 0 && (
+                    <span style={{
+                      marginTop: '4px',
+                      display: 'block',
+                      fontSize: '8px',
+                      color: 'rgba(238,238,238,0.7)'
+                    }}>
+                      {details.map((line, idx) => (
+                        <span key={idx} style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {line}
+                        </span>
+                      ))}
+                    </span>
+                  )}
+                </button>
+              )
               
               return (
                 <Fragment key={hour}>
                   {/* Time label cell */}
                   <div style={{
-                    backgroundColor: 'white',
+                    backgroundColor: '#393E46',
                     padding: '10px 7px',
                     fontWeight: '500',
-                    color: '#334155',
-                    borderTop: '1px solid #e2e8f0',
-                    borderRight: '1px solid #cbd5e1',
+                    color: '#EEEEEE',
+                    borderTop: '1px solid rgba(238,238,238,0.1)',
+                    borderRight: '1px solid rgba(238,238,238,0.1)',
                     fontSize: '10px',
                     textAlign: 'center'
                   }}>
@@ -174,69 +256,16 @@ const SchedulePanel = ({
                   </div>
                   
                   {/* Schedule content cell */}
-                  <ScheduleCellTooltip
-                    status={status}
-                    room={roomCode}
-                    timeSlot={timeLabel}
-                    entry={entry}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (canEdit && onAdminAction) {
-                          onAdminAction(roomCode, hour)
-                        } else if (canRequest && onTeacherRequest) {
-                          onTeacherRequest(roomCode, hour)
-                        }
-                      }}
-                      disabled={!interactive}
-                      style={{
-                        backgroundColor: colors.bg,
-                        color: colors.text,
-                        padding: '10px 7px',
-                        textAlign: 'left',
-                        transition: 'background-color 0.15s',
-                        cursor: interactive ? 'pointer' : 'default',
-                        border: 'none',
-                        borderTop: `1px solid ${colors.border}`,
-                        borderLeft: `1px solid ${colors.border}`
-                      }}
-                      onMouseEnter={(e) => {
-                        if (interactive) {
-                          e.currentTarget.style.backgroundColor = '#cbd5e180'
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (interactive) {
-                          e.currentTarget.style.backgroundColor = colors.bg
-                        }
-                      }}
+                  {status === SCHEDULE_STATUS.pending ? buttonContent : (
+                    <ScheduleCellTooltip
+                      status={status}
+                      room={roomCode}
+                      timeSlot={timeLabel}
+                      entry={entry}
                     >
-                      <span style={{
-                        display: 'block',
-                        fontSize: statusFontSize,
-                        fontWeight: '600',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.6px'
-                      }}>
-                        {statusLabel}
-                      </span>
-                      {details.length > 0 && (
-                        <span style={{
-                          marginTop: '4px',
-                          display: 'block',
-                          fontSize: '8px',
-                          color: '#475569'
-                        }}>
-                          {details.map((line, idx) => (
-                            <span key={idx} style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {line}
-                            </span>
-                          ))}
-                        </span>
-                      )}
-                    </button>
-                  </ScheduleCellTooltip>
+                      {buttonContent}
+                    </ScheduleCellTooltip>
+                  )}
                 </Fragment>
               )
             })}

@@ -3,6 +3,7 @@ import { fetchSectionsByBuildingId } from '../../services/sectionService'
 import { fetchFloorsBySectionId } from '../../services/floorService'
 import { fetchRoomsByFloorId } from '../../services/roomService'
 import { useNotifications } from '../../context/NotificationContext'
+import { COLORS } from '../../constants/colors'
 
 const BuildingSidebar = ({ 
   building, 
@@ -100,8 +101,8 @@ const BuildingSidebar = ({
       minWidth: '260px',
       maxWidth: '300px',
       height: '100vh',
-      backgroundColor: 'white',
-      boxShadow: '2px 0 10px rgba(0, 0, 0, 0.1)',
+      backgroundColor: '#222831',
+      boxShadow: '2px 0 10px rgba(0, 0, 0, 0.5)',
       zIndex: 30,
       display: 'flex',
       flexDirection: 'column',
@@ -117,11 +118,11 @@ const BuildingSidebar = ({
         {/* Header */}
         <div style={{ 
           padding: '20px 20px 16px 20px', 
-          borderBottom: '1px solid #e5e7eb',
+          borderBottom: '1px solid rgba(255,255,255,0.1)',
           flexShrink: 0
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-            <h2 style={{ fontSize: '20px', fontWeight: '700', margin: 0, color: '#1f2937' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: '700', margin: 0, color: '#ffffff' }}>
               {selectedFloor ? selectedFloor.floor_name : selectedSection ? selectedSection.section_name : building.building_name}
             </h2>
             <button
@@ -131,7 +132,7 @@ const BuildingSidebar = ({
                 border: 'none',
                 fontSize: '24px',
                 cursor: 'pointer',
-                color: '#6b7280',
+                color: '#ffffff',
                 padding: '0',
                 width: '28px',
                 height: '28px',
@@ -140,8 +141,8 @@ const BuildingSidebar = ({
                 justifyContent: 'center',
                 transition: 'color 0.2s'
               }}
-              onMouseEnter={(e) => e.currentTarget.style.color = '#1f2937'}
-              onMouseLeave={(e) => e.currentTarget.style.color = '#6b7280'}
+              onMouseEnter={(e) => e.currentTarget.style.color = '#3282B8'}
+              onMouseLeave={(e) => e.currentTarget.style.color = '#ffffff'}
             >
               ×
             </button>
@@ -149,11 +150,11 @@ const BuildingSidebar = ({
           
           {!selectedSection && (
             <>
-              <p style={{ fontSize: '14px', color: '#6b7280', margin: '4px 0' }}>
-                Code: <span style={{ fontWeight: '600', color: '#374151' }}>{building.building_code}</span>
+              <p style={{ fontSize: '14px', color: '#ffffff80', margin: '4px 0' }}>
+                Code: <span style={{ fontWeight: '600', color: '#ffffff' }}>{building.building_code}</span>
               </p>
               {building.description && (
-                <p style={{ fontSize: '14px', color: '#4b5563', marginTop: '12px', lineHeight: '1.6' }}>
+                <p style={{ fontSize: '14px', color: '#ffffff70', marginTop: '12px', lineHeight: '1.6' }}>
                   {building.description}
                 </p>
               )}
@@ -163,7 +164,7 @@ const BuildingSidebar = ({
           {selectedSection && !selectedFloor && (
             <>
               {selectedSection.description && (
-                <p style={{ fontSize: '14px', color: '#4b5563', marginTop: '8px', lineHeight: '1.6' }}>
+                <p style={{ fontSize: '14px', color: '#ffffff70', marginTop: '8px', lineHeight: '1.6' }}>
                   {selectedSection.description}
                 </p>
               )}
@@ -173,7 +174,7 @@ const BuildingSidebar = ({
           {selectedFloor && (
             <>
               {selectedFloor.description && (
-                <p style={{ fontSize: '14px', color: '#4b5563', marginTop: '8px', lineHeight: '1.6' }}>
+                <p style={{ fontSize: '14px', color: '#ffffff70', marginTop: '8px', lineHeight: '1.6' }}>
                   {selectedFloor.description}
                 </p>
               )}
@@ -181,7 +182,7 @@ const BuildingSidebar = ({
           )}
 
           {/* Breadcrumb */}
-          <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#6b7280' }}>
+          <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#ffffff60' }}>
             <button
               onClick={() => {
                 setSelectedSection(null)
@@ -190,7 +191,7 @@ const BuildingSidebar = ({
               style={{
                 background: 'none',
                 border: 'none',
-                color: selectedSection || selectedFloor ? '#3b82f6' : '#6b7280',
+                color: selectedSection || selectedFloor ? '#3282B8' : '#EEEEEE60',
                 cursor: selectedSection || selectedFloor ? 'pointer' : 'default',
                 padding: 0,
                 textDecoration: selectedSection || selectedFloor ? 'underline' : 'none'
@@ -206,7 +207,7 @@ const BuildingSidebar = ({
                   style={{
                     background: 'none',
                     border: 'none',
-                    color: selectedFloor ? '#3b82f6' : '#6b7280',
+                    color: selectedFloor ? '#3282B8' : '#EEEEEE60',
                     cursor: selectedFloor ? 'pointer' : 'default',
                     padding: 0,
                     textDecoration: selectedFloor ? 'underline' : 'none'
@@ -219,7 +220,7 @@ const BuildingSidebar = ({
             {selectedFloor && (
               <>
                 <span>/</span>
-                <span style={{ color: '#6b7280' }}>{selectedFloor.floor_name}</span>
+                <span style={{ color: '#ffffff60' }}>{selectedFloor.floor_name}</span>
               </>
             )}
           </div>
@@ -231,21 +232,40 @@ const BuildingSidebar = ({
           overflowY: 'auto', 
           padding: '16px 20px',
           display: 'flex',
-          flexDirection: 'column'
-        }}>
+        flexDirection: 'column',
+        scrollbarWidth: 'thin',
+        scrollbarColor: '#3282B8 #222831'
+      }}>
+        <style>
+          {`
+            ::-webkit-scrollbar {
+              width: 8px;
+            }
+            ::-webkit-scrollbar-track {
+              background: #222831;
+            }
+            ::-webkit-scrollbar-thumb {
+              background: #3282B8;
+              border-radius: 4px;
+            }
+            ::-webkit-scrollbar-thumb:hover {
+              background: #0F4C75;
+            }
+          `}
+        </style>
           {loading && (
-            <div style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>
+            <div style={{ textAlign: 'center', padding: '40px', color: '#ffffff60' }}>
               Loading...
             </div>
           )}
 
           {!loading && !selectedSection && (
             <>
-              <h3 style={{ fontSize: '15px', fontWeight: '600', marginBottom: '12px', color: '#374151' }}>
+              <h3 style={{ fontSize: '15px', fontWeight: '600', marginBottom: '12px', color: '#ffffff' }}>
                 Sections ({sections.length})
               </h3>
               {sections.length === 0 ? (
-                <p style={{ color: '#6b7280', fontSize: '14px', padding: '20px', textAlign: 'center' }}>
+                <p style={{ color: '#ffffff60', fontSize: '14px', padding: '20px', textAlign: 'center' }}>
                   No sections found
                 </p>
               ) : (
@@ -256,27 +276,27 @@ const BuildingSidebar = ({
                       onClick={() => setSelectedSection(section)}
                       style={{
                         padding: '10px 12px',
-                        border: '1px solid #e5e7eb',
+                    border: '1px solid rgba(238,238,238,0.2)',
                         borderRadius: '6px',
-                        backgroundColor: 'white',
+                    backgroundColor: '#393E46',
                         cursor: 'pointer',
                         textAlign: 'left',
                         transition: 'all 0.2s'
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#f9fafb'
-                        e.currentTarget.style.borderColor = '#3b82f6'
+                        e.currentTarget.style.backgroundColor = '#0F4C75'
+                        e.currentTarget.style.borderColor = '#3282B8'
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'white'
-                        e.currentTarget.style.borderColor = '#e5e7eb'
+                        e.currentTarget.style.backgroundColor = '#393E46'
+                        e.currentTarget.style.borderColor = 'rgba(238,238,238,0.2)'
                       }}
                     >
-                      <div style={{ fontWeight: '600', color: '#1f2937', marginBottom: '4px' }}>
+                      <div style={{ fontWeight: '600', color: '#ffffff', marginBottom: '4px' }}>
                         {section.section_name}
                       </div>
                       {section.description && (
-                        <div style={{ fontSize: '13px', color: '#6b7280' }}>
+                        <div style={{ fontSize: '13px', color: '#ffffff80' }}>
                           {section.description}
                         </div>
                       )}
@@ -289,11 +309,11 @@ const BuildingSidebar = ({
 
           {!loading && selectedSection && !selectedFloor && (
             <>
-              <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', color: '#374151' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', color: '#ffffff' }}>
                 Floors ({floors.length})
               </h3>
               {floors.length === 0 ? (
-                <p style={{ color: '#6b7280', fontSize: '14px', padding: '20px', textAlign: 'center' }}>
+                <p style={{ color: '#ffffff60', fontSize: '14px', padding: '20px', textAlign: 'center' }}>
                   No floors found
                 </p>
               ) : (
@@ -304,27 +324,27 @@ const BuildingSidebar = ({
                       onClick={() => setSelectedFloor(floor)}
                       style={{
                         padding: '10px 12px',
-                        border: '1px solid #e5e7eb',
+                    border: '1px solid rgba(238,238,238,0.2)',
                         borderRadius: '6px',
-                        backgroundColor: 'white',
+                    backgroundColor: '#393E46',
                         cursor: 'pointer',
                         textAlign: 'left',
                         transition: 'all 0.2s'
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#f9fafb'
-                        e.currentTarget.style.borderColor = '#3b82f6'
+                        e.currentTarget.style.backgroundColor = '#0F4C75'
+                        e.currentTarget.style.borderColor = '#3282B8'
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'white'
-                        e.currentTarget.style.borderColor = '#e5e7eb'
+                        e.currentTarget.style.backgroundColor = '#393E46'
+                        e.currentTarget.style.borderColor = 'rgba(238,238,238,0.2)'
                       }}
                     >
-                      <div style={{ fontWeight: '600', color: '#1f2937', marginBottom: '4px' }}>
+                      <div style={{ fontWeight: '600', color: '#ffffff', marginBottom: '4px' }}>
                         {floor.floor_name}
                       </div>
                       {floor.description && (
-                        <div style={{ fontSize: '13px', color: '#6b7280' }}>
+                        <div style={{ fontSize: '13px', color: '#ffffff80' }}>
                           {floor.description}
                         </div>
                       )}
@@ -337,11 +357,11 @@ const BuildingSidebar = ({
 
           {!loading && selectedFloor && (
             <>
-              <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', color: '#374151' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', color: '#ffffff' }}>
                 Rooms ({rooms.filter(r => r.room_type !== 'administrative').length})
               </h3>
               {rooms.filter(r => r.room_type !== 'administrative').length === 0 ? (
-                <p style={{ color: '#6b7280', fontSize: '14px', padding: '20px', textAlign: 'center' }}>
+                <p style={{ color: '#ffffff60', fontSize: '14px', padding: '20px', textAlign: 'center' }}>
                   No bookable rooms found
                 </p>
               ) : (
@@ -352,30 +372,27 @@ const BuildingSidebar = ({
                       onClick={() => onRoomSelect(room)}
                       style={{
                         padding: '10px 12px',
-                        border: '1px solid #e5e7eb',
+                    border: '1px solid rgba(238,238,238,0.2)',
                         borderRadius: '6px',
-                        backgroundColor: 'white',
+                    backgroundColor: '#393E46',
                         cursor: 'pointer',
                         textAlign: 'left',
                         transition: 'all 0.2s'
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#f0f9ff'
-                        e.currentTarget.style.borderColor = '#3b82f6'
+                        e.currentTarget.style.backgroundColor = '#0F4C75'
+                        e.currentTarget.style.borderColor = '#3282B8'
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'white'
-                        e.currentTarget.style.borderColor = '#e5e7eb'
+                        e.currentTarget.style.backgroundColor = '#393E46'
+                        e.currentTarget.style.borderColor = 'rgba(238,238,238,0.2)'
                       }}
                     >
-                      <div style={{ fontWeight: '600', color: '#1f2937', marginBottom: '4px' }}>
+                      <div style={{ fontWeight: '600', color: '#ffffff', marginBottom: '4px' }}>
                         {room.room_name}
                       </div>
-                      <div style={{ fontSize: '13px', color: '#6b7280' }}>
+                      <div style={{ fontSize: '13px', color: '#ffffff80' }}>
                         Code: {room.room_code} • Type: {room.room_type || 'classroom'}
-                      </div>
-                      <div style={{ fontSize: '12px', color: '#3b82f6', marginTop: '4px' }}>
-                        Click to view schedule →
                       </div>
                     </button>
                   ))}
@@ -388,7 +405,7 @@ const BuildingSidebar = ({
         {/* Footer */}
         <div style={{ 
           padding: '16px 20px', 
-          borderTop: '1px solid #e5e7eb',
+          borderTop: '1px solid rgba(255,255,255,0.1)',
           flexShrink: 0,
           display: 'flex',
           gap: '12px'
@@ -398,22 +415,22 @@ const BuildingSidebar = ({
             style={{
               flex: 1,
               padding: '10px 16px',
-              border: '1px solid #d1d5db',
+              border: '1px solid rgba(238,238,238,0.2)',
               borderRadius: '6px',
-              backgroundColor: 'white',
-              color: '#374151',
+              backgroundColor: '#393E46',
+              color: '#EEEEEE',
               cursor: 'pointer',
               fontWeight: '500',
               fontSize: '14px',
               transition: 'all 0.2s'
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#f9fafb'
-              e.currentTarget.style.borderColor = '#9ca3af'
+              e.currentTarget.style.backgroundColor = '#7f1d1d'
+              e.currentTarget.style.borderColor = '#ef4444'
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'white'
-              e.currentTarget.style.borderColor = '#d1d5db'
+              e.currentTarget.style.backgroundColor = '#2a2a2a'
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'
             }}
           >
             {selectedFloor || selectedSection ? 'Back' : 'Close'}

@@ -1,5 +1,6 @@
 import { USER_ROLES } from '../../constants/roles'
 import DeviceList from './DeviceList'
+import { COLORS } from '../../constants/colors'
 
 const PreviewPanel = ({ 
   isOpen,
@@ -23,9 +24,9 @@ const PreviewPanel = ({
       width: '450px',
       height: 'auto',
       maxHeight: '900px',
-      backgroundColor: 'white',
+      backgroundColor: '#393E46',
       borderRadius: '12px',
-      boxShadow: '0 10px 40px rgba(0, 0, 0, 0.15)',
+      boxShadow: '0 10px 40px rgba(0, 0, 0, 0.5)',
       zIndex: 35,
       display: 'flex',
       flexDirection: 'column',
@@ -34,17 +35,17 @@ const PreviewPanel = ({
       {/* Preview Header */}
       <div style={{
         padding: '12px 16px',
-        borderBottom: '1px solid #e5e7eb',
+        borderBottom: '1px solid rgba(238,238,238,0.1)',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        backgroundColor: '#f9fafb',
+        backgroundColor: '#222831',
         flexShrink: 0
       }}>
         <h3 style={{
           fontSize: '14px',
           fontWeight: '600',
-          color: '#1f2937',
+          color: '#EEEEEE',
           margin: 0
         }}>
           {previewTitle}
@@ -56,7 +57,7 @@ const PreviewPanel = ({
             border: 'none',
             fontSize: '20px',
             cursor: 'pointer',
-            color: '#6b7280',
+            color: '#EEEEEE',
             padding: '0',
             width: '24px',
             height: '24px',
@@ -65,8 +66,8 @@ const PreviewPanel = ({
             justifyContent: 'center',
             transition: 'color 0.2s'
           }}
-          onMouseEnter={(e) => e.currentTarget.style.color = '#1f2937'}
-          onMouseLeave={(e) => e.currentTarget.style.color = '#6b7280'}
+          onMouseEnter={(e) => e.currentTarget.style.color = '#3282B8'}
+          onMouseLeave={(e) => e.currentTarget.style.color = '#EEEEEE'}
         >
           ×
         </button>
@@ -79,7 +80,7 @@ const PreviewPanel = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#f9fafb',
+        backgroundColor: '#222831',
         overflow: 'hidden',
         flexShrink: 0
       }}>
@@ -93,7 +94,7 @@ const PreviewPanel = ({
             height: 'auto',
             objectFit: 'contain',
             borderRadius: '8px',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)'
           }}
           onError={(e) => {
             e.target.style.display = 'none'
@@ -105,15 +106,15 @@ const PreviewPanel = ({
       {/* Device Status Section - Only show when room is selected */}
       {selectedRoomCode && (
         <div style={{
-          borderTop: '1px solid #e5e7eb',
-          padding: '16px',
-          backgroundColor: 'white',
-          flexShrink: 0
-        }}>
+        borderTop: '1px solid rgba(238,238,238,0.1)',
+        padding: '16px',
+        backgroundColor: '#222831',
+        flexShrink: 0
+      }}>
           <h4 style={{
             fontSize: '13px',
             fontWeight: '600',
-            color: '#374151',
+            color: '#EEEEEE',
             margin: '0 0 12px 0',
             textTransform: 'uppercase',
             letterSpacing: '0.5px'

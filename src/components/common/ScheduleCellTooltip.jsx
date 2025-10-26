@@ -73,32 +73,32 @@ const ScheduleCellTooltip = ({
     }
   }, [])
 
-  // Get status colors
+  // Get status colors (dark theme)
   const colors = useMemo(() => {
     switch (status) {
       case SCHEDULE_STATUS.occupied:
         return {
-          bg: '#d1fae5',
+          bg: '#0c785b',
           border: '#10b981',
-          text: '#065f46'
+          text: '#34d399'
         }
       case SCHEDULE_STATUS.maintenance:
         return {
-          bg: '#fef3c7',
+          bg: '#78350f',
           border: '#f59e0b',
-          text: '#92400e'
+          text: '#fbbf24'
         }
       case SCHEDULE_STATUS.pending:
         return {
-          bg: '#dbeafe',
+          bg: '#1e3a5f',
           border: '#3b82f6',
-          text: '#1e40af'
+          text: '#60a5fa'
         }
       default:
         return {
-          bg: '#f1f5f9',
-          border: '#cbd5e1',
-          text: '#334155'
+          bg: '#1a1a1a',
+          border: '#ffffff20',
+          text: '#ffffff80'
         }
     }
   }, [status])
@@ -162,7 +162,7 @@ const ScheduleCellTooltip = ({
               {status === SCHEDULE_STATUS.pending && 'Pending Request'}
             </div>
             
-            <div className="text-xs text-slate-600 space-y-1">
+            <div className="text-xs text-white/80 space-y-1">
               {entry.course_name && (
                 <div>
                   <span className="font-semibold">Course:</span>{' '}

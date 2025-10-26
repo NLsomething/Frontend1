@@ -8,15 +8,15 @@ import { SCHEDULE_STATUS } from '../constants/schedule'
 export const getScheduleStatusColors = (status) => {
   switch (status) {
     case SCHEDULE_STATUS.empty:
-      return { bg: '#f8fafc', text: '#64748b', border: '#e2e8f0' }
+      return { bg: '#393E46', text: '#EEEEEE70', border: '#EEEEEE20' }
     case SCHEDULE_STATUS.occupied:
-      return { bg: '#ecfdf5', text: '#047857', border: '#a7f3d0' }
+      return { bg: 'rgba(16, 185, 129, 0.5)', text: '#34d399', border: '#10b98140' }
     case SCHEDULE_STATUS.maintenance:
-      return { bg: '#fffbeb', text: '#b45309', border: '#fde68a' }
+      return { bg: 'rgba(245, 158, 11, 0.5)', text: '#fbbf24', border: '#f59e0b40' }
     case SCHEDULE_STATUS.pending:
-      return { bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' }
+      return { bg: 'rgba(96, 165, 250, 0.5)', text: '#93c5fd', border: '#60a5fa40' }
     default:
-      return { bg: '#f8fafc', text: '#64748b', border: '#e2e8f0' }
+      return { bg: '#393E46', text: '#EEEEEE70', border: '#EEEEEE20' }
   }
 }
 

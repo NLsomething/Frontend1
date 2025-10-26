@@ -1,4 +1,5 @@
 import { USER_ROLES } from '../../constants/roles'
+import { COLORS } from '../../constants/colors'
 
 const DeviceList = ({ 
   devices, 
@@ -9,7 +10,7 @@ const DeviceList = ({
 }) => {
   if (devicesLoading) {
     return (
-      <div style={{ color: '#6b7280', fontSize: '13px', textAlign: 'center', padding: '8px' }}>
+      <div style={{ color: '#EEEEEE80', fontSize: '13px', textAlign: 'center', padding: '8px' }}>
         Loading...
       </div>
     )
@@ -17,7 +18,7 @@ const DeviceList = ({
 
   if (devices.length === 0) {
     return (
-      <div style={{ color: '#6b7280', fontSize: '13px', textAlign: 'center', padding: '8px' }}>
+      <div style={{ color: '#EEEEEE80', fontSize: '13px', textAlign: 'center', padding: '8px' }}>
         No devices found
       </div>
     )
@@ -31,9 +32,9 @@ const DeviceList = ({
         alignItems: 'center',
         gap: '8px',
         padding: '12px',
-        backgroundColor: devices.some(d => d.device_output === 'unlocked') ? '#dcfce7' : '#fee2e2',
+        backgroundColor: devices.some(d => d.device_output === 'unlocked') ? '#222831' : '#222831',
         borderRadius: '6px',
-        border: `1px solid ${devices.some(d => d.device_output === 'unlocked') ? '#86efac' : '#fca5a5'}`
+        border: `1px solid ${devices.some(d => d.device_output === 'unlocked') ? '#3282B8' : '#EEEEEE20'}`
       }}>
         <div style={{
           width: '10px',
@@ -45,7 +46,7 @@ const DeviceList = ({
         <span style={{
           fontSize: '13px',
           fontWeight: '600',
-          color: devices.some(d => d.device_output === 'unlocked') ? '#166534' : '#991b1b'
+          color: devices.some(d => d.device_output === 'unlocked') ? '#3282B8' : '#EEEEEE'
         }}>
           Room is {devices.some(d => d.device_output === 'unlocked') ? 'Unlocked' : 'Locked'}
         </span>
@@ -68,9 +69,9 @@ const DeviceList = ({
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '10px 12px',
-            backgroundColor: '#f9fafb',
+            backgroundColor: '#393E46',
             borderRadius: '6px',
-            border: '1px solid #e5e7eb',
+            border: '1px solid rgba(238,238,238,0.1)',
             gap: '8px'
           }}
         >
@@ -78,7 +79,7 @@ const DeviceList = ({
             <div style={{
               fontSize: '13px',
               fontWeight: '600',
-              color: '#1f2937',
+              color: '#EEEEEE',
               marginBottom: '2px',
               display: 'flex',
               alignItems: 'center',
@@ -102,7 +103,7 @@ const DeviceList = ({
             </div>
             <div style={{
               fontSize: '11px',
-              color: '#6b7280'
+              color: '#EEEEEE80'
             }}>
               {device.device_type} • {device.status}
             </div>
@@ -120,20 +121,20 @@ const DeviceList = ({
                 fontSize: '12px',
                 fontWeight: '600',
                 borderRadius: '4px',
-                border: '1px solid #d1d5db',
+                border: '1px solid rgba(238,238,238,0.2)',
                 cursor: 'pointer',
-                backgroundColor: 'white',
-                color: '#374151',
+                backgroundColor: '#393E46',
+                color: '#EEEEEE',
                 transition: 'all 0.2s',
                 flexShrink: 0
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#f3f4f6'
-                e.currentTarget.style.borderColor = '#9ca3af'
+                e.currentTarget.style.backgroundColor = '#0F4C75'
+                e.currentTarget.style.borderColor = '#3282B8'
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'white'
-                e.currentTarget.style.borderColor = '#d1d5db'
+                e.currentTarget.style.backgroundColor = '#393E46'
+                e.currentTarget.style.borderColor = 'rgba(238,238,238,0.2)'
               }}
             >
               Edit

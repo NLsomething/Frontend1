@@ -1,6 +1,8 @@
 import { Fragment } from 'react'
 import { SCHEDULE_STATUS, SCHEDULE_STATUS_LABELS } from '../../constants/schedule'
 import ScheduleCellTooltip from '../../components/common/ScheduleCellTooltip'
+import { COLORS } from '../../constants/colors'
+import { getScheduleStatusColors } from '../../utils/scheduleUtils'
 
 const ScheduleGrid = ({ 
   rooms, 
@@ -12,20 +14,6 @@ const ScheduleGrid = ({
   canEdit, 
   canRequest 
 }) => {
-  const getStatusStyle = (status) => {
-    switch (status) {
-      case SCHEDULE_STATUS.empty:
-        return 'bg-slate-50/80 text-slate-600 border-slate-200'
-      case SCHEDULE_STATUS.occupied:
-        return 'bg-emerald-50 text-emerald-700 border-emerald-200'
-      case SCHEDULE_STATUS.maintenance:
-        return 'bg-amber-50 text-amber-700 border-amber-200'
-      case SCHEDULE_STATUS.pending:
-        return 'bg-blue-50 text-blue-700 border-blue-200'
-      default:
-        return 'bg-slate-50/80 text-slate-600 border-slate-200'
-    }
-  }
 
   return (
     <div className="overflow-x-auto">
@@ -34,18 +22,18 @@ const ScheduleGrid = ({
           style={{
             display: 'grid',
             gridTemplateColumns: `82px repeat(${timeSlots.length}, minmax(60px, 1fr))`,
-            borderTop: '1px solid #e2e8f0',
+            borderTop: '1px solid rgba(255,255,255,0.1)',
             fontSize: '12px'
           }}
         >
           {/* Top-left corner cell */}
-          <div className="bg-white font-semibold text-slate-700 border-r border-slate-200" style={{ padding: '10px 14px' }}>
+          <div className="font-semibold border-r" style={{ padding: '10px 14px', backgroundColor: COLORS.darkGray, color: COLORS.white, borderColor: COLORS.whiteTransparentMinimal }}>
             Room
           </div>
           
           {/* Header row: Time slots */}
           {timeSlots.map((slot) => (
-            <div key={`header-${slot.hour}`} className="bg-white text-center font-semibold text-slate-600 border-l border-slate-200" style={{ padding: '10px 7px', fontSize: '10px' }}>
+            <div key={`header-${slot.hour}`} className="text-center font-semibold border-l" style={{ padding: '10px 7px', fontSize: '10px', backgroundColor: COLORS.darkGray, color: COLORS.white, borderColor: COLORS.whiteTransparentMinimal }}>
               {slot.label}
             </div>
           ))}
@@ -54,7 +42,7 @@ const ScheduleGrid = ({
           {rooms.map((room) => (
             <Fragment key={`room-${room}`}>
               {/* Room name cell */}
-              <div className="bg-white font-medium text-slate-700 border-t border-r border-slate-200" style={{ padding: '10px 14px' }}>
+              <div className="font-medium border-t border-r" style={{ padding: '10px 14px', backgroundColor: COLORS.darkGray, color: COLORS.white, borderColor: COLORS.whiteTransparentMinimal }}>
                 {room}
               </div>
               
@@ -67,7 +55,8 @@ const ScheduleGrid = ({
                 const details = entry?.course_name || entry?.booked_by ? [entry?.course_name, entry?.booked_by].filter(Boolean) : []
                 const interactive = canEdit || canRequest
                 
-                const cellClasses = `border-t border-l text-left transition-colors duration-150 ${getStatusStyle(status)} ${interactive ? 'cursor-pointer hover:bg-slate-200/60' : 'cursor-default'}`
+                // Get colors from scheduleUtils (same as room schedule)
+                const colors = getScheduleStatusColors(status)
                 
                 // Use smaller font for maintenance status
                 const statusFontSize = status === SCHEDULE_STATUS.maintenance ? '7px' : '9px'
@@ -82,8 +71,18 @@ const ScheduleGrid = ({
                   >
                     <button
                       type="button"
-                      className={cellClasses}
-                      style={{ padding: '10px 7px', width: '100%' }}
+                      className="text-left transition-colors duration-150"
+                      style={{ 
+                        padding: '10px 7px', 
+                        width: '100%',
+                        backgroundColor: colors.bg,
+                        color: colors.text,
+                        border: 'none',
+                        borderTop: `1px solid rgba(238,238,238,0.1)`,
+                        borderLeft: `1px solid rgba(238,238,238,0.1)`,
+                        cursor: interactive ? 'pointer' : 'default',
+                        transition: 'filter 0.15s'
+                      }}
                       onClick={() => {
                         if (canEdit && onAdminAction) {
                           onAdminAction(room, slot.hour)
@@ -92,14 +91,24 @@ const ScheduleGrid = ({
                         }
                       }}
                       disabled={!interactive}
+                      onMouseEnter={(e) => {
+                        if (interactive) {
+                          e.currentTarget.style.filter = 'brightness(1.1)'
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (interactive) {
+                          e.currentTarget.style.filter = 'none'
+                        }
+                      }}
                     >
-                      <span className="block font-semibold uppercase tracking-wide" style={{ fontSize: statusFontSize }}>
+                      <span className="block font-semibold uppercase tracking-wide" style={{ fontSize: statusFontSize, color: colors.text }}>
                         {label}
                       </span>
                       {details.length > 0 && (
-                        <span className="block space-y-0.5 text-slate-600" style={{ fontSize: '8px', marginTop: '4px' }}>
+                        <span style={{ fontSize: '8px', marginTop: '4px', color: 'rgba(238,238,238,0.7)' }}>
                           {details.map((line, index) => (
-                            <span key={`${key}-detail-${index}`} className="block truncate">
+                            <span key={`${key}-detail-${index}`} style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {line}
                             </span>
                           ))}

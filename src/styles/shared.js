@@ -1,8 +1,16 @@
 // Shared style classes for consistent UI across the application
+import { COLORS } from '../constants/colors'
 
 export const colors = {
-  // Primary colors
-  darkBlue: '#1f5ca9',
+  // Dark theme color palette
+  black: COLORS.black,
+  darkGray: COLORS.darkGray,
+  darkBlue: COLORS.darkBlue,
+  blue: COLORS.blue,
+  white: COLORS.white,
+  
+  // Legacy colors (kept for backward compatibility)
+  darkBlueLegacy: '#1f5ca9',
   darkBlueHover: '#1a4d8f',
   lightBlue: '#096ecc',
   lightBlueHover: '#0859a8',
@@ -10,7 +18,6 @@ export const colors = {
   lighterBlueHover: '#d0e8ff',
   
   // Neutral colors
-  white: '#ffffff',
   lightGray: '#f9f9f9',
   
   // Semantic colors

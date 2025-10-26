@@ -1,4 +1,5 @@
 import ScheduleGrid from './ScheduleGrid'
+import { COLORS } from '../../constants/colors'
 
 const BuildingSchedulePanel = ({
   isOpen,
@@ -35,17 +36,17 @@ const BuildingSchedulePanel = ({
       className={`absolute top-0 left-0 z-20 h-full w-full max-w-5xl transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
       aria-hidden={!isOpen}
     >
-      <div className="flex h-full w-full flex-col bg-white/95 backdrop-blur-sm border-r border-slate-200 shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+      <div className="flex h-full w-full flex-col backdrop-blur-sm border-r shadow-2xl" style={{ backgroundColor: COLORS.panelBackground, borderColor: `${COLORS.whiteTransparentMinimal}` }}>
+        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: `1px solid ${COLORS.whiteTransparentMinimal}` }}>
           <div>
-            <h2 className="text-xl font-semibold text-slate-900">
+            <h2 className="text-xl font-semibold" style={{ color: COLORS.white }}>
               {selectedBuilding ? `${selectedBuilding.building_name} Schedule` : 'Room Schedule'}
             </h2>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm" style={{ color: COLORS.whiteTransparentMid }}>
               {buildingRoomsLoading ? 'Loading rooms...' : buildingRooms.length > 0 ? `${buildingRooms.length} Classroom${buildingRooms.length !== 1 ? 's' : ''} • 7:00 AM – 8:00 PM` : 'No classrooms found'}
             </p>
             {!canEdit && !canRequest && (
-              <p className="text-xs text-slate-400">View only - No editing permissions</p>
+              <p className="text-xs" style={{ color: COLORS.whiteTransparentLow }}>View only - No editing permissions</p>
             )}
           </div>
           <div className="flex items-center gap-3">
@@ -53,43 +54,67 @@ const BuildingSchedulePanel = ({
               type="date"
               value={isoDate}
               onChange={(event) => handleDateChange(event.target.value)}
-              className="border border-slate-300 px-3 py-1 text-sm tracking-tight text-slate-600"
+              className="dark-date-input px-3 py-1 text-sm tracking-tight"
+              style={{ border: `1px solid ${COLORS.whiteTransparentBorder}`, backgroundColor: COLORS.screenBackground, color: COLORS.white }}
             />
             <button
               onClick={onClose}
-              className="border border-slate-300 px-3 py-1 text-sm font-medium text-slate-600 transition-colors duration-150 hover:bg-slate-100"
+              className="px-3 py-1 text-sm font-medium transition-colors duration-150"
+              style={{ border: `1px solid ${COLORS.whiteTransparentBorder}`, color: COLORS.white }}
             >
               Close
             </button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto" style={{ padding: '20px', paddingTop: '20px', paddingBottom: '20px' }}>
+        <div className="flex-1 overflow-y-auto" style={{ padding: '20px', paddingTop: '20px', paddingBottom: '20px', scrollbarWidth: 'thin', scrollbarColor: `${COLORS.scrollbarThumb} ${COLORS.scrollbarTrack}` }}>
+          <style>
+            {`
+              .dark-date-input::-webkit-calendar-picker-indicator {
+                filter: invert(1);
+                cursor: pointer;
+              }
+              ::-webkit-scrollbar {
+                width: 8px;
+              }
+              ::-webkit-scrollbar-track {
+                background: ${COLORS.scrollbarTrack};
+              }
+              ::-webkit-scrollbar-thumb {
+                background: ${COLORS.scrollbarThumb};
+                border-radius: 4px;
+              }
+              ::-webkit-scrollbar-thumb:hover {
+                background: ${COLORS.scrollbarThumbHover};
+              }
+            `}
+          </style>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '27px' }}>
           {buildingRoomsLoading ? (
-            <div className="flex h-full w-full items-center justify-center rounded border border-dashed border-slate-300 bg-white text-sm text-slate-500">
+            <div className="flex h-full w-full items-center justify-center rounded text-sm" style={{ border: `1px dashed ${COLORS.whiteTransparentBorder}`, backgroundColor: COLORS.screenBackground, color: COLORS.whiteTransparentMid }}>
               Loading classroom rooms...
             </div>
           ) : buildingRooms.length === 0 ? (
-            <div className="flex h-full w-full items-center justify-center rounded border border-dashed border-slate-300 bg-white text-sm text-slate-500">
+            <div className="flex h-full w-full items-center justify-center rounded text-sm" style={{ border: `1px dashed ${COLORS.whiteTransparentBorder}`, backgroundColor: COLORS.screenBackground, color: COLORS.whiteTransparentMid }}>
               No classroom rooms found in this building.
             </div>
           ) : (
             <>
               {roomsBySection.map(section => (
-                <div key={section.id} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div key={section.id} style={{ display: 'flex', flexDirection: 'column' }}>
                   {/* Section Header */}
-                  <div className="bg-gradient-to-r from-blue-600 to-blue-500 rounded-t-lg" style={{ padding: '14px 21px' }}>
-                    <h3 className="font-bold text-white uppercase tracking-wide" style={{ fontSize: '15px' }}>
+                  <div className="rounded-t-lg" style={{ padding: '14px 21px', backgroundColor: COLORS.blue }}>
+                    <h3 className="font-bold uppercase tracking-wide" style={{ fontSize: '15px', color: COLORS.white }}>
                       {section.name}
                     </h3>
-                    {scheduleLoading && <span className="font-medium text-blue-100" style={{ fontSize: '10px' }}>Loading…</span>}
+                    {scheduleLoading && <span className="font-medium" style={{ fontSize: '10px', color: COLORS.whiteTransparent }}>Loading…</span>}
                   </div>
                   
                   {/* Floors within this section */}
-                  {section.floors.map(floor => (
-                    <section key={floor.id} className="border border-slate-200 shadow-sm overflow-hidden" style={{ marginLeft: '14px' }}>
-                      <header className="flex items-center justify-between bg-slate-50 font-semibold uppercase tracking-wide text-slate-600" style={{ padding: '10px 21px', fontSize: '12px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    {section.floors.map((floor, floorIndex) => (
+                    <section key={floor.id} className="shadow-sm overflow-hidden" style={{ marginLeft: '0', border: `1px solid ${COLORS.whiteTransparentMinimal}`, backgroundColor: COLORS.screenBackground, borderTop: floorIndex === 0 ? `1px solid ${COLORS.whiteTransparentMinimal}` : undefined }}>
+                      <header className="flex items-center justify-between font-semibold uppercase tracking-wide" style={{ padding: '10px 21px', fontSize: '12px', backgroundColor: COLORS.darkGray, color: COLORS.white }}>
                         <span>{floor.name} • {floor.rooms.length} Room{floor.rooms.length !== 1 ? 's' : ''}</span>
                       </header>
                       <ScheduleGrid
@@ -103,7 +128,8 @@ const BuildingSchedulePanel = ({
                         canRequest={canRequest}
                       />
                     </section>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               ))}
             </>

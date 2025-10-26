@@ -1,6 +1,8 @@
 import { useNavigate } from 'react-router-dom'
+import { COLORS } from '../../constants/colors'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
+import * as THREE from 'three'
 import { useAuth } from '../../context/AuthContext'
 import { signOut } from '../../services/authService'
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
@@ -38,41 +40,41 @@ import {
 
 // Styles
 const styles = {
-  screen: "relative min-h-screen overflow-hidden bg-gradient-to-br from-[#e6f1ff] via-[#f7fbff] to-white text-[#0a1f44]",
+  screen: "relative min-h-screen overflow-hidden bg-gradient-to-br from-[#e6f1ff] via-[#f7fbff] to-white text-[#EEEEEE]",
   canvasContainer: "absolute inset-0 z-0",
-  logoutBtn: "uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 border border-white/70 bg-white/15 text-white shadow-lg backdrop-blur-md transition-colors duration-200 hover:bg-white hover:text-[#0a2a5f] hover:border-white",
+  logoutBtn: "uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 border border-[#EEEEEE]/30 bg-[#393E46]/40 text-[#EEEEEE] shadow-lg backdrop-blur-sm transition-colors duration-200 hover:bg-yellow-500 hover:text-black hover:border-yellow-500",
   headerRequestsButton: (isOpen, loading) => cn(
-    "uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 border border-white/50 bg-white/15 text-white shadow-lg backdrop-blur-md transition-colors duration-200",
-    loading ? "opacity-50 cursor-not-allowed" : "hover:bg-white hover:text-[#0a2a5f] hover:border-white",
-    isOpen ? "bg-white text-[#0a2a5f]" : ""
+    "uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 border border-[#EEEEEE]/30 bg-[#393E46]/40 text-[#EEEEEE] shadow-lg backdrop-blur-sm transition-colors duration-200",
+    loading ? "opacity-50 cursor-not-allowed" : "hover:bg-[#3282B8] hover:border-[#3282B8]",
+    isOpen ? "bg-[#3282B8] border-[#3282B8]" : ""
   ),
-  headerUserManagementButton: "uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 border border-white/50 bg-white/15 text-white shadow-lg backdrop-blur-md transition-colors duration-200 hover:bg-white hover:text-[#0a2a5f] hover:border-white",
-  canvasInstructions: "absolute bottom-2 left-1/2 -translate-x-1/2 z-10 text-[0.6rem] uppercase tracking-[0.3em] text-[#0a2a5f] bg-white/90 border border-[#c8dcff] backdrop-blur-sm px-5 py-2 rounded-full pointer-events-none select-none transition-all duration-500 ease-in-out transform",
+  headerUserManagementButton: "uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 border border-[#EEEEEE]/30 bg-[#393E46]/40 text-[#EEEEEE] shadow-lg backdrop-blur-sm transition-colors duration-200 hover:bg-[#3282B8] hover:border-[#3282B8]",
+  canvasInstructions: "absolute bottom-2 left-1/2 -translate-x-1/2 z-10 text-[0.6rem] uppercase tracking-[0.3em] text-[#EEEEEE] bg-[#393E46]/80 border border-[#EEEEEE]/20 px-5 py-2 rounded-full pointer-events-none select-none transition-all duration-500 ease-in-out transform",
   canvasInstructionsVisible: "translate-y-0 opacity-100",
   canvasInstructionsHidden: "translate-y-full opacity-0",
   myRequestsButton: (isOpen) => cn(
-    "uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 border border-[#c4dbff] bg-white/90 text-[#0a2a5f] shadow-lg backdrop-blur-sm transition-colors duration-200",
-    isOpen ? "border-[#0a62c2] text-[#0a62c2]" : "hover:text-[#0a62c2] hover:bg-[#e4f1ff] hover:border-[#0a62c2]"
+    "uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 border border-[#EEEEEE]/30 bg-[#393E46]/40 text-[#EEEEEE] shadow-lg backdrop-blur-sm transition-colors duration-200",
+    isOpen ? "border-yellow-500 text-yellow-500" : "hover:text-yellow-500 hover:border-yellow-500"
   ),
   buildingInfoButton: (isOpen, hasBuilding) => cn(
-    "uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 border border-[#d3e4ff] bg-white/85 text-[#0a2a5f] shadow-lg backdrop-blur-sm transition-colors duration-200",
+    "uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 border border-[#EEEEEE]/30 bg-[#393E46]/80 text-[#EEEEEE] shadow-lg backdrop-blur-sm transition-colors duration-200",
     hasBuilding 
-      ? isOpen ? "border-[#0a62c2] text-[#0a62c2]" : "hover:text-[#0a62c2] hover:bg-[#e9f4ff] hover:border-[#0a62c2]"
-      : "border-[#e0ecff] text-[#9fb7dd] cursor-not-allowed"
+      ? isOpen ? "bg-[#3282B8]" : "hover:bg-[#3282B8]"
+      : "border-[#EEEEEE]/10 text-[#EEEEEE]/30 cursor-not-allowed"
   ),
   scheduleButton: (isOpen, hasBuilding) => cn(
-    "uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 border border-[#d3e4ff] bg-white/85 text-[#0a2a5f] shadow-lg backdrop-blur-sm transition-colors duration-200",
+    "uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 border border-[#EEEEEE]/30 bg-[#393E46]/80 text-[#EEEEEE] shadow-lg backdrop-blur-sm transition-colors duration-200",
     hasBuilding 
-      ? isOpen ? "border-[#0a62c2] text-[#0a62c2]" : "hover:text-[#0a62c2] hover:bg-[#e9f4ff] hover:border-[#0a62c2]"
-      : "border-[#e0ecff] text-[#9fb7dd] cursor-not-allowed"
+      ? isOpen ? "bg-[#3282B8]" : "hover:bg-[#3282B8]"
+      : "border-[#EEEEEE]/10 text-[#EEEEEE]/30 cursor-not-allowed"
   ),
   heroOverlay: "absolute inset-0 z-20 pointer-events-none flex flex-col items-stretch justify-start gap-6 px-0 pt-0 pb-12",
-  heroHeader: "relative z-10 pointer-events-auto w-full px-8 md:px-12 py-4 bg-gradient-to-r from-[#0a62c2] via-[#084d9d] to-[#052863] text-white shadow-lg",
+  heroHeader: "relative z-10 pointer-events-auto w-full px-8 md:px-12 py-2 bg-[#222831] text-[#EEEEEE] border-b border-[#EEEEEE]/10 shadow-lg",
   heroHeaderTop: "flex w-full flex-wrap items-center justify-between gap-3",
   heroHeaderTitle: "flex flex-col gap-0.5 text-[0.6rem] uppercase tracking-[0.35em]",
   heroHeaderActions: "flex flex-wrap items-center justify-end gap-2.5",
   heroContent: "relative z-10 flex w-full max-w-xl flex-col gap-6 mt-2 self-start px-8 md:px-12 overflow-hidden",
-  heroIntro: "flex flex-col gap-6 text-[#0a1f44] transition-all duration-500 ease-in-out transform",
+  heroIntro: "flex flex-col gap-6 text-[#EEEEEE] transition-all duration-500 ease-in-out transform",
   heroIntroVisible: "translate-x-0 opacity-100 pointer-events-auto",
   heroIntroHidden: "-translate-x-full opacity-0 pointer-events-none",
   heroActions: "flex flex-wrap items-center gap-4",
@@ -328,24 +330,34 @@ function HomePage() {
     <div className={styles.screen}>
       {/* 3D Canvas */}
       <div className={styles.canvasContainer}>
-        <Canvas camera={{ position: [0, 60, 80], fov: 45 }}>
-          <ambientLight intensity={0.7} />
-          <directionalLight position={[10, 20, 10]} intensity={0.8} castShadow />
+        <Canvas camera={{ position: [40, 25, 40], fov: 50 }} style={{ background: 'radial-gradient(circle at 32% 18%, rgba(140,160,180,0.4) 0%, rgba(90,110,130,0.6) 55%, rgba(60,80,100,0.8) 100%)' }}>
+          {!buildingLoading && (
           <SchoolModel 
             building={building} 
             onBuildingClick={heroCollapsed ? handleBuildingClick : null}
           />
+          )}
           <OrbitControls 
             ref={controlsRef}
             enabled={true}
-            enablePan={false}
             enableZoom={heroCollapsed}
+            enablePan={false}
             enableRotate={heroCollapsed}
-            minDistance={30}
-            maxDistance={150}
-            maxPolarAngle={Math.PI / 2.1}
-            autoRotate={!heroCollapsed}
-            autoRotateSpeed={0.5}
+            minDistance={10}
+            maxDistance={100}
+            maxPolarAngle={Math.PI / 2}
+            autoRotate={true}
+            autoRotateSpeed={2}
+            mouseButtons={{
+              LEFT: THREE.MOUSE.ROTATE,
+              MIDDLE: THREE.MOUSE.DOLLY,
+              RIGHT: THREE.MOUSE.PAN
+            }}
+            onStart={() => {
+              if (controlsRef.current && heroCollapsed) {
+                controlsRef.current.autoRotate = false
+              }
+            }}
           />
         </Canvas>
       </div>
@@ -375,8 +387,8 @@ function HomePage() {
                 <header className={styles.heroHeader}>
                   <div className={styles.heroHeaderTop}>
                     <div className={styles.heroHeaderTitle}>
-                      <span className="text-[0.85rem] tracking-[0.8em] text-white/80">CTU</span>
-                      <span className="text-[0.85rem] tracking-[0.8em] text-white">Building Monitoring</span>
+                      <span className="text-[0.85rem] tracking-[0.8em] text-[#3282B8] font-bold">CTU</span>
+                      <span className="text-[0.85rem] tracking-[0.8em] text-[#EEEEEE]/90 font-medium">Building Monitoring</span>
                     </div>
             <div className={styles.heroHeaderActions}>
               {canRequestRoom && !canManageRequests && (
@@ -387,7 +399,7 @@ function HomePage() {
                 >
                   {myRequestsPanelOpen ? 'Hide My Requests' : `My Requests`}
                   {filteredMyRequests.length > 0 && (
-                    <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-white bg-blue-600 rounded-full">
+                    <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-black bg-yellow-500 rounded-full">
                       {filteredMyRequests.length}
                     </span>
                   )}
@@ -437,15 +449,15 @@ function HomePage() {
                     }`}
                     style={{ transitionDelay: heroCollapsed ? '0s' : '0.2s' }}
                   >
-                    <h1 className="text-4xl font-semibold leading-tight text-[#072c63] sm:text-5xl md:text-6xl">
-                      <span className="block">See the school from within</span>
-                      <span className="mt-4 block text-2xl font-light uppercase tracking-[0.4em] text-[#0a62c2]">Kham pha khuon vien</span>
+                    <h1 className="text-4xl font-semibold leading-tight text-[#EEEEEE] sm:text-5xl md:text-6xl">
+                      <span className="block text-[#EEEEEE]">See the school from within</span>
+                      <span className="mt-4 block text-2xl font-light uppercase tracking-[0.4em] text-[#3282B8]">Kham pha khuon vien</span>
                     </h1>
                     <div className={styles.heroActions}>
                       <button
                         type="button"
                         onClick={handleHeroExplore}
-                        className="px-6 py-3 text-sm uppercase tracking-[0.35em] bg-[#0a62c2] text-white shadow-lg transition hover:bg-[#084f9b]"
+                        className="px-6 py-3 text-sm uppercase tracking-[0.35em] bg-[#3282B8] text-[#EEEEEE] shadow-lg transition hover:bg-[#0F4C75] border border-[#3282B8]"
                       >
                         Explore 3D Map
                       </button>
@@ -523,14 +535,14 @@ function HomePage() {
               return
             }
 
-            // Open request modal for teacher
-            setRequestState({
-              isOpen: true,
-              isEditMode: false,
-              room: roomNumber,
-              startHour: slotHour,
-              endHour: slotHour
-            })
+              // Open request modal for teacher
+              setRequestState({
+                isOpen: true,
+                isEditMode: false,
+                room: roomNumber,
+                startHour: slotHour,
+                endHour: slotHour
+              })
           }}
           userRole={role}
         />
