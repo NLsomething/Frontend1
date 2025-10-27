@@ -17,8 +17,14 @@ const BuildingSchedulePanel = ({
   canEdit,
   canRequest
 }) => {
-  // Convert Date object to ISO string for input
-  const isoDate = scheduleDate ? scheduleDate.toISOString().split('T')[0] : ''
+  // Convert Date object to local date string for input (avoiding timezone issues)
+  const formatLocalDate = (date) => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+  const isoDate = scheduleDate ? formatLocalDate(scheduleDate) : ''
   
   // Handle date change from input
   const handleDateChange = (dateString) => {
@@ -54,20 +60,28 @@ const BuildingSchedulePanel = ({
               type="date"
               value={isoDate}
               onChange={(event) => handleDateChange(event.target.value)}
-              className="dark-date-input px-3 py-1 text-sm tracking-tight"
-              style={{ border: `1px solid ${COLORS.whiteTransparentBorder}`, backgroundColor: COLORS.screenBackground, color: COLORS.white }}
+              className="dark-date-input"
+              style={{ 
+                padding: '6px 8px',
+                border: '1px solid rgba(238, 238, 238, 0.2)',
+                borderRadius: '4px',
+                fontSize: '12px',
+                color: 'rgb(238, 238, 238)',
+                backgroundColor: 'rgb(57, 62, 70)',
+                boxSizing: 'border-box'
+              }}
             />
             <button
               onClick={onClose}
-              className="px-3 py-1 text-sm font-medium transition-colors duration-150"
-              style={{ border: `1px solid ${COLORS.whiteTransparentBorder}`, color: COLORS.white }}
+              className="px-3 py-1 text-sm font-medium transition-colors duration-150 rounded"
+              style={{ border: '1px solid rgba(238,238,238,0.2)', color: COLORS.white, backgroundColor: COLORS.darkGray }}
             >
               Close
             </button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto" style={{ padding: '20px', paddingTop: '20px', paddingBottom: '20px', scrollbarWidth: 'thin', scrollbarColor: `${COLORS.scrollbarThumb} ${COLORS.scrollbarTrack}` }}>
+        <div className="flex-1 overflow-y-auto relative" style={{ padding: '20px', paddingTop: '20px', paddingBottom: '20px', scrollbarWidth: 'thin', scrollbarColor: `${COLORS.scrollbarThumb} ${COLORS.scrollbarTrack}` }}>
           <style>
             {`
               .dark-date-input::-webkit-calendar-picker-indicator {
@@ -89,7 +103,18 @@ const BuildingSchedulePanel = ({
               }
             `}
           </style>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '27px' }}>
+          
+          {/* Loading indicator at panel level */}
+          {scheduleLoading && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center backdrop-blur-sm" style={{ backgroundColor: `${COLORS.panelBackground}EE` }}>
+              <div className="flex flex-col items-center gap-3">
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-t-transparent" style={{ borderColor: COLORS.blue }}></div>
+                <p className="text-sm font-medium" style={{ color: COLORS.white }}>Loading schedule...</p>
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '27px', opacity: scheduleLoading ? 0.4 : 1, transition: 'opacity 0.2s ease-in-out' }}>
           {buildingRoomsLoading ? (
             <div className="flex h-full w-full items-center justify-center rounded text-sm" style={{ border: `1px dashed ${COLORS.whiteTransparentBorder}`, backgroundColor: COLORS.screenBackground, color: COLORS.whiteTransparentMid }}>
               Loading classroom rooms...
@@ -107,13 +132,12 @@ const BuildingSchedulePanel = ({
                     <h3 className="font-bold uppercase tracking-wide" style={{ fontSize: '15px', color: COLORS.white }}>
                       {section.name}
                     </h3>
-                    {scheduleLoading && <span className="font-medium" style={{ fontSize: '10px', color: COLORS.whiteTransparent }}>Loading…</span>}
                   </div>
                   
                   {/* Floors within this section */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                     {section.floors.map((floor, floorIndex) => (
-                    <section key={floor.id} className="shadow-sm overflow-hidden" style={{ marginLeft: '0', border: `1px solid ${COLORS.whiteTransparentMinimal}`, backgroundColor: COLORS.screenBackground, borderTop: floorIndex === 0 ? `1px solid ${COLORS.whiteTransparentMinimal}` : undefined }}>
+                    <section key={floor.id} className="shadow-sm overflow-hidden" style={{ marginLeft: '0', border: '1px solid rgba(238,238,238,0.2)', backgroundColor: COLORS.screenBackground, borderTop: floorIndex === 0 ? '1px solid rgba(238,238,238,0.2)' : undefined }}>
                       <header className="flex items-center justify-between font-semibold uppercase tracking-wide" style={{ padding: '10px 21px', fontSize: '12px', backgroundColor: COLORS.darkGray, color: COLORS.white }}>
                         <span>{floor.name} • {floor.rooms.length} Room{floor.rooms.length !== 1 ? 's' : ''}</span>
                       </header>

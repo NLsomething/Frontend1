@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { USER_ROLES } from '../../constants/roles'
 import DeviceList from './DeviceList'
 import { COLORS } from '../../constants/colors'
@@ -14,7 +15,17 @@ const PreviewPanel = ({
   onEditDevice, 
   onClose 
 }) => {
-  if (!isOpen || !previewImage) return null
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    if (isOpen && previewImage) {
+      setMounted(true)
+    } else {
+      setMounted(false)
+    }
+  }, [isOpen, previewImage])
+
+  if (!previewImage) return null
 
   return (
     <div style={{
@@ -30,7 +41,11 @@ const PreviewPanel = ({
       zIndex: 35,
       display: 'flex',
       flexDirection: 'column',
-      overflow: 'hidden'
+      overflow: 'hidden',
+      opacity: mounted && isOpen ? 1 : 0,
+      transform: mounted && isOpen ? 'translateX(0)' : 'translateX(100%)',
+      transition: 'opacity 0.3s ease-out, transform 0.3s ease-out',
+      pointerEvents: mounted && isOpen ? 'auto' : 'none'
     }}>
       {/* Preview Header */}
       <div style={{

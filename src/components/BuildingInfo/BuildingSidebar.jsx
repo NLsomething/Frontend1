@@ -12,13 +12,21 @@ const BuildingSidebar = ({
   selectedSection,
   setSelectedSection,
   selectedFloor,
-  setSelectedFloor
+  setSelectedFloor,
+  selectedRoomCode,
+  onRoomDeselect,
+  isOpen = true
 }) => {
   const { notifyError } = useNotifications()
   const [sections, setSections] = useState([])
   const [floors, setFloors] = useState([])
   const [rooms, setRooms] = useState([])
   const [loading, setLoading] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const loadSections = async () => {
     setLoading(true)
@@ -81,7 +89,10 @@ const BuildingSidebar = ({
   }, [selectedFloor?.id])
 
   const handleBack = () => {
-    if (selectedFloor) {
+    // If a room is selected, deselect it first
+    if (selectedRoomCode && onRoomDeselect) {
+      onRoomDeselect()
+    } else if (selectedFloor) {
       setSelectedFloor(null)
     } else if (selectedSection) {
       setSelectedSection(null)
@@ -106,7 +117,10 @@ const BuildingSidebar = ({
       zIndex: 30,
       display: 'flex',
       flexDirection: 'column',
-      overflow: 'hidden'
+      overflow: 'hidden',
+      transform: mounted && isOpen ? 'translateX(0)' : 'translateX(-100%)',
+      transition: 'transform 0.3s ease-out, opacity 0.3s ease-out',
+      opacity: mounted && isOpen ? 1 : 0
     }}>
       <div style={{
         display: 'flex',
@@ -238,19 +252,6 @@ const BuildingSidebar = ({
       }}>
         <style>
           {`
-            ::-webkit-scrollbar {
-              width: 8px;
-            }
-            ::-webkit-scrollbar-track {
-              background: #222831;
-            }
-            ::-webkit-scrollbar-thumb {
-              background: #3282B8;
-              border-radius: 4px;
-            }
-            ::-webkit-scrollbar-thumb:hover {
-              background: #0F4C75;
-            }
           `}
         </style>
           {loading && (

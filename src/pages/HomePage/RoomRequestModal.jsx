@@ -1,5 +1,6 @@
 import { MAX_ROOM_REQUEST_WEEKS } from '../../constants/requests'
 import { formatDateDisplay } from '../../utils'
+import { COLORS } from '../../constants/colors'
 
 const RoomRequestModal = ({ 
   isOpen, 
@@ -17,10 +18,10 @@ const RoomRequestModal = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" role="dialog" aria-modal="true">
-      <div className="w-full max-w-lg bg-white p-6 shadow-2xl">
+      <div className="w-full max-w-lg p-6 shadow-2xl rounded" style={{ backgroundColor: COLORS.darkGray }}>
         <div className="mb-4">
-          <h3 className="text-lg font-semibold text-slate-900">Request Room Usage</h3>
-          <p className="text-sm text-slate-500">
+          <h3 className="text-lg font-semibold" style={{ color: COLORS.white }}>Request Room Usage</h3>
+          <p className="text-sm" style={{ color: COLORS.whiteTransparentMid }}>
             Room {requestState.room} • {formatDateDisplay(isoDate)}
           </p>
         </div>
@@ -28,28 +29,38 @@ const RoomRequestModal = ({
         <form className="space-y-4" onSubmit={onSubmit}>
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Start time</label>
+              <label className="block text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: COLORS.whiteTransparentMid }}>Start time</label>
               <select
                 value={requestState.startHour ?? ''}
                 onChange={onRangeChange('startHour')}
-                className="w-full border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                className="w-full border px-3 py-2 text-sm rounded"
+                style={{ 
+                  border: '1px solid rgba(238,238,238,0.2)',
+                  color: COLORS.white,
+                  backgroundColor: '#4A5058'
+                }}
               >
                 {timeSlots.map((slot) => (
-                  <option key={`request-start-${slot.hour}`} value={slot.hour}>
+                  <option key={`request-start-${slot.hour}`} value={slot.hour} style={{ backgroundColor: '#4A5058' }}>
                     {slot.label}
                   </option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">End time</label>
+              <label className="block text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: COLORS.whiteTransparentMid }}>End time</label>
               <select
                 value={requestState.endHour ?? ''}
                 onChange={onRangeChange('endHour')}
-                className="w-full border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                className="w-full border px-3 py-2 text-sm rounded"
+                style={{ 
+                  border: '1px solid rgba(238,238,238,0.2)',
+                  color: COLORS.white,
+                  backgroundColor: '#4A5058'
+                }}
               >
                 {timeSlots.map((slot) => (
-                  <option key={`request-end-${slot.hour}`} value={slot.hour}>
+                  <option key={`request-end-${slot.hour}`} value={slot.hour} style={{ backgroundColor: '#4A5058' }}>
                     {slot.label}
                   </option>
                 ))}
@@ -58,15 +69,20 @@ const RoomRequestModal = ({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Weeks</label>
+            <label className="block text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: COLORS.whiteTransparentMid }}>Weeks</label>
             <select
               name="weekCount"
               value={requestForm.weekCount}
               onChange={onFormChange}
-              className="w-full border border-slate-300 px-3 py-2 text-sm text-slate-700"
+              className="w-full border px-3 py-2 text-sm rounded"
+              style={{ 
+                border: '1px solid rgba(238,238,238,0.2)',
+                color: COLORS.white,
+                backgroundColor: '#4A5058'
+              }}
             >
               {Array.from({ length: MAX_ROOM_REQUEST_WEEKS }, (_, index) => index + 1).map((week) => (
-                <option key={`weeks-${week}`} value={week}>
+                <option key={`weeks-${week}`} value={week} style={{ backgroundColor: '#4A5058' }}>
                   {week} week{week > 1 ? 's' : ''}
                 </option>
               ))}
@@ -74,38 +90,35 @@ const RoomRequestModal = ({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Course / Event Name (optional)</label>
+            <label className="block text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: COLORS.whiteTransparentMid }}>Course / Event Name (optional)</label>
             <input
               type="text"
               name="courseName"
               value={requestForm.courseName}
               onChange={onFormChange}
-              className="w-full border border-slate-300 px-3 py-2 text-sm text-slate-700"
+              className="w-full border px-3 py-2 text-sm rounded"
+              style={{ 
+                border: '1px solid rgba(238,238,238,0.2)',
+                color: COLORS.white,
+                backgroundColor: '#4A5058'
+              }}
               placeholder="e.g. Physics Workshop"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Who will use the room?</label>
-            <input
-              type="text"
-              name="bookedBy"
-              value={requestForm.bookedBy}
-              onChange={onFormChange}
-              className="w-full border border-slate-300 px-3 py-2 text-sm text-slate-700"
-              placeholder="e.g. Grade 11 Physics"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Additional notes (optional)</label>
+            <label className="block text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: COLORS.whiteTransparentMid }}>Additional notes (optional)</label>
             <textarea
               name="notes"
               value={requestForm.notes}
               onChange={onFormChange}
-              className="w-full border border-slate-300 px-3 py-2 text-sm text-slate-700"
+              className="w-full border px-3 py-2 text-sm rounded"
               rows={3}
+              style={{ 
+                border: '1px solid rgba(238,238,238,0.2)',
+                color: COLORS.white,
+                backgroundColor: '#4A5058'
+              }}
               placeholder="Share any extra context for the building manager."
             />
           </div>
@@ -114,14 +127,20 @@ const RoomRequestModal = ({
             <button
               type="button"
               onClick={onClose}
-              className="border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
+              style={{ 
+                border: '1px solid rgba(238,238,238,0.2)', 
+                color: COLORS.white,
+                backgroundColor: '#4A5058'
+              }}
+              className="px-4 py-2 text-sm font-semibold transition-colors duration-150 hover:bg-opacity-70 rounded"
               disabled={submitting}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="bg-[#096ecc] px-4 py-2 text-sm font-semibold text-white shadow hover:bg-[#085cac]"
+              className="px-4 py-2 text-sm font-semibold shadow transition-colors rounded"
+              style={{ backgroundColor: COLORS.blue, color: COLORS.white, border: '1px solid transparent' }}
               disabled={submitting}
             >
               {submitting ? 'Submitting…' : 'Submit Request'}

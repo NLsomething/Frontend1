@@ -8,6 +8,7 @@ export const createRoomRequest = async (request) => {
     requester_name: request.requester_name,
     requester_email: request.requester_email,
     room_number: request.room_number,
+    building_code: request.building_code,
     base_date: request.base_date,
     start_hour: request.start_hour,
     end_hour: request.end_hour,

@@ -27,13 +27,13 @@ const ScheduleGrid = ({
           }}
         >
           {/* Top-left corner cell */}
-          <div className="font-semibold border-r" style={{ padding: '10px 14px', backgroundColor: COLORS.darkGray, color: COLORS.white, borderColor: COLORS.whiteTransparentMinimal }}>
+          <div className="font-semibold border-r" style={{ padding: '10px 14px', backgroundColor: COLORS.darkGray, color: COLORS.white, borderColor: 'rgba(238,238,238,0.2)' }}>
             Room
           </div>
           
           {/* Header row: Time slots */}
           {timeSlots.map((slot) => (
-            <div key={`header-${slot.hour}`} className="text-center font-semibold border-l" style={{ padding: '10px 7px', fontSize: '10px', backgroundColor: COLORS.darkGray, color: COLORS.white, borderColor: COLORS.whiteTransparentMinimal }}>
+            <div key={`header-${slot.hour}`} className="text-center font-semibold border-l" style={{ padding: '10px 7px', fontSize: '10px', backgroundColor: COLORS.darkGray, color: COLORS.white, borderColor: 'rgba(238,238,238,0.2)' }}>
               {slot.label}
             </div>
           ))}
@@ -42,7 +42,7 @@ const ScheduleGrid = ({
           {rooms.map((room) => (
             <Fragment key={`room-${room}`}>
               {/* Room name cell */}
-              <div className="font-medium border-t border-r" style={{ padding: '10px 14px', backgroundColor: COLORS.darkGray, color: COLORS.white, borderColor: COLORS.whiteTransparentMinimal }}>
+              <div className="font-medium border-t border-r" style={{ padding: '10px 14px', backgroundColor: COLORS.darkGray, color: COLORS.white, borderColor: 'rgba(238,238,238,0.2)' }}>
                 {room}
               </div>
               
@@ -78,8 +78,8 @@ const ScheduleGrid = ({
                         backgroundColor: colors.bg,
                         color: colors.text,
                         border: 'none',
-                        borderTop: `1px solid rgba(238,238,238,0.1)`,
-                        borderLeft: `1px solid rgba(238,238,238,0.1)`,
+                        borderTop: '1px solid rgba(238,238,238,0.2)',
+                        borderLeft: '1px solid rgba(238,238,238,0.2)',
                         cursor: interactive ? 'pointer' : 'default',
                         transition: 'filter 0.15s'
                       }}

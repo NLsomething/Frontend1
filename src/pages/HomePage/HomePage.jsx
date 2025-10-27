@@ -22,7 +22,8 @@ import {
   RoomRequestModal,
   BuildingSchedulePanel,
   RequestsPanel,
-  MyRequestsPanel
+  MyRequestsPanel,
+  SearchBuilding
 } from './'
 
 // Import custom hooks
@@ -73,7 +74,7 @@ const styles = {
   heroHeaderTop: "flex w-full flex-wrap items-center justify-between gap-3",
   heroHeaderTitle: "flex flex-col gap-0.5 text-[0.6rem] uppercase tracking-[0.35em]",
   heroHeaderActions: "flex flex-wrap items-center justify-end gap-2.5",
-  heroContent: "relative z-10 flex w-full max-w-xl flex-col gap-6 mt-2 self-start px-8 md:px-12 overflow-hidden",
+  heroContent: "relative z-10 flex w-full flex-col justify-center pl-8 md:pl-12",
   heroIntro: "flex flex-col gap-6 text-[#EEEEEE] transition-all duration-500 ease-in-out transform",
   heroIntroVisible: "translate-x-0 opacity-100 pointer-events-auto",
   heroIntroHidden: "-translate-x-full opacity-0 pointer-events-none",
@@ -97,6 +98,7 @@ function HomePage() {
   const controlsRef = useRef()
   
   // Building state
+  const [buildings, setBuildings] = useState([])
   const [building, setBuilding] = useState(null)
   const [buildingLoading, setBuildingLoading] = useState(true)
   const [selectedBuilding, setSelectedBuilding] = useState(null)
@@ -104,6 +106,12 @@ function HomePage() {
   
   // Schedule panel state
   const [isScheduleOpen, setScheduleOpen] = useState(false)
+  
+  // Building dropdown state
+  const [isBuildingDropdownOpen, setIsBuildingDropdownOpen] = useState(false)
+  const [isDropdownClosing, setIsDropdownClosing] = useState(false)
+  const dropdownRef = useRef(null)
+  
   const [buildingRooms, setBuildingRooms] = useState([])
   const [buildingRoomsLoading, setBuildingRoomsLoading] = useState(false)
   const [scheduleDate, setScheduleDate] = useState(() => new Date())
@@ -193,6 +201,46 @@ function HomePage() {
     }
   }, [user, loading, navigate])
 
+  // Handle click outside dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        handleCloseDropdown()
+      }
+    }
+
+    if (isBuildingDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isBuildingDropdownOpen])
+
+  const handleCloseDropdown = () => {
+    setIsDropdownClosing(true)
+    setTimeout(() => {
+      setIsBuildingDropdownOpen(false)
+      setIsDropdownClosing(false)
+    }, 200) // Match animation duration
+  }
+
+  const handleOpenDropdown = () => {
+    setIsDropdownClosing(false)
+    setIsBuildingDropdownOpen(true)
+  }
+
+  // Close dropdown when panels open (with delay for smooth transition)
+  useEffect(() => {
+    if (isBuildingInfoOpen || isScheduleOpen) {
+      const timer = setTimeout(() => {
+        handleCloseDropdown()
+      }, 100) // Small delay to let panels start sliding
+      return () => clearTimeout(timer)
+    }
+  }, [isBuildingInfoOpen, isScheduleOpen])
+
           // Load building on mount
           useEffect(() => {
             const loadBuilding = async () => {
@@ -207,6 +255,7 @@ function HomePage() {
                   })
                 } else if (data && data.length > 0) {
                   console.log('[HomePage] Building loaded:', data[0])
+                  setBuildings(data)
                   setBuilding(data[0])
                 } else {
                   console.log('[HomePage] No buildings found in data:', data)
@@ -226,8 +275,8 @@ function HomePage() {
     loadSchedules()
   }, [loadSchedules])
 
-  // Handle schedule button click
-  const handleScheduleButtonClick = async () => {
+  // Handle schedule button click (internal function)
+  const handleScheduleButtonClickInternal = async () => {
     if (!canViewSchedule) {
       notifyInfo('Access required', {
         description: 'Your role does not allow viewing the room schedule.'
@@ -278,11 +327,45 @@ function HomePage() {
     }
   }
 
+  const closeAllPanels = () => {
+    // Only close header-level panels, not modals
+    setRequestsPanelOpen(false)
+    setMyRequestsPanelOpen(false)
+    setIsBuildingInfoOpen(false)
+    setScheduleOpen(false)
+    setUserManagementOpen(false)
+  }
+
   const handleRequestsButtonClick = () => {
     if (!canManageRequests) {
       return
     }
+    closeAllPanels()
     setRequestsPanelOpen((prev) => !prev)
+  }
+
+  const handleMyRequestsClick = () => {
+    closeAllPanels()
+    setMyRequestsPanelOpen((prev) => !prev)
+  }
+
+  const handleUserManagementClick = () => {
+    closeAllPanels()
+    setUserManagementOpen(true)
+  }
+
+  const handleBuildingInfoToggle = () => {
+    closeAllPanels()
+    setIsBuildingInfoOpen((prev) => !prev)
+  }
+
+  const handleScheduleToggle = () => {
+    closeAllPanels()
+    if (isScheduleOpen) {
+      setScheduleOpen(false)
+    } else {
+      handleScheduleButtonClickInternal()
+    }
   }
 
   const handleBuildingClick = (clickedBuilding) => {
@@ -296,12 +379,75 @@ function HomePage() {
     }
   }
 
-  const handleToggleBuildingInfo = () => {
-    if (isBuildingInfoOpen) {
-      setIsBuildingInfoOpen(false)
-      setScheduleOpen(false)
-    } else {
+
+  const handleRoomSearch = async (building, roomCode) => {
+    try {
+      // Close all panels first
+      closeAllPanels()
+      
+      // Select the building
+      setSelectedBuilding(building)
+      
+      // Load building rooms
+      setBuildingRoomsLoading(true)
+      const { data: buildingRoomsData, error: roomsError } = await fetchRoomsByBuildingId(building.id)
+      if (!roomsError && buildingRoomsData) {
+        setBuildingRooms(buildingRoomsData)
+      }
+      setBuildingRoomsLoading(false)
+
+      // Open building info
       setIsBuildingInfoOpen(true)
+      
+      // Collapse hero if not already collapsed
+      if (!heroCollapsed) {
+        setHeroCollapsed(true)
+      }
+
+      // If room code is provided, navigate to the specific room
+      if (roomCode) {
+        // Search for the room in the building
+        const { data: roomsData, error } = await fetchRoomsByBuildingId(building.id)
+        
+        if (error) {
+          notifyError('Room not found', {
+            description: `Could not find room ${roomCode} in building ${building.building_code}`
+          })
+          return
+        }
+
+        // Find the room
+        const room = roomsData.find(r => r.room_code.toLowerCase() === roomCode.trim().toLowerCase())
+        
+        if (!room) {
+          notifyError('Room not found', {
+            description: `Room ${roomCode} does not exist in building ${building.building_code}`
+          })
+          return
+        }
+
+        // Navigate to the specific room
+        // This will be handled by BuildingInfoModal
+        setTimeout(() => {
+          // Trigger selection of the room in the modal
+          const event = new CustomEvent('search-room', { detail: { roomCode: roomCode } })
+          window.dispatchEvent(event)
+        }, 300) // Small delay to ensure modal is mounted
+        
+        notifyInfo('Room found', {
+          description: `Showing ${building.building_code} - Room ${roomCode}`
+        })
+      } else {
+        // Just open building info
+        notifyInfo('Building opened', {
+          description: `Showing building ${building.building_code}`
+        })
+      }
+    } catch (err) {
+      console.error('Error searching:', err)
+      notifyError('Search failed', {
+        description: 'An unexpected error occurred while searching.'
+      })
     }
   }
 
@@ -387,22 +533,26 @@ function HomePage() {
                 <header className={styles.heroHeader}>
                   <div className={styles.heroHeaderTop}>
                     <div className={styles.heroHeaderTitle}>
-                      <span className="text-[0.85rem] tracking-[0.8em] text-[#3282B8] font-bold">CTU</span>
-                      <span className="text-[0.85rem] tracking-[0.8em] text-[#EEEEEE]/90 font-medium">Building Monitoring</span>
+                      <span className="text-[0.85rem] tracking-[0.8em] text-[#3282B8] font-bold">Classroom</span>
+                      <span className="text-[0.85rem] tracking-[0.8em] text-[#EEEEEE]/90 font-medium">Insight</span>
                     </div>
             <div className={styles.heroHeaderActions}>
+              <div 
+                className={`transition-opacity duration-500 ${heroCollapsed ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+              >
+                <SearchBuilding
+                  buildings={buildings}
+                  onRoomSelect={handleRoomSearch}
+                  onOpen={closeAllPanels}
+                />
+              </div>
               {canRequestRoom && !canManageRequests && (
                 <button
                   type="button"
-                  onClick={() => setMyRequestsPanelOpen((prev) => !prev)}
+                  onClick={handleMyRequestsClick}
                   className={styles.headerRequestsButton(myRequestsPanelOpen, false)}
                 >
                   {myRequestsPanelOpen ? 'Hide My Requests' : `My Requests`}
-                  {filteredMyRequests.length > 0 && (
-                    <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-black bg-yellow-500 rounded-full">
-                      {filteredMyRequests.length}
-                    </span>
-                  )}
                 </button>
               )}
               {canManageRequests && (
@@ -413,17 +563,12 @@ function HomePage() {
                   disabled={requestsLoading}
                 >
                   {requestsLoading ? 'Loading...' : 'Manage Requests'}
-                  {pendingRequests.length > 0 && (
-                    <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-white bg-red-600 rounded-full">
-                      {pendingRequests.length}
-                    </span>
-                  )}
                 </button>
               )}
               {role === USER_ROLES.administrator && (
                 <button
                   type="button"
-                  onClick={() => setUserManagementOpen(true)}
+                  onClick={handleUserManagementClick}
                   className={styles.headerUserManagementButton}
                 >
                   User Management
@@ -440,55 +585,142 @@ function HomePage() {
           </div>
         </header>
 
-                {/* Hero Content */}
-                <div className={styles.heroContent}>
-                  {/* Intro Section */}
+                {/* Hero Content - Left Side Fade Overlay */}
+                <div className={`absolute top-0 left-0 w-[45%] h-full z-0 transition-all duration-500 ease-in-out ${
+                      !heroCollapsed ? 'translate-x-0 opacity-100' : '-translate-x-full opacity-0'
+                    }`}>
+                  {/* Gradient Background - Fades from top to bottom and right to left */}
                   <div 
-                    className={`${styles.heroIntro} ${
-                      !heroCollapsed ? styles.heroIntroVisible : styles.heroIntroHidden
-                    }`}
-                    style={{ transitionDelay: heroCollapsed ? '0s' : '0.2s' }}
-                  >
-                    <h1 className="text-4xl font-semibold leading-tight text-[#EEEEEE] sm:text-5xl md:text-6xl">
-                      <span className="block text-[#EEEEEE]">See the school from within</span>
-                      <span className="mt-4 block text-2xl font-light uppercase tracking-[0.4em] text-[#3282B8]">Kham pha khuon vien</span>
-                    </h1>
-                    <div className={styles.heroActions}>
-                      <button
-                        type="button"
-                        onClick={handleHeroExplore}
-                        className="px-6 py-3 text-sm uppercase tracking-[0.35em] bg-[#3282B8] text-[#EEEEEE] shadow-lg transition hover:bg-[#0F4C75] border border-[#3282B8]"
-                      >
-                        Explore 3D Map
-                      </button>
+                    className="absolute inset-0"
+                    style={{
+                      background: 'linear-gradient(to bottom, rgba(34, 40, 49, 0.4) 0%, rgba(34, 40, 49, 0.3) 20%, rgba(34, 40, 49, 0.18) 45%, rgba(34, 40, 49, 0.08) 65%, rgba(34, 40, 49, 0.02) 80%, transparent 95%), linear-gradient(to right, rgba(34, 40, 49, 0.25) 0%, rgba(34, 40, 49, 0.15) 20%, rgba(34, 40, 49, 0.08) 45%, rgba(34, 40, 49, 0.03) 70%, rgba(34, 40, 49, 0.01) 85%, transparent 95%)'
+                    }}
+                    aria-hidden="true"
+                  />
+                  
+                  {/* Content */}
+                  <div className="relative h-full flex flex-col justify-center pl-8 md:pl-12">
+                    <div 
+                      className={`${styles.heroIntro} ${
+                        !heroCollapsed ? styles.heroIntroVisible : styles.heroIntroHidden
+                      }`}
+                      style={{ transitionDelay: heroCollapsed ? '0s' : '0.2s' }}
+                    >
+                      <div className="relative max-w-xl">
+                        <h1 className="text-4xl font-bold leading-tight text-white sm:text-5xl md:text-6xl drop-shadow-2xl">
+                          <span className="block bg-gradient-to-r from-white via-[#EEEEEE] to-white bg-clip-text text-transparent">See the school</span>
+                          <span className="block text-white mt-3">from within</span>
+                          <span className="mt-6 block text-xl font-light uppercase tracking-[0.5em] text-white drop-shadow-xl">Explore the campus</span>
+                        </h1>
+                        <div className={styles.heroActions} style={{ marginTop: '2.5rem' }}>
+                          <button
+                            type="button"
+                            onClick={handleHeroExplore}
+                            className="px-8 py-4 text-sm uppercase tracking-[0.35em] bg-[#3282B8] text-[#EEEEEE] shadow-xl transition-all duration-300 hover:bg-[#4BA3D3] hover:shadow-2xl hover:scale-105 border border-[#3282B8]/30 rounded-lg font-semibold"
+                            style={{
+                              boxShadow: '0 6px 20px rgba(50, 130, 184, 0.5)'
+                            }}
+                          >
+                            Explore 3D Map
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
-
-        </div>
+                </div>
 
                 {/* Building-specific Controls */}
                 <div 
                   className={`${styles.buildingControlsWrapper} ${
-                    heroCollapsed && !isBuildingInfoOpen && !isScheduleOpen ? styles.buildingControlsVisible : styles.buildingControlsHidden
+                    heroCollapsed && (!isBuildingInfoOpen && !isScheduleOpen || isBuildingDropdownOpen) ? styles.buildingControlsVisible : styles.buildingControlsHidden
                   }`}
                 >
-                  <button
-                    type="button"
-                    onClick={handleToggleBuildingInfo}
-                    className={styles.buildingInfoButton(isBuildingInfoOpen, selectedBuilding !== null)}
-                    disabled={!selectedBuilding}
-                  >
-                    {isBuildingInfoOpen ? 'Hide Building Info' : selectedBuilding ? `Building Info: ${selectedBuilding.building_name}` : 'Select a Building'}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleScheduleButtonClick}
-                    className={styles.scheduleButton(isScheduleOpen, selectedBuilding !== null)}
-                    disabled={!selectedBuilding}
-                  >
-                    {isScheduleOpen ? 'Hide Schedule' : selectedBuilding ? `Schedule: ${selectedBuilding.building_name}` : 'Select a Building'}
-                  </button>
+                  <div className="relative" ref={dropdownRef}>
+                    <button
+                      type="button"
+                      onClick={() => isBuildingDropdownOpen ? handleCloseDropdown() : handleOpenDropdown()}
+                      className={cn(
+                        "uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 border border-[#EEEEEE]/30 bg-[#393E46]/80 text-[#EEEEEE] shadow-lg backdrop-blur-sm transition-colors duration-200",
+                        selectedBuilding !== null ? (isBuildingInfoOpen || isScheduleOpen ? "bg-[#3282B8]" : "hover:bg-[#3282B8]") : "border-[#EEEEEE]/10 text-[#EEEEEE]/30 cursor-not-allowed"
+                      )}
+                      disabled={!selectedBuilding}
+                    >
+                      Building: {selectedBuilding ? selectedBuilding.building_name : 'Select a Building'}
+                    </button>
+                    
+                    {(isBuildingDropdownOpen || isDropdownClosing) && selectedBuilding && (
+                      <div 
+                        className="absolute top-full left-0 mt-2 z-40 flex flex-col gap-1 min-w-[200px]"
+                        style={{
+                          animation: isDropdownClosing ? 'fadeOutDrop 0.2s ease-out' : 'fadeInDrop 0.2s ease-out'
+                        }}
+                      >
+                        <style>{`
+                          @keyframes fadeInDrop {
+                            from {
+                              opacity: 0;
+                              transform: translateY(-10px) scale(0.95);
+                            }
+                            to {
+                              opacity: 1;
+                              transform: translateY(0) scale(1);
+                            }
+                          }
+                          @keyframes fadeOutDrop {
+                            from {
+                              opacity: 1;
+                              transform: translateY(0) scale(1);
+                            }
+                            to {
+                              opacity: 0;
+                              transform: translateY(-10px) scale(0.95);
+                            }
+                          }
+                        `}</style>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleBuildingInfoToggle()
+                          }}
+                          className="uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 border border-[#EEEEEE]/30 bg-[#393E46]/90 text-[#EEEEEE] shadow-lg backdrop-blur-sm transition-all duration-200 text-left"
+                          onMouseEnter={(e) => {
+                            if (!isBuildingInfoOpen) {
+                              e.currentTarget.style.backgroundColor = COLORS.blue
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isBuildingInfoOpen) {
+                              e.currentTarget.style.backgroundColor = '#393E4690'
+                            }
+                          }}
+                          style={{ backgroundColor: isBuildingInfoOpen ? COLORS.blue : '#393E4690' }}
+                        >
+                          Building Info
+                        </button>
+                        
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleScheduleToggle()
+                          }}
+                          className="uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 border border-[#EEEEEE]/30 bg-[#393E46]/90 text-[#EEEEEE] shadow-lg backdrop-blur-sm transition-all duration-200 text-left"
+                          onMouseEnter={(e) => {
+                            if (!isScheduleOpen) {
+                              e.currentTarget.style.backgroundColor = COLORS.blue
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isScheduleOpen) {
+                              e.currentTarget.style.backgroundColor = '#393E4690'
+                            }
+                          }}
+                          style={{ backgroundColor: isScheduleOpen ? COLORS.blue : '#393E4690' }}
+                        >
+                          Schedule
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
       </div>
 
@@ -675,24 +907,16 @@ function HomePage() {
             const endHour = Math.max(requestState.startHour, requestState.endHour)
             const weekCount = requestForm.weekCount
             const trimmedCourse = requestForm.courseName?.trim() || ''
-            const trimmedBookedBy = requestForm.bookedBy?.trim() || ''
             const trimmedNotes = requestForm.notes?.trim() || ''
-
-            if (!trimmedBookedBy) {
-              notifyError('Missing usage information', {
-                description: 'Please provide who will use the room.'
-              })
-              return
-            }
 
             const result = await submitRequest({
               room_number: requestState.room,
+              building_code: selectedBuilding?.building_code || '',
               base_date: isoDate,
               start_hour: startHour,
               end_hour: endHour,
               week_count: weekCount,
               course_name: trimmedCourse || null,
-              booked_by: trimmedBookedBy || null,
               notes: trimmedNotes || null
             })
             

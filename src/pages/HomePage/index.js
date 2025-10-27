@@ -12,3 +12,6 @@ export { default as BuildingSchedulePanel } from './BuildingSchedulePanel'
 
 // Grid component
 export { default as ScheduleGrid } from './ScheduleGrid'
+
+// Header components
+export { default as SearchBuilding } from './SearchBuilding'

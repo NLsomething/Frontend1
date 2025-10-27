@@ -1,3 +1,5 @@
+import { COLORS } from './colors'
+
 export const ROOM_REQUEST_STATUS = {
   pending: 'pending',
   approved: 'approved',
@@ -13,10 +15,26 @@ export const ROOM_REQUEST_STATUS_LABELS = {
 }
 
 export const ROOM_REQUEST_STATUS_STYLES = {
-  [ROOM_REQUEST_STATUS.pending]: 'bg-amber-50 text-amber-600 border-amber-200',
-  [ROOM_REQUEST_STATUS.approved]: 'bg-emerald-50 text-emerald-600 border-emerald-200',
-  [ROOM_REQUEST_STATUS.rejected]: 'bg-rose-50 text-rose-600 border-rose-200',
-  [ROOM_REQUEST_STATUS.reverted]: 'bg-slate-100 text-slate-700 border-slate-300'
+  [ROOM_REQUEST_STATUS.pending]: {
+    backgroundColor: COLORS.blue,
+    color: '#FFFFFF',
+    borderColor: COLORS.blue
+  },
+  [ROOM_REQUEST_STATUS.approved]: {
+    backgroundColor: 'rgb(5, 150, 105)',
+    color: '#FFFFFF',
+    borderColor: 'rgb(5, 150, 105)'
+  },
+  [ROOM_REQUEST_STATUS.rejected]: {
+    backgroundColor: COLORS.rejectedRed,
+    color: '#FFFFFF',
+    borderColor: COLORS.rejectedRed
+  },
+  [ROOM_REQUEST_STATUS.reverted]: {
+    backgroundColor: '#d97706',
+    color: '#FFFFFF',
+    borderColor: '#d97706'
+  }
 }
 
 export const MAX_ROOM_REQUEST_WEEKS = 12

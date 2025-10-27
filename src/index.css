@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/* Set Helvetica as the default font family for the entire application */
+html,
+body,
+#root {
+  font-family: 'Helvetica Neue', 'Helvetica', 'Arial', sans-serif;
+}
+
 /* Remove white borders around the page */
 body {
   margin: 0;

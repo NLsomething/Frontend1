@@ -131,7 +131,7 @@ export const useRoomRequests = (canManage, canRequest, user, profile) => {
           slot_hour: hour,
           status: SCHEDULE_STATUS.occupied,
           course_name: request.course_name || null,
-          booked_by: request.booked_by || request.requester_name || 'Reserved'
+          booked_by: request.requester_name || 'Reserved'
         })
 
         if (error) {
@@ -353,7 +353,7 @@ export const useRoomRequests = (canManage, canRequest, user, profile) => {
   })
   
   const [requestForm, setRequestForm] = useState({
-    status: '',
+    status: SCHEDULE_STATUS.occupied,
     courseName: '',
     bookedBy: '',
     weekCount: 1,
@@ -370,7 +370,7 @@ export const useRoomRequests = (canManage, canRequest, user, profile) => {
       existingEntry: null
     })
     setRequestForm({
-      status: '',
+      status: SCHEDULE_STATUS.occupied,
       courseName: '',
       bookedBy: '',
       weekCount: 1,

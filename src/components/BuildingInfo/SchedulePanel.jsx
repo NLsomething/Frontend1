@@ -1,4 +1,4 @@
-import { Fragment } from 'react'
+import { Fragment, useState, useEffect } from 'react'
 import { SCHEDULE_STATUS, SCHEDULE_STATUS_LABELS } from '../../constants/schedule'
 import { getScheduleStatusColors, formatTimeSlot } from '../../utils/scheduleUtils'
 import ScheduleCellTooltip from '../common/ScheduleCellTooltip'
@@ -17,7 +17,17 @@ const SchedulePanel = ({
   onTeacherRequest,
   onClose 
 }) => {
-  if (!isOpen || !roomCode) return null
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    if (isOpen && roomCode) {
+      setMounted(true)
+    } else {
+      setMounted(false)
+    }
+  }, [isOpen, roomCode])
+
+  if (!roomCode) return null
 
   return (
     <div style={{
@@ -33,7 +43,11 @@ const SchedulePanel = ({
       zIndex: 29,
       display: 'flex',
       flexDirection: 'column',
-      overflow: 'hidden'
+      overflow: 'hidden',
+      opacity: mounted && isOpen ? 1 : 0,
+      transform: mounted && isOpen ? 'translateX(0)' : 'translateX(-100%)',
+      transition: 'opacity 0.3s ease-out, transform 0.3s ease-out',
+      pointerEvents: mounted && isOpen ? 'auto' : 'none'
     }}>
       {/* Schedule Header */}
       <div style={{
@@ -129,19 +143,6 @@ const SchedulePanel = ({
       }}>
         <style>
           {`
-            ::-webkit-scrollbar {
-              width: 8px;
-            }
-            ::-webkit-scrollbar-track {
-              background: #393E46;
-            }
-            ::-webkit-scrollbar-thumb {
-              background: #3282B8;
-              border-radius: 4px;
-            }
-            ::-webkit-scrollbar-thumb:hover {
-              background: #0F4C75;
-            }
           `}
         </style>
         {scheduleLoading ? (

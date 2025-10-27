@@ -25,6 +25,10 @@ export const COLORS = {
   scrollbarTrack: '#393E46',
   scrollbarThumb: '#3282B8',
   scrollbarThumbHover: '#0F4C75',
+  
+  // Status colors
+  pendingOrange: '#f4a100',
+  rejectedRed: '#ff413a',
 }
 
 /**
