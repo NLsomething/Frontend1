@@ -105,7 +105,7 @@ const SearchBuilding = ({ buildings, onRoomSelect, onOpen }) => {
             onOpen()
           }
         }}
-        className="uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 border border-[#EEEEEE]/30 bg-[#393E46]/80 text-[#EEEEEE] shadow-lg backdrop-blur-sm transition-colors duration-200 hover:bg-[#3282B8]"
+        className="uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 bg-[#222831] text-[#EEEEEE] shadow-lg backdrop-blur-sm transition-colors duration-200 hover:bg-[#2f3a4a]"
       >
         Search Building
       </button>

@@ -45,11 +45,11 @@ const styles = {
   canvasContainer: "absolute inset-0 z-0",
   logoutBtn: "uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 border border-[#EEEEEE]/30 bg-[#393E46]/40 text-[#EEEEEE] shadow-lg backdrop-blur-sm transition-colors duration-200 hover:bg-yellow-500 hover:text-black hover:border-yellow-500",
   headerRequestsButton: (isOpen, loading) => cn(
-    "uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 border border-[#EEEEEE]/30 bg-[#393E46]/40 text-[#EEEEEE] shadow-lg backdrop-blur-sm transition-colors duration-200",
-    loading ? "opacity-50 cursor-not-allowed" : "hover:bg-[#3282B8] hover:border-[#3282B8]",
-    isOpen ? "bg-[#3282B8] border-[#3282B8]" : ""
+    "uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 bg-[#222831] text-[#EEEEEE] shadow-lg backdrop-blur-sm transition-colors duration-200",
+    loading ? "opacity-50 cursor-not-allowed" : "hover:bg-[#2f3a4a]",
+    isOpen ? "bg-[#3282B8]" : ""
   ),
-  headerUserManagementButton: "uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 border border-[#EEEEEE]/30 bg-[#393E46]/40 text-[#EEEEEE] shadow-lg backdrop-blur-sm transition-colors duration-200 hover:bg-[#3282B8] hover:border-[#3282B8]",
+  headerUserManagementButton: "uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 bg-[#222831] text-[#EEEEEE] shadow-lg backdrop-blur-sm transition-colors duration-200 hover:bg-[#2f3a4a]",
   canvasInstructions: "absolute bottom-2 left-1/2 -translate-x-1/2 z-10 text-[0.6rem] uppercase tracking-[0.3em] text-[#EEEEEE] bg-[#393E46]/80 border border-[#EEEEEE]/20 px-5 py-2 rounded-full pointer-events-none select-none transition-all duration-500 ease-in-out transform",
   canvasInstructionsVisible: "translate-y-0 opacity-100",
   canvasInstructionsHidden: "translate-y-full opacity-0",
