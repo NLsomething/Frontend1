@@ -6,7 +6,7 @@ const BuildingSchedulePanel = ({
   selectedBuilding,
   buildingRooms,
   buildingRoomsLoading,
-  roomsBySection,
+  roomsByFloor,
   scheduleDate,
   setScheduleDate,
   timeSlots,
@@ -125,36 +125,22 @@ const BuildingSchedulePanel = ({
             </div>
           ) : (
             <>
-              {roomsBySection.map(section => (
-                <div key={section.id} style={{ display: 'flex', flexDirection: 'column' }}>
-                  {/* Section Header */}
-                  <div className="rounded-t-lg" style={{ padding: '14px 21px', backgroundColor: COLORS.blue }}>
-                    <h3 className="font-bold uppercase tracking-wide" style={{ fontSize: '15px', color: COLORS.white }}>
-                      {section.name}
-                    </h3>
-                  </div>
-                  
-                  {/* Floors within this section */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                    {section.floors.map((floor, floorIndex) => (
-                    <section key={floor.id} className="shadow-sm overflow-hidden" style={{ marginLeft: '0', border: '1px solid rgba(238,238,238,0.2)', backgroundColor: COLORS.screenBackground, borderTop: floorIndex === 0 ? '1px solid rgba(238,238,238,0.2)' : undefined }}>
-                      <header className="flex items-center justify-between font-semibold uppercase tracking-wide" style={{ padding: '10px 21px', fontSize: '12px', backgroundColor: COLORS.darkGray, color: COLORS.white }}>
-                        <span>{floor.name} • {floor.rooms.length} Room{floor.rooms.length !== 1 ? 's' : ''}</span>
-                      </header>
-                      <ScheduleGrid
-                        rooms={floor.rooms.map(room => room.room_code)}
-                        timeSlots={timeSlots}
-                        scheduleMap={scheduleMap}
-                        onAdminAction={(room, hour) => canEdit && onCellClick && onCellClick(room, hour)}
-                        onTeacherRequest={(room, hour) => canRequest && onCellClick && onCellClick(room, hour)}
-                        buildKey={buildKey}
-                        canEdit={canEdit}
-                        canRequest={canRequest}
-                      />
-                    </section>
-                    ))}
-                  </div>
-                </div>
+              {roomsByFloor.map((floor, floorIndex) => (
+                <section key={floor.id} className="shadow-sm overflow-hidden" style={{ marginLeft: '0', border: '1px solid rgba(238,238,238,0.2)', backgroundColor: COLORS.screenBackground, borderTop: floorIndex === 0 ? '1px solid rgba(238,238,238,0.2)' : undefined }}>
+                  <header className="flex items-center justify-between font-semibold uppercase tracking-wide" style={{ padding: '10px 21px', fontSize: '12px', backgroundColor: COLORS.darkGray, color: COLORS.white }}>
+                    <span>{floor.name} • {floor.rooms.length} Room{floor.rooms.length !== 1 ? 's' : ''}</span>
+                  </header>
+                  <ScheduleGrid
+                    rooms={floor.rooms.map(room => room.room_code)}
+                    timeSlots={timeSlots}
+                    scheduleMap={scheduleMap}
+                    onAdminAction={(room, hour) => canEdit && onCellClick && onCellClick(room, hour)}
+                    onTeacherRequest={(room, hour) => canRequest && onCellClick && onCellClick(room, hour)}
+                    buildKey={buildKey}
+                    canEdit={canEdit}
+                    canRequest={canRequest}
+                  />
+                </section>
               ))}
             </>
           )}

@@ -21,10 +21,13 @@ import {
   ScheduleEditModal,
   RoomRequestModal,
   BuildingSchedulePanel,
-  RequestsPanel,
-  MyRequestsPanel,
   SearchBuilding
 } from './'
+import UnifiedPanel from './UnifiedPanel'
+import { RequestsPanelContent, MyRequestsPanelContent } from './UnifiedPanelContent'
+import { UserManagementContent } from './UserManagementContent'
+import { BuildingSchedulePanelContent } from './BuildingSchedulePanelContent'
+import BuildingSidebar from '../../components/BuildingInfo/BuildingSidebar'
 
 // Import custom hooks
 import { useScheduleManagement } from '../../hooks/useScheduleManagement'
@@ -36,20 +39,20 @@ import {
   generateTimeSlots,
   toIsoDateString,
   parseDateString,
-  groupRoomsBySection
+  groupRoomsByFloor
 } from '../../utils'
 
 // Styles
 const styles = {
   screen: "relative min-h-screen overflow-hidden bg-gradient-to-br from-[#e6f1ff] via-[#f7fbff] to-white text-[#EEEEEE]",
   canvasContainer: "absolute inset-0 z-0",
-  logoutBtn: "uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 border border-[#EEEEEE]/30 bg-[#393E46]/40 text-[#EEEEEE] shadow-lg backdrop-blur-sm transition-colors duration-200 hover:bg-yellow-500 hover:text-black hover:border-yellow-500",
+  logoutBtn: "uppercase tracking-[0.28em] text-[0.6rem] px-6 h-[60%] inline-flex items-center border border-[#EEEEEE]/20 bg-transparent text-[#EEEEEE] shadow-sm transition-all duration-200 hover:bg-[#2f3a4a] hover:border-[#EEEEEE]/40",
   headerRequestsButton: (isOpen, loading) => cn(
-    "uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 bg-[#222831] text-[#EEEEEE] shadow-lg backdrop-blur-sm transition-colors duration-200",
+    "uppercase tracking-[0.28em] text-[0.6rem] px-6 h-full inline-flex items-center border-y-0 border-l border-r border-[#2f3a4a] bg-transparent text-[#EEEEEE] transition-all duration-200",
     loading ? "opacity-50 cursor-not-allowed" : "hover:bg-[#2f3a4a]",
-    isOpen ? "bg-[#3282B8]" : ""
+    isOpen ? "bg-[#2f3a4a]" : ""
   ),
-  headerUserManagementButton: "uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 bg-[#222831] text-[#EEEEEE] shadow-lg backdrop-blur-sm transition-colors duration-200 hover:bg-[#2f3a4a]",
+  headerUserManagementButton: "uppercase tracking-[0.28em] text-[0.6rem] px-6 h-full inline-flex items-center border-y-0 border-l border-r border-[#2f3a4a] bg-transparent text-[#EEEEEE] transition-all duration-200 hover:bg-[#2f3a4a]",
   canvasInstructions: "absolute bottom-2 left-1/2 -translate-x-1/2 z-10 text-[0.6rem] uppercase tracking-[0.3em] text-[#EEEEEE] bg-[#393E46]/80 border border-[#EEEEEE]/20 px-5 py-2 rounded-full pointer-events-none select-none transition-all duration-500 ease-in-out transform",
   canvasInstructionsVisible: "translate-y-0 opacity-100",
   canvasInstructionsHidden: "translate-y-full opacity-0",
@@ -58,22 +61,22 @@ const styles = {
     isOpen ? "border-yellow-500 text-yellow-500" : "hover:text-yellow-500 hover:border-yellow-500"
   ),
   buildingInfoButton: (isOpen, hasBuilding) => cn(
-    "uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 border border-[#EEEEEE]/30 bg-[#393E46]/80 text-[#EEEEEE] shadow-lg backdrop-blur-sm transition-colors duration-200",
+    "uppercase tracking-[0.28em] text-[0.6rem] px-6 h-full inline-flex items-center border border-[#EEEEEE]/20 bg-transparent text-[#EEEEEE] shadow-sm transition-all duration-200",
     hasBuilding 
-      ? isOpen ? "bg-[#3282B8]" : "hover:bg-[#3282B8]"
+      ? isOpen ? "bg-[#2f3a4a] border-[#EEEEEE]/40" : "hover:bg-[#2f3a4a] hover:border-[#EEEEEE]/40"
       : "border-[#EEEEEE]/10 text-[#EEEEEE]/30 cursor-not-allowed"
   ),
   scheduleButton: (isOpen, hasBuilding) => cn(
-    "uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 border border-[#EEEEEE]/30 bg-[#393E46]/80 text-[#EEEEEE] shadow-lg backdrop-blur-sm transition-colors duration-200",
+    "uppercase tracking-[0.28em] text-[0.6rem] px-6 h-full inline-flex items-center border border-[#EEEEEE]/20 bg-transparent text-[#EEEEEE] shadow-sm transition-all duration-200",
     hasBuilding 
-      ? isOpen ? "bg-[#3282B8]" : "hover:bg-[#3282B8]"
+      ? isOpen ? "bg-[#2f3a4a] border-[#EEEEEE]/40" : "hover:bg-[#2f3a4a] hover:border-[#EEEEEE]/40"
       : "border-[#EEEEEE]/10 text-[#EEEEEE]/30 cursor-not-allowed"
   ),
   heroOverlay: "absolute inset-0 z-20 pointer-events-none flex flex-col items-stretch justify-start gap-6 px-0 pt-0 pb-12",
-  heroHeader: "relative z-10 pointer-events-auto w-full px-8 md:px-12 py-2 bg-[#222831] text-[#EEEEEE] border-b border-[#EEEEEE]/10 shadow-lg",
-  heroHeaderTop: "flex w-full flex-wrap items-center justify-between gap-3",
-  heroHeaderTitle: "flex flex-col gap-0.5 text-[0.6rem] uppercase tracking-[0.35em]",
-  heroHeaderActions: "flex flex-wrap items-center justify-end gap-2.5",
+  heroHeader: "relative z-10 pointer-events-auto w-full px-6 md:px-10 bg-[#222831] text-[#EEEEEE] border-b border-[#EEEEEE]/15 shadow-lg",
+  heroHeaderTop: "flex w-full flex-nowrap items-stretch justify-between gap-3 h-14 overflow-hidden",
+  heroHeaderTitle: "flex flex-col gap-0.5 text-[0.6rem] uppercase tracking-[0.35em] justify-center",
+  heroHeaderActions: "flex flex-wrap items-stretch justify-end gap-0 h-full",
   heroContent: "relative z-10 flex w-full flex-col justify-center pl-8 md:pl-12",
   heroIntro: "flex flex-col gap-6 text-[#EEEEEE] transition-all duration-500 ease-in-out transform",
   heroIntroVisible: "translate-x-0 opacity-100 pointer-events-auto",
@@ -84,9 +87,9 @@ const styles = {
   heroControlsHidden: "-translate-x-full opacity-0 pointer-events-none",
   heroControls: "flex flex-col gap-2.5",
   heroControlRow: "flex flex-wrap items-center justify-start gap-2.5",
-  buildingControlsWrapper: "absolute top-[5.5rem] left-8 md:left-12 z-30 pointer-events-auto flex flex-col gap-2.5 transition-all duration-300 ease-in-out transform",
-  buildingControlsVisible: "translate-x-0 opacity-100",
-  buildingControlsHidden: "-translate-x-full opacity-0"
+  buildingControlsWrapper: "absolute top-[5.5rem] left-8 md:left-12 z-30 pointer-events-auto flex flex-col gap-2.5 transition-opacity duration-200",
+  buildingControlsVisible: "opacity-100",
+  buildingControlsHidden: "opacity-0 pointer-events-none"
 }
 
 function HomePage() {
@@ -116,9 +119,18 @@ function HomePage() {
   const [buildingRoomsLoading, setBuildingRoomsLoading] = useState(false)
   const [scheduleDate, setScheduleDate] = useState(() => new Date())
   
-  // UI state
+  // UI state (kept for backward compatibility with existing button states)
+  // eslint-disable-next-line no-unused-vars
   const [userManagementOpen, setUserManagementOpen] = useState(false)
   const [heroCollapsed, setHeroCollapsed] = useState(false)
+  
+  // Unified Panel state
+  const [unifiedPanelContentType, setUnifiedPanelContentType] = useState(null) // 'requests' | 'my-requests' | 'user-management' | 'building-info' | null
+  const isUnifiedPanelOpen = unifiedPanelContentType !== null
+  
+  // BuildingSidebar state (for UnifiedPanel building-info content)
+  const [selectedFloor, setSelectedFloor] = useState(null)
+  const [selectedRoomCode, setSelectedRoomCode] = useState(null)
 
   // Calculate ISO date
   const isoDate = useMemo(() => toIsoDateString(scheduleDate), [scheduleDate])
@@ -152,6 +164,7 @@ function HomePage() {
 
   const {
     // Request management
+    // eslint-disable-next-line no-unused-vars
     requests,
     requestsLoading,
     approveRequest,
@@ -185,12 +198,16 @@ function HomePage() {
     resetRequestModal
   } = useRoomRequests(canManageRequests, canRequestRoom, user, profile)
 
+  // Camera drag detection to guard building select/deselect during drags
+  const [isCameraInteracting, setIsCameraInteracting] = useState(false)
+  const [lastCameraInteractionAt, setLastCameraInteractionAt] = useState(0)
+
   // Camera controls hook
   useCameraControls(controlsRef, heroCollapsed)
 
-  // Group rooms by section
-  const roomsBySection = useMemo(() => 
-    groupRoomsBySection(buildingRooms), 
+  // Group rooms by floor
+  const roomsByFloor = useMemo(() => 
+    groupRoomsByFloor(buildingRooms), 
     [buildingRooms]
   )
 
@@ -201,22 +218,8 @@ function HomePage() {
     }
   }, [user, loading, navigate])
 
-  // Handle click outside dropdown
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        handleCloseDropdown()
-      }
-    }
-
-    if (isBuildingDropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [isBuildingDropdownOpen])
+  // Do not auto-close the building dropdown on outside clicks; it closes only
+  // when the Select Building button is toggled or the building is deselected.
 
   const handleCloseDropdown = () => {
     setIsDropdownClosing(true)
@@ -231,15 +234,7 @@ function HomePage() {
     setIsBuildingDropdownOpen(true)
   }
 
-  // Close dropdown when panels open (with delay for smooth transition)
-  useEffect(() => {
-    if (isBuildingInfoOpen || isScheduleOpen) {
-      const timer = setTimeout(() => {
-        handleCloseDropdown()
-      }, 100) // Small delay to let panels start sliding
-      return () => clearTimeout(timer)
-    }
-  }, [isBuildingInfoOpen, isScheduleOpen])
+  // Dropdown stays open when panels open - don't auto-close it
 
           // Load building on mount
           useEffect(() => {
@@ -327,63 +322,120 @@ function HomePage() {
     }
   }
 
+  // eslint-disable-next-line no-unused-vars
   const closeAllPanels = () => {
     // Only close header-level panels, not modals
+    // DON'T close building dropdown - it stays open when unified panel is open
     setRequestsPanelOpen(false)
     setMyRequestsPanelOpen(false)
     setIsBuildingInfoOpen(false)
     setScheduleOpen(false)
     setUserManagementOpen(false)
+    // Note: isBuildingDropdownOpen is NOT closed here
   }
 
   const handleRequestsButtonClick = () => {
     if (!canManageRequests) {
       return
     }
-    closeAllPanels()
-    setRequestsPanelOpen((prev) => !prev)
+    // Don't close dropdown - allow switching content types
+    if (unifiedPanelContentType === 'requests') {
+      setUnifiedPanelContentType(null)
+      setRequestsPanelOpen(false)
+    } else {
+      setUnifiedPanelContentType('requests')
+      setRequestsPanelOpen(true)
+      setIsBuildingInfoOpen(false)
+      setScheduleOpen(false)
+    }
   }
 
   const handleMyRequestsClick = () => {
-    closeAllPanels()
-    setMyRequestsPanelOpen((prev) => !prev)
+    // Don't close dropdown - allow switching content types
+    if (unifiedPanelContentType === 'my-requests') {
+      setUnifiedPanelContentType(null)
+      setMyRequestsPanelOpen(false)
+    } else {
+      setUnifiedPanelContentType('my-requests')
+      setMyRequestsPanelOpen(true)
+      setIsBuildingInfoOpen(false)
+      setScheduleOpen(false)
+    }
   }
 
   const handleUserManagementClick = () => {
-    closeAllPanels()
-    setUserManagementOpen(true)
+    // Don't close dropdown - allow switching content types
+    if (unifiedPanelContentType === 'user-management') {
+      setUnifiedPanelContentType(null)
+      setUserManagementOpen(false)
+    } else {
+      setUnifiedPanelContentType('user-management')
+      setUserManagementOpen(true)
+      setIsBuildingInfoOpen(false)
+      setScheduleOpen(false)
+    }
   }
 
   const handleBuildingInfoToggle = () => {
-    closeAllPanels()
-    setIsBuildingInfoOpen((prev) => !prev)
+    // Don't close dropdown - allow switching content types
+    if (unifiedPanelContentType === 'building-info') {
+      setUnifiedPanelContentType(null)
+      setIsBuildingInfoOpen(false)
+    } else {
+      // Switch to building-info content
+      setUnifiedPanelContentType('building-info')
+      setIsBuildingInfoOpen(true)
+      setScheduleOpen(false) // Close schedule if open
+    }
   }
 
   const handleScheduleToggle = () => {
-    closeAllPanels()
-    if (isScheduleOpen) {
+    // Don't close dropdown - allow switching content types
+    if (unifiedPanelContentType === 'schedule') {
+      setUnifiedPanelContentType(null)
       setScheduleOpen(false)
     } else {
-      handleScheduleButtonClickInternal()
+      // Switch to schedule content in UnifiedPanel
+      if (!selectedBuilding) {
+        // Need a building selected first
+        return
+      }
+      setUnifiedPanelContentType('schedule')
+      setScheduleOpen(true)
+      setIsBuildingInfoOpen(false) // Close building-info if open
+      // Ensure building rooms are loaded
+      if (buildingRooms.length === 0 && !buildingRoomsLoading) {
+        handleScheduleButtonClickInternal()
+      }
     }
   }
 
   const handleBuildingClick = (clickedBuilding) => {
+    // Ignore clicks that immediately follow camera drags to prevent accidental (de)select
+    if (isCameraInteracting || Date.now() - lastCameraInteractionAt < 200) {
+      return
+    }
     if (selectedBuilding?.id === clickedBuilding?.id) {
       setSelectedBuilding(null)
       setIsBuildingInfoOpen(false)
       setScheduleOpen(false)
+      setUnifiedPanelContentType(null)
+      // Close dropdown when deselecting building
+      handleCloseDropdown()
     } else {
       setSelectedBuilding(clickedBuilding)
       // Don't open BuildingInfo automatically - only select the building
+      // Don't auto-open dropdown - user clicks button to open it
     }
   }
 
 
   const handleRoomSearch = async (building, roomCode) => {
     try {
-      // Close all panels first
-      closeAllPanels()
+      // Don't close dropdown - only close non-building panels
+      setRequestsPanelOpen(false)
+      setMyRequestsPanelOpen(false)
+      setUserManagementOpen(false)
       
       // Select the building
       setSelectedBuilding(building)
@@ -396,8 +448,9 @@ function HomePage() {
       }
       setBuildingRoomsLoading(false)
 
-      // Open building info
+      // Open building info in unified panel
       setIsBuildingInfoOpen(true)
+      setUnifiedPanelContentType('building-info')
       
       // Collapse hero if not already collapsed
       if (!heroCollapsed) {
@@ -500,9 +553,14 @@ function HomePage() {
               RIGHT: THREE.MOUSE.PAN
             }}
             onStart={() => {
+              setIsCameraInteracting(true)
               if (controlsRef.current && heroCollapsed) {
                 controlsRef.current.autoRotate = false
               }
+            }}
+            onEnd={() => {
+              setIsCameraInteracting(false)
+              setLastCameraInteractionAt(Date.now())
             }}
           />
         </Canvas>
@@ -538,12 +596,18 @@ function HomePage() {
                     </div>
             <div className={styles.heroHeaderActions}>
               <div 
-                className={`transition-opacity duration-500 ${heroCollapsed ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                className={`transition-opacity duration-500 h-full flex items-stretch ${heroCollapsed ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
               >
                 <SearchBuilding
                   buildings={buildings}
                   onRoomSelect={handleRoomSearch}
-                  onOpen={closeAllPanels}
+                  onOpen={() => {
+                    // Don't close building dropdown - allow it to stay open
+                    // Only close other panels that aren't building-related
+                    setRequestsPanelOpen(false)
+                    setMyRequestsPanelOpen(false)
+                    setUserManagementOpen(false)
+                  }}
                 />
               </div>
               {canRequestRoom && !canManageRequests && (
@@ -574,13 +638,15 @@ function HomePage() {
                   User Management
                 </button>
               )}
-              <button
-                type="button"
-                onClick={handleLogout}
-                className={styles.logoutBtn}
-              >
-                Logout
-              </button>
+              <div className="ml-3 flex items-center">
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className={styles.logoutBtn}
+                >
+                  Logout
+                </button>
+              </div>
             </div>
           </div>
         </header>
@@ -630,9 +696,10 @@ function HomePage() {
                 </div>
 
                 {/* Building-specific Controls */}
+                {/* Building Controls - Always visible when hero is collapsed, no sliding */}
                 <div 
                   className={`${styles.buildingControlsWrapper} ${
-                    heroCollapsed && (!isBuildingInfoOpen && !isScheduleOpen || isBuildingDropdownOpen) ? styles.buildingControlsVisible : styles.buildingControlsHidden
+                    heroCollapsed ? styles.buildingControlsVisible : styles.buildingControlsHidden
                   }`}
                 >
                   <div className="relative" ref={dropdownRef}>
@@ -650,7 +717,7 @@ function HomePage() {
                     
                     {(isBuildingDropdownOpen || isDropdownClosing) && selectedBuilding && (
                       <div 
-                        className="absolute top-full left-0 mt-2 z-40 flex flex-col gap-1 min-w-[200px]"
+                        className="building-dropdown absolute top-full left-0 mt-2 z-40 flex flex-col gap-1 min-w-[200px]"
                         style={{
                           animation: isDropdownClosing ? 'fadeOutDrop 0.2s ease-out' : 'fadeInDrop 0.2s ease-out'
                         }}
@@ -725,7 +792,9 @@ function HomePage() {
       </div>
 
       {/* Modals and Panels */}
-      {isBuildingInfoOpen && selectedBuilding && (
+      {/* BuildingInfoModal removed - now using UnifiedPanel with BuildingSidebar */}
+      {/* Keep BuildingInfoModal for PreviewPanel and SchedulePanel functionality - but these stay separate */}
+      {isBuildingInfoOpen && selectedBuilding && unifiedPanelContentType !== 'building-info' && (
         <BuildingInfoModal
           building={selectedBuilding}
           onClose={() => setIsBuildingInfoOpen(false)}
@@ -780,61 +849,123 @@ function HomePage() {
         />
       )}
 
-      <UserManagementModal
-        isOpen={userManagementOpen}
-        onClose={() => setUserManagementOpen(false)}
-      />
-
-      <BuildingSchedulePanel
-        isOpen={isScheduleOpen}
-        selectedBuilding={selectedBuilding}
-        buildingRooms={buildingRooms}
-        buildingRoomsLoading={buildingRoomsLoading}
-        roomsBySection={roomsBySection}
-        scheduleDate={scheduleDate}
-        setScheduleDate={setScheduleDate}
-        timeSlots={timeSlots}
-        scheduleMap={scheduleMap}
-        scheduleLoading={scheduleLoading}
-        onClose={() => setScheduleOpen(false)}
-        onCellClick={(roomNumber, slotHour) => {
-          if (canEditSchedule) {
-            // Open edit modal for admin/building manager
-            const key = buildScheduleKey(roomNumber, slotHour)
-            const existing = scheduleMap[key]
-            setRequestState({
-              isOpen: true,
-              isEditMode: true,
-              room: roomNumber,
-              startHour: slotHour,
-              endHour: slotHour,
-              existingEntry: existing
-            })
-          } else if (canRequestRoom) {
-            // Check if slot is available
-            const key = buildScheduleKey(roomNumber, slotHour)
-            const entry = scheduleMap[key]
-            
-            if (entry && entry.status !== SCHEDULE_STATUS.empty && entry.status !== SCHEDULE_STATUS.pending) {
-              notifyError('Slot not available', {
-                description: `Room ${roomNumber} at ${getSlotLabel(slotHour)} is already ${SCHEDULE_STATUS_LABELS[entry.status].toLowerCase()}.`
-              })
-              return
-            }
-
-            // Open request modal for teacher
-            setRequestState({
-              isOpen: true,
-              isEditMode: false,
-              room: roomNumber,
-              startHour: slotHour,
-              endHour: slotHour
-            })
-          }
+      {/* Unified Panel for Requests, My Requests, User Management, Building Info, and Schedule */}
+      <UnifiedPanel
+        isOpen={isUnifiedPanelOpen}
+        contentType={unifiedPanelContentType}
+        onClose={() => {
+          const currentType = unifiedPanelContentType
+          setUnifiedPanelContentType(null)
+          // Also close individual panel states when unified panel closes
+          if (currentType === 'requests') setRequestsPanelOpen(false)
+          if (currentType === 'my-requests') setMyRequestsPanelOpen(false)
+          if (currentType === 'user-management') setUserManagementOpen(false)
+          if (currentType === 'building-info') setIsBuildingInfoOpen(false)
+          if (currentType === 'schedule') setScheduleOpen(false)
         }}
-        canEdit={canEditSchedule}
-        canRequest={canRequestRoom}
-      />
+      >
+        {unifiedPanelContentType === 'requests' && canManageRequests && (
+          <RequestsPanelContent
+            pendingRequests={pendingRequests}
+            historicalRequests={historicalRequests}
+            requestsLoading={requestsLoading}
+            historicalDateFilter={historicalDateFilter}
+            rejectionReasons={rejectionReasons}
+            setRejectionReasons={setRejectionReasons}
+            requestActionLoading={requestActionLoading}
+            onDateFilterChange={setHistoricalDateFilter}
+            onApprove={(request) => approveRequest(request, { parseDateString: parseDateStringWrapper, toIsoDateString, getSlotLabel })}
+            onReject={rejectRequest}
+            onRevert={(request) => revertRequest(request, { parseDateString: parseDateStringWrapper, toIsoDateString })}
+          />
+        )}
+        {unifiedPanelContentType === 'my-requests' && canRequestRoom && (
+          <MyRequestsPanelContent
+            myRequests={myRequests}
+            filteredMyRequests={filteredMyRequests}
+            myRequestsLoading={myRequestsLoading}
+            myRequestsDateFilter={myRequestsDateFilter}
+            onDateFilterChange={setMyRequestsDateFilter}
+          />
+        )}
+        {unifiedPanelContentType === 'user-management' && (
+          <UserManagementContent currentUserId={user?.id} />
+        )}
+        {unifiedPanelContentType === 'building-info' && selectedBuilding && (
+          <BuildingSidebar
+            building={selectedBuilding}
+            onClose={() => {
+              setUnifiedPanelContentType(null)
+              setIsBuildingInfoOpen(false)
+              setSelectedFloor(null)
+              setSelectedRoomCode(null)
+            }}
+            onRoomSelect={() => {
+              // Room selection handled within BuildingSidebar
+              // PreviewPanel and SchedulePanel stay separate (not in UnifiedPanel)
+            }}
+            selectedFloor={selectedFloor}
+            setSelectedFloor={setSelectedFloor}
+            selectedRoomCode={selectedRoomCode}
+            onRoomDeselect={() => {
+              setSelectedRoomCode(null)
+            }}
+            isOpen={true}
+          />
+        )}
+        {unifiedPanelContentType === 'schedule' && selectedBuilding && (
+          <BuildingSchedulePanelContent
+            selectedBuilding={selectedBuilding}
+            buildingRooms={buildingRooms}
+            buildingRoomsLoading={buildingRoomsLoading}
+            roomsByFloor={roomsByFloor}
+            scheduleDate={scheduleDate}
+            setScheduleDate={setScheduleDate}
+            timeSlots={timeSlots}
+            scheduleMap={scheduleMap}
+            scheduleLoading={scheduleLoading}
+            onCellClick={(roomNumber, slotHour) => {
+              if (canEditSchedule) {
+                // Open edit modal for admin/building manager
+                const key = buildScheduleKey(roomNumber, slotHour)
+                const existing = scheduleMap[key]
+                setRequestState({
+                  isOpen: true,
+                  isEditMode: true,
+                  room: roomNumber,
+                  startHour: slotHour,
+                  endHour: slotHour,
+                  existingEntry: existing
+                })
+              } else if (canRequestRoom) {
+                // Check if slot is available
+                const key = buildScheduleKey(roomNumber, slotHour)
+                const entry = scheduleMap[key]
+                
+                if (entry && entry.status !== SCHEDULE_STATUS.empty && entry.status !== SCHEDULE_STATUS.pending) {
+                  notifyError('Slot not available', {
+                    description: `Room ${roomNumber} at ${getSlotLabel(slotHour)} is already ${SCHEDULE_STATUS_LABELS[entry.status].toLowerCase()}.`
+                  })
+                  return
+                }
+
+                // Open request modal for teacher
+                setRequestState({
+                  isOpen: true,
+                  isEditMode: false,
+                  room: roomNumber,
+                  startHour: slotHour,
+                  endHour: slotHour
+                })
+              }
+            }}
+            canEdit={canEditSchedule}
+            canRequest={canRequestRoom}
+          />
+        )}
+      </UnifiedPanel>
+
+      {/* Legacy schedule panel removed; schedule now always renders inside UnifiedPanel */}
 
       {/* Schedule Edit Modal (Admin/Building Manager) */}
       {canEditSchedule && requestState.isOpen && requestState.isEditMode && (
@@ -927,38 +1058,7 @@ function HomePage() {
         />
       )}
 
-      {/* Requests Panel (Admin/Building Manager) */}
-      {canManageRequests && (
-        <RequestsPanel
-          isOpen={requestsPanelOpen}
-          requests={requests}
-          pendingRequests={pendingRequests}
-          historicalRequests={historicalRequests}
-          requestsLoading={requestsLoading}
-          historicalDateFilter={historicalDateFilter}
-          rejectionReasons={rejectionReasons}
-          setRejectionReasons={setRejectionReasons}
-          requestActionLoading={requestActionLoading}
-          onClose={() => setRequestsPanelOpen(false)}
-          onDateFilterChange={setHistoricalDateFilter}
-          onApprove={(request) => approveRequest(request, { parseDateString: parseDateStringWrapper, toIsoDateString, getSlotLabel })}
-          onReject={rejectRequest}
-          onRevert={(request) => revertRequest(request, { parseDateString: parseDateStringWrapper, toIsoDateString })}
-        />
-      )}
-
-      {/* My Requests Panel (Teacher) */}
-      {canRequestRoom && (
-        <MyRequestsPanel
-          isOpen={myRequestsPanelOpen}
-          myRequests={myRequests}
-          filteredMyRequests={filteredMyRequests}
-          myRequestsLoading={myRequestsLoading}
-          myRequestsDateFilter={myRequestsDateFilter}
-          onClose={() => setMyRequestsPanelOpen(false)}
-          onDateFilterChange={setMyRequestsDateFilter}
-        />
-      )}
+      {/* Old RequestsPanel and MyRequestsPanel removed - now using UnifiedPanel */}
     </div>
   )
 }

@@ -51,9 +51,6 @@ const PreviewPanel = ({
       <div style={{
         padding: '12px 16px',
         borderBottom: '1px solid rgba(238,238,238,0.1)',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
         backgroundColor: '#222831',
         flexShrink: 0
       }}>
@@ -65,27 +62,6 @@ const PreviewPanel = ({
         }}>
           {previewTitle}
         </h3>
-        <button
-          onClick={onClose}
-          style={{
-            background: 'none',
-            border: 'none',
-            fontSize: '20px',
-            cursor: 'pointer',
-            color: '#EEEEEE',
-            padding: '0',
-            width: '24px',
-            height: '24px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'color 0.2s'
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.color = '#3282B8'}
-          onMouseLeave={(e) => e.currentTarget.style.color = '#EEEEEE'}
-        >
-          ×
-        </button>
       </div>
 
       {/* Preview Image */}

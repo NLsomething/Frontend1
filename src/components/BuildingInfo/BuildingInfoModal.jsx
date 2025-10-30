@@ -18,7 +18,6 @@ const BuildingInfoPanel = ({
   userRole 
 }) => {
   // Navigation state
-  const [selectedSection, setSelectedSection] = useState(null)
   const [selectedFloor, setSelectedFloor] = useState(null)
   
   // Preview state
@@ -60,7 +59,7 @@ const BuildingInfoPanel = ({
     } else {
       setPreviewImage(null)
       setPreviewTitle('')
-      // Clear room schedule when going back to section view
+      // Clear room schedule when going back to floor view
       setSelectedRoomCode(null)
       setSelectedRoomId(null)
       clearDevices()
@@ -77,8 +76,7 @@ const BuildingInfoPanel = ({
       try {
         // Import services
         const { fetchRoomsByBuildingId } = await import('../../services/roomService')
-        const { fetchSectionsByBuildingId } = await import('../../services/sectionService')
-        const { fetchFloorsBySectionId } = await import('../../services/floorService')
+        const { fetchFloorsByBuildingId } = await import('../../services/floorService')
         
         console.log('[BuildingInfoModal] Fetching rooms for building:', building.id)
         
@@ -90,87 +88,31 @@ const BuildingInfoPanel = ({
           // Find the room matching the code
           const room = roomsData.find(r => r.room_code.toLowerCase() === roomCode.toLowerCase())
           console.log('[BuildingInfoModal] Found room:', room)
-          console.log('[BuildingInfoModal] Room floors:', room?.floors)
-          console.log('[BuildingInfoModal] Room floor object keys:', room?.floors ? Object.keys(room.floors) : 'no floors')
-          
-          // The floor data structure from Supabase join
+
+          // Ensure we have floor info from the join
           if (room && room.floors) {
-            console.log('[BuildingInfoModal] Floor entries:', Object.entries(room.floors))
-            
-            // The floors object contains: id, floor_name, sections
             const floorId = room.floors.id
-            const floorName = room.floors.floor_name
-            const sections = room.floors.sections
-            console.log('[BuildingInfoModal] Floor ID:', floorId)
-            console.log('[BuildingInfoModal] Floor Name:', floorName)
-            console.log('[BuildingInfoModal] Sections:', sections)
-            
-            if (sections) {
-              // sections is an object, get the section data
-              const sectionKeys = Object.keys(sections)
-              console.log('[BuildingInfoModal] Section keys:', sectionKeys)
-              
-              // Find the section entry that's an object (not 'id')
-              const sectionEntry = Object.entries(sections).find(([key, value]) => 
-                key !== 'id' && typeof value === 'object'
-              )
-              console.log('[BuildingInfoModal] Section entry:', sectionEntry)
-              
-              if (!sectionEntry) {
-                // Maybe the first entry after 'id' is the section
-                const sectionData = sections
-                console.log('[BuildingInfoModal] Section data (direct):', sectionData)
-                
-                const sectionId = sectionData?.id
-                console.log('[BuildingInfoModal] Section ID:', sectionId, 'Floor ID:', floorId)
-              
-              // Load sections and find the matching one
-              const { data: sectionsData } = await fetchSectionsByBuildingId(building.id)
-              console.log('[BuildingInfoModal] Sections data:', sectionsData)
-              const section = sectionsData?.find(s => s.id === sectionId)
-              console.log('[BuildingInfoModal] Found section:', section)
-              
-              if (section) {
-                console.log('[BuildingInfoModal] Setting section...')
-                // Set section first
-                setSelectedSection(section)
-                
-                // After section is set, wait a bit and load floors
-                setTimeout(async () => {
-                  console.log('[BuildingInfoModal] Loading floors for section:', section.id)
-                  const { data: floorsData } = await fetchFloorsBySectionId(section.id)
-                  console.log('[BuildingInfoModal] Floors data:', floorsData)
-                  const floor = floorsData?.find(f => f.id === floorId)
-                  console.log('[BuildingInfoModal] Found floor:', floor)
-                  
-                  if (floor) {
-                    console.log('[BuildingInfoModal] Setting floor...')
-                    setSelectedFloor(floor)
-                    
-                    // After floor is set, the BuildingSidebar will auto-load rooms
-                    // We need to wait for that to complete before selecting the room
-                    setTimeout(() => {
-                      console.log('[BuildingInfoModal] Setting room code and loading devices...')
-                      setSelectedRoomCode(room.room_code)
-                      setSelectedRoomId(room.id)
-                      
-                      // Load preview and devices
-                      if (room.model_url) {
-                        setPreviewImage(room.model_url)
-                        setPreviewTitle('2D Layout')
-                      }
-                      loadDevices(room.id)
-                    }, 800)
-                  } else {
-                    console.error('[BuildingInfoModal] Floor not found for ID:', floorId)
-                  }
-                }, 500)
-              } else {
-                console.error('[BuildingInfoModal] Section not found for ID:', sectionId)
-              }
-              }
+
+            // Load all floors for this building and find the one for the room
+            const { data: floorsData } = await fetchFloorsByBuildingId(building.id)
+            const floor = floorsData?.find(f => f.id === floorId)
+
+            if (floor) {
+              // Select floor
+              setSelectedFloor(floor)
+
+              // After sidebar loads rooms, select the room and devices
+              setTimeout(() => {
+                setSelectedRoomCode(room.room_code)
+                setSelectedRoomId(room.id)
+                if (room.model_url) {
+                  setPreviewImage(room.model_url)
+                  setPreviewTitle('2D Layout')
+                }
+                loadDevices(room.id)
+              }, 600)
             } else {
-              console.error('[BuildingInfoModal] Section data not found in floor')
+              console.error('[BuildingInfoModal] Floor not found for ID:', floorId)
             }
           } else {
             console.error('[BuildingInfoModal] Room structure invalid - missing floors object')
@@ -187,18 +129,6 @@ const BuildingInfoPanel = ({
     return () => window.removeEventListener('search-room', handleSearchRoom)
   }, [building, loadDevices])
 
-  // Clear preview when going back to section or building view
-  useEffect(() => {
-    if (!selectedSection) {
-      // If no section selected, we're back at building view, clear everything
-      setPreviewImage(null)
-      setPreviewTitle('')
-      setSelectedRoomCode(null)
-      setSelectedRoomId(null)
-      clearDevices()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSection])
 
   const handleRoomClick = async (room) => {
     if (room.model_url) {
@@ -251,8 +181,6 @@ const BuildingInfoPanel = ({
         building={building}
         onClose={onClose}
         onRoomSelect={handleRoomClick}
-        selectedSection={selectedSection}
-        setSelectedSection={setSelectedSection}
         selectedFloor={selectedFloor}
         setSelectedFloor={setSelectedFloor}
         selectedRoomCode={selectedRoomCode}

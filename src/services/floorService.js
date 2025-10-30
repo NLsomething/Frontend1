@@ -1,11 +1,11 @@
 import { supabase } from '../lib/supabaseClient'
 
-export const fetchFloorsBySectionId = async (sectionId) => {
+export const fetchFloorsByBuildingId = async (buildingId) => {
   try {
     const { data, error } = await supabase
       .from('floors')
       .select('*')
-      .eq('section_id', sectionId)
+      .eq('building_id', buildingId)
       .order('floor_name')
     
     return { data, error }

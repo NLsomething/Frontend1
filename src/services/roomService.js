@@ -37,14 +37,10 @@ export const fetchRoomsByBuildingId = async (buildingId) => {
         floors!inner(
           id,
           floor_name,
-          sections!inner(
-            id,
-            section_name,
-            building_id
-          )
+          building_id
         )
       `)
-      .eq('floors.sections.building_id', buildingId)
+      .eq('floors.building_id', buildingId)
       .neq('room_type', 'administrative')
       .order('room_name')
     

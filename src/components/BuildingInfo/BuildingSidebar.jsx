@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import { fetchSectionsByBuildingId } from '../../services/sectionService'
-import { fetchFloorsBySectionId } from '../../services/floorService'
+import { fetchFloorsByBuildingId } from '../../services/floorService'
 import { fetchRoomsByFloorId } from '../../services/roomService'
 import { useNotifications } from '../../context/NotificationContext'
 import { COLORS } from '../../constants/colors'
@@ -9,8 +8,6 @@ const BuildingSidebar = ({
   building, 
   onClose, 
   onRoomSelect,
-  selectedSection,
-  setSelectedSection,
   selectedFloor,
   setSelectedFloor,
   selectedRoomCode,
@@ -18,7 +15,6 @@ const BuildingSidebar = ({
   isOpen = true
 }) => {
   const { notifyError } = useNotifications()
-  const [sections, setSections] = useState([])
   const [floors, setFloors] = useState([])
   const [rooms, setRooms] = useState([])
   const [loading, setLoading] = useState(false)
@@ -28,20 +24,9 @@ const BuildingSidebar = ({
     setMounted(true)
   }, [])
 
-  const loadSections = async () => {
-    setLoading(true)
-    const { data, error } = await fetchSectionsByBuildingId(building.id)
-    if (error) {
-      notifyError('Failed to load sections', { description: error.message })
-    } else {
-      setSections(data || [])
-    }
-    setLoading(false)
-  }
-
   const loadFloors = async () => {
     setLoading(true)
-    const { data, error } = await fetchFloorsBySectionId(selectedSection.id)
+    const { data, error } = await fetchFloorsByBuildingId(building.id)
     if (error) {
       notifyError('Failed to load floors', { description: error.message })
     } else {
@@ -63,13 +48,6 @@ const BuildingSidebar = ({
 
   useEffect(() => {
     if (building?.id) {
-      loadSections()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [building?.id])
-
-  useEffect(() => {
-    if (selectedSection?.id) {
       loadFloors()
     } else {
       setFloors([])
@@ -77,7 +55,7 @@ const BuildingSidebar = ({
       setRooms([])
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSection?.id])
+  }, [building?.id])
 
   useEffect(() => {
     if (selectedFloor?.id) {
@@ -94,8 +72,6 @@ const BuildingSidebar = ({
       onRoomDeselect()
     } else if (selectedFloor) {
       setSelectedFloor(null)
-    } else if (selectedSection) {
-      setSelectedSection(null)
     } else {
       onClose()
     }
@@ -105,22 +81,20 @@ const BuildingSidebar = ({
 
   return (
     <aside style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      width: '15%',
+      // Embedded inside UnifiedPanel: occupy full panel space
+      position: 'relative',
+      width: '100%',
       minWidth: '260px',
-      maxWidth: '300px',
-      height: '100vh',
+      maxWidth: '100%',
+      height: '100%',
       backgroundColor: '#222831',
-      boxShadow: '2px 0 10px rgba(0, 0, 0, 0.5)',
-      zIndex: 30,
+      boxShadow: 'none',
+      zIndex: 1,
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
-      transform: mounted && isOpen ? 'translateX(0)' : 'translateX(-100%)',
-      transition: 'transform 0.3s ease-out, opacity 0.3s ease-out',
-      opacity: mounted && isOpen ? 1 : 0
+      opacity: mounted && isOpen ? 1 : 0,
+      transition: 'opacity 0.35s ease-out'
     }}>
       <div style={{
         display: 'flex',
@@ -135,109 +109,20 @@ const BuildingSidebar = ({
           borderBottom: '1px solid rgba(255,255,255,0.1)',
           flexShrink: 0
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <div style={{ marginBottom: '8px' }}>
             <h2 style={{ fontSize: '20px', fontWeight: '700', margin: 0, color: '#ffffff' }}>
-              {selectedFloor ? selectedFloor.floor_name : selectedSection ? selectedSection.section_name : building.building_name}
+              {selectedFloor ? selectedFloor.floor_name : building.building_name}
             </h2>
-            <button
-              onClick={onClose}
-              style={{
-                background: 'none',
-                border: 'none',
-                fontSize: '24px',
-                cursor: 'pointer',
-                color: '#ffffff',
-                padding: '0',
-                width: '28px',
-                height: '28px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'color 0.2s'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.color = '#3282B8'}
-              onMouseLeave={(e) => e.currentTarget.style.color = '#ffffff'}
-            >
-              ×
-            </button>
           </div>
           
-          {!selectedSection && (
+          {!selectedFloor && (
             <>
               <p style={{ fontSize: '14px', color: '#ffffff80', margin: '4px 0' }}>
                 Code: <span style={{ fontWeight: '600', color: '#ffffff' }}>{building.building_code}</span>
               </p>
-              {building.description && (
-                <p style={{ fontSize: '14px', color: '#ffffff70', marginTop: '12px', lineHeight: '1.6' }}>
-                  {building.description}
-                </p>
-              )}
             </>
           )}
 
-          {selectedSection && !selectedFloor && (
-            <>
-              {selectedSection.description && (
-                <p style={{ fontSize: '14px', color: '#ffffff70', marginTop: '8px', lineHeight: '1.6' }}>
-                  {selectedSection.description}
-                </p>
-              )}
-            </>
-          )}
-
-          {selectedFloor && (
-            <>
-              {selectedFloor.description && (
-                <p style={{ fontSize: '14px', color: '#ffffff70', marginTop: '8px', lineHeight: '1.6' }}>
-                  {selectedFloor.description}
-                </p>
-              )}
-            </>
-          )}
-
-          {/* Breadcrumb */}
-          <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#ffffff60' }}>
-            <button
-              onClick={() => {
-                setSelectedSection(null)
-                setSelectedFloor(null)
-              }}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: selectedSection || selectedFloor ? '#3282B8' : '#EEEEEE60',
-                cursor: selectedSection || selectedFloor ? 'pointer' : 'default',
-                padding: 0,
-                textDecoration: selectedSection || selectedFloor ? 'underline' : 'none'
-              }}
-            >
-              {building.building_name}
-            </button>
-            {selectedSection && (
-              <>
-                <span>/</span>
-                <button
-                  onClick={() => setSelectedFloor(null)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: selectedFloor ? '#3282B8' : '#EEEEEE60',
-                    cursor: selectedFloor ? 'pointer' : 'default',
-                    padding: 0,
-                    textDecoration: selectedFloor ? 'underline' : 'none'
-                  }}
-                >
-                  {selectedSection.section_name}
-                </button>
-              </>
-            )}
-            {selectedFloor && (
-              <>
-                <span>/</span>
-                <span style={{ color: '#ffffff60' }}>{selectedFloor.floor_name}</span>
-              </>
-            )}
-          </div>
         </div>
 
         {/* Content */}
@@ -260,57 +145,9 @@ const BuildingSidebar = ({
             </div>
           )}
 
-          {!loading && !selectedSection && (
+          {!loading && !selectedFloor && (
             <>
               <h3 style={{ fontSize: '15px', fontWeight: '600', marginBottom: '12px', color: '#ffffff' }}>
-                Sections ({sections.length})
-              </h3>
-              {sections.length === 0 ? (
-                <p style={{ color: '#ffffff60', fontSize: '14px', padding: '20px', textAlign: 'center' }}>
-                  No sections found
-                </p>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {sections.map(section => (
-                    <button
-                      key={section.id}
-                      onClick={() => setSelectedSection(section)}
-                      style={{
-                        padding: '10px 12px',
-                    border: '1px solid rgba(238,238,238,0.2)',
-                        borderRadius: '6px',
-                    backgroundColor: '#393E46',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        transition: 'all 0.2s'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#0F4C75'
-                        e.currentTarget.style.borderColor = '#3282B8'
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#393E46'
-                        e.currentTarget.style.borderColor = 'rgba(238,238,238,0.2)'
-                      }}
-                    >
-                      <div style={{ fontWeight: '600', color: '#ffffff', marginBottom: '4px' }}>
-                        {section.section_name}
-                      </div>
-                      {section.description && (
-                        <div style={{ fontSize: '13px', color: '#ffffff80' }}>
-                          {section.description}
-                        </div>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-
-          {!loading && selectedSection && !selectedFloor && (
-            <>
-              <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', color: '#ffffff' }}>
                 Floors ({floors.length})
               </h3>
               {floors.length === 0 ? (
@@ -344,11 +181,6 @@ const BuildingSidebar = ({
                       <div style={{ fontWeight: '600', color: '#ffffff', marginBottom: '4px' }}>
                         {floor.floor_name}
                       </div>
-                      {floor.description && (
-                        <div style={{ fontSize: '13px', color: '#ffffff80' }}>
-                          {floor.description}
-                        </div>
-                      )}
                     </button>
                   ))}
                 </div>
@@ -434,7 +266,7 @@ const BuildingSidebar = ({
               e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'
             }}
           >
-            {selectedFloor || selectedSection ? 'Back' : 'Close'}
+            {selectedFloor ? 'Back' : 'Close'}
           </button>
         </div>
       </div>
@@ -443,4 +275,3 @@ const BuildingSidebar = ({
 }
 
 export default BuildingSidebar
-

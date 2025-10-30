@@ -73,40 +73,31 @@ export const formatRequestRange = (request, timeSlots) => {
  * @param {Array} rooms - Array of room objects with section/floor data
  * @returns {Array} Structured array of sections with floors and rooms
  */
-export const groupRoomsBySection = (rooms) => {
+export const groupRoomsByFloor = (rooms) => {
   if (!rooms || rooms.length === 0) return []
-  
-  const sections = {}
+
+  const floors = {}
   rooms.forEach(room => {
-    const sectionId = room.floors?.sections?.id
-    const sectionName = room.floors?.sections?.section_name || 'Unknown Section'
     const floorId = room.floors?.id
     const floorName = room.floors?.floor_name || 'Unknown Floor'
-    
-    if (!sections[sectionId]) {
-      sections[sectionId] = {
-        id: sectionId,
-        name: sectionName,
-        floors: {}
-      }
-    }
-    
-    if (!sections[sectionId].floors[floorId]) {
-      sections[sectionId].floors[floorId] = {
+
+    if (!floors[floorId]) {
+      floors[floorId] = {
         id: floorId,
         name: floorName,
         rooms: []
       }
     }
-    
-    sections[sectionId].floors[floorId].rooms.push(room)
+
+    floors[floorId].rooms.push(room)
   })
-  
-  // Convert to array and sort
-  return Object.values(sections).map(section => ({
-    ...section,
-    floors: Object.values(section.floors).sort((a, b) => a.name.localeCompare(b.name))
-  })).sort((a, b) => a.name.localeCompare(b.name))
+
+  return Object.values(floors)
+    .map(floor => ({
+      ...floor,
+      rooms: floor.rooms.sort((a, b) => (a.room_name || '').localeCompare(b.room_name || ''))
+    }))
+    .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
 }
 
 /**

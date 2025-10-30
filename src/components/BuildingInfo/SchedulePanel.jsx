@@ -56,11 +56,7 @@ const SchedulePanel = ({
         backgroundColor: '#222831',
         flexShrink: 0
       }}>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}>
+        <div>
           <h3 style={{
             fontSize: '15px',
             fontWeight: '600',
@@ -69,27 +65,6 @@ const SchedulePanel = ({
           }}>
             Room Schedule
           </h3>
-          <button
-            onClick={onClose}
-            style={{
-              background: 'none',
-              border: 'none',
-              fontSize: '24px',
-              cursor: 'pointer',
-              color: '#EEEEEE',
-              padding: '0',
-              width: '32px',
-              height: '32px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'color 0.2s'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.color = '#3282B8'}
-            onMouseLeave={(e) => e.currentTarget.style.color = '#EEEEEE'}
-          >
-            ×
-          </button>
         </div>
         
         {/* Date Picker */}

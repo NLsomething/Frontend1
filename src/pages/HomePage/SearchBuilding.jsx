@@ -96,7 +96,7 @@ const SearchBuilding = ({ buildings, onRoomSelect, onOpen }) => {
     .sort()
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative h-full flex items-stretch" ref={dropdownRef}>
       <button
         type="button"
         onClick={() => {
@@ -105,7 +105,7 @@ const SearchBuilding = ({ buildings, onRoomSelect, onOpen }) => {
             onOpen()
           }
         }}
-        className="uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 bg-[#222831] text-[#EEEEEE] shadow-lg backdrop-blur-sm transition-colors duration-200 hover:bg-[#2f3a4a]"
+        className="uppercase tracking-[0.28em] text-[0.6rem] px-6 h-full inline-flex items-center border-y-0 border-l border-r border-[#2f3a4a] bg-transparent text-[#EEEEEE] transition-all duration-200 hover:bg-[#2f3a4a]"
       >
         Search Building
       </button>
