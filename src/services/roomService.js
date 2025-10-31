@@ -41,7 +41,6 @@ export const fetchRoomsByBuildingId = async (buildingId) => {
         )
       `)
       .eq('floors.building_id', buildingId)
-      .neq('room_type', 'administrative')
       .order('room_name')
     
     return { data, error }

@@ -27,6 +27,11 @@ export const BuildingSchedulePanelContent = ({
   // Handle date change from input
   const handleDateChange = (dateString) => {
     if (setScheduleDate) {
+      if (!dateString) {
+        const today = new Date()
+        setScheduleDate(new Date(today.getFullYear(), today.getMonth(), today.getDate()))
+        return
+      }
       const [year, month, day] = dateString.split('-').map(Number)
       setScheduleDate(new Date(year, month - 1, day))
     }
@@ -112,23 +117,27 @@ export const BuildingSchedulePanelContent = ({
             </div>
           ) : (
             <>
-              {roomsByFloor.map((floor, floorIndex) => (
-                <section key={floor.id} className="shadow-sm overflow-hidden" style={{ marginLeft: '0', border: '1px solid rgba(238,238,238,0.2)', backgroundColor: COLORS.screenBackground, borderTop: floorIndex === 0 ? '1px solid rgba(238,238,238,0.2)' : undefined, borderRadius: 0 }}>
-                  <header className="flex items-center justify-between font-semibold uppercase tracking-wide" style={{ padding: '10px 21px', fontSize: '12px', backgroundColor: COLORS.darkGray, color: COLORS.white }}>
-                    <span>{floor.name} • {floor.rooms.length} Room{floor.rooms.length !== 1 ? 's' : ''}</span>
-                  </header>
-                  <ScheduleGrid
-                    rooms={floor.rooms.map(room => room.room_code)}
-                    timeSlots={timeSlots}
-                    scheduleMap={scheduleMap}
-                    onAdminAction={(room, hour) => canEdit && onCellClick && onCellClick(room, hour)}
-                    onTeacherRequest={(room, hour) => canRequest && onCellClick && onCellClick(room, hour)}
-                    buildKey={buildKey}
-                    canEdit={canEdit}
-                    canRequest={canRequest}
-                  />
-                </section>
-              ))}
+              {roomsByFloor.map((floor, floorIndex) => {
+                const bookableRooms = floor.rooms.filter(room => String(room.bookable).toLowerCase() === 'true' || room.bookable === true)
+                if (bookableRooms.length === 0) return null
+                return (
+                  <section key={floor.id} className="shadow-sm overflow-hidden" style={{ marginLeft: '0', border: '1px solid rgba(238,238,238,0.2)', backgroundColor: COLORS.screenBackground, borderTop: floorIndex === 0 ? '1px solid rgba(238,238,238,0.2)' : undefined, borderRadius: 0 }}>
+                    <header className="flex items-center justify-between font-semibold uppercase tracking-wide" style={{ padding: '10px 21px', fontSize: '12px', backgroundColor: COLORS.darkGray, color: COLORS.white }}>
+                      <span>{floor.name} • {bookableRooms.length} Room{bookableRooms.length !== 1 ? 's' : ''}</span>
+                    </header>
+                    <ScheduleGrid
+                      rooms={bookableRooms.map(room => room.room_code)}
+                      timeSlots={timeSlots}
+                      scheduleMap={scheduleMap}
+                      onAdminAction={(room, hour) => canEdit && onCellClick && onCellClick(room, hour)}
+                      onTeacherRequest={(room, hour) => canRequest && onCellClick && onCellClick(room, hour)}
+                      buildKey={buildKey}
+                      canEdit={canEdit}
+                      canRequest={canRequest}
+                    />
+                  </section>
+                )
+              })}
             </>
           )}
         </div>

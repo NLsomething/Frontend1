@@ -9,6 +9,7 @@ import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import SchoolModel from '../../components/SchoolModel'
 import BuildingInfoModal from '../../components/BuildingInfo'
 import UserManagementModal from '../../components/UserManagementModal'
+import SchedulePanel from '../../components/BuildingInfo/SchedulePanel'
 import { useNotifications } from '../../context/NotificationContext'
 import { USER_ROLES } from '../../constants/roles'
 import { SCHEDULE_STATUS, SCHEDULE_STATUS_LABELS } from '../../constants/schedule'
@@ -24,10 +25,13 @@ import {
   SearchBuilding
 } from './'
 import UnifiedPanel from './UnifiedPanel'
+import UnifiedPanelCenter from './UnifiedPanelCenter'
 import { RequestsPanelContent, MyRequestsPanelContent } from './UnifiedPanelContent'
 import { UserManagementContent } from './UserManagementContent'
 import { BuildingSchedulePanelContent } from './BuildingSchedulePanelContent'
 import BuildingSidebar from '../../components/BuildingInfo/BuildingSidebar'
+import ScheduleRequestContent from './ScheduleRequestContent'
+import ScheduleEditContent from './ScheduleEditContent'
 
 // Import custom hooks
 import { useScheduleManagement } from '../../hooks/useScheduleManagement'
@@ -87,7 +91,7 @@ const styles = {
   heroControlsHidden: "-translate-x-full opacity-0 pointer-events-none",
   heroControls: "flex flex-col gap-2.5",
   heroControlRow: "flex flex-wrap items-center justify-start gap-2.5",
-  buildingControlsWrapper: "absolute top-[5.5rem] left-8 md:left-12 z-30 pointer-events-auto flex flex-col gap-2.5 transition-opacity duration-200",
+  buildingControlsWrapper: "absolute top-[5.1rem] left-5 md:left-8 z-30 pointer-events-auto flex flex-col gap-2.5 transition-opacity duration-200",
   buildingControlsVisible: "opacity-100",
   buildingControlsHidden: "opacity-0 pointer-events-none"
 }
@@ -97,8 +101,11 @@ function HomePage() {
   const navigate = useNavigate()
   const { user, loading, role, profile } = useAuth()
   console.log('[HomePage] Auth state:', { user: !!user, loading, role })
-  const { notifyError, notifyInfo } = useNotifications()
+  const { notifyError, notifyInfo, notifySuccess } = useNotifications()
   const controlsRef = useRef()
+  const lastDragEndAtRef = useRef(0)
+  const lastBuildingClickAtRef = useRef(0)
+  const pointerRef = useRef({ downX: 0, downY: 0, moved: false })
   
   // Building state
   const [buildings, setBuildings] = useState([])
@@ -109,11 +116,14 @@ function HomePage() {
   
   // Schedule panel state
   const [isScheduleOpen, setScheduleOpen] = useState(false)
+  const [isRoomScheduleOpen, setIsRoomScheduleOpen] = useState(false)
+  const [roomScheduleRoomCode, setRoomScheduleRoomCode] = useState(null)
   
   // Building dropdown state
   const [isBuildingDropdownOpen, setIsBuildingDropdownOpen] = useState(false)
   const [isDropdownClosing, setIsDropdownClosing] = useState(false)
   const dropdownRef = useRef(null)
+  const floorRoomListScrollRef = useRef(null)
   
   const [buildingRooms, setBuildingRooms] = useState([])
   const [buildingRoomsLoading, setBuildingRoomsLoading] = useState(false)
@@ -127,16 +137,48 @@ function HomePage() {
   // Unified Panel state
   const [unifiedPanelContentType, setUnifiedPanelContentType] = useState(null) // 'requests' | 'my-requests' | 'user-management' | 'building-info' | null
   const isUnifiedPanelOpen = unifiedPanelContentType !== null
+
+  // Unified Panel Center state (for schedule request/edit)
+  const [centerPanelContentType, setCenterPanelContentType] = useState(null) // 'schedule-request' | 'schedule-edit' | null
+  const isCenterPanelOpen = centerPanelContentType !== null
   
   // BuildingSidebar state (for UnifiedPanel building-info content)
-  const [selectedFloor, setSelectedFloor] = useState(null)
-  const [selectedRoomCode, setSelectedRoomCode] = useState(null)
+  const [expandedFloorKey, setExpandedFloorKey] = useState(null)
+  const toggleFloor = (floorKey) => {
+    setExpandedFloorKey((prev) => (prev === floorKey ? null : floorKey))
+  }
 
   // Calculate ISO date
   const isoDate = useMemo(() => toIsoDateString(scheduleDate), [scheduleDate])
 
   // Generate time slots
   const timeSlots = useMemo(() => generateTimeSlots(), [])
+
+  const {
+    scheduleMap,
+    scheduleLoading,
+    loadSchedules,
+    buildScheduleKey,
+    saveSchedule
+  } = useScheduleManagement(
+    isoDate,
+    role === USER_ROLES.teacher ||
+      role === USER_ROLES.student ||
+      role === USER_ROLES.administrator ||
+      role === USER_ROLES.buildingManager
+  )
+  const [roomScheduleRoomName, setRoomScheduleRoomName] = useState('')
+  const [roomScheduleBookable, setRoomScheduleBookable] = useState(true)
+
+  const roomSchedule = useMemo(() => {
+    if (!roomScheduleRoomCode) return []
+    const hours = Array.from({ length: 14 }, (_, i) => 7 + i)
+    return hours.map((hour) => {
+      const key = buildScheduleKey(roomScheduleRoomCode, hour)
+      const entry = scheduleMap[key]
+      return entry ? entry : { slot_hour: hour, status: SCHEDULE_STATUS.empty }
+    })
+  }, [roomScheduleRoomCode, scheduleMap, buildScheduleKey])
 
   // Utility functions for hooks
   const getSlotLabel = useCallback((hour) => {
@@ -154,14 +196,6 @@ function HomePage() {
   const canRequestRoom = role === USER_ROLES.teacher
 
   // Use custom hooks
-  const {
-    scheduleMap,
-    scheduleLoading,
-    loadSchedules,
-    saveSchedule,
-    buildScheduleKey
-  } = useScheduleManagement(isoDate, canViewSchedule)
-
   const {
     // Request management
     // eslint-disable-next-line no-unused-vars
@@ -190,17 +224,16 @@ function HomePage() {
     setMyRequestsDateFilter,
     
     // Request creation
-    submitRequest,
     requestState,
     setRequestState,
     requestForm,
     setRequestForm,
+    submitRequest,
     resetRequestModal
   } = useRoomRequests(canManageRequests, canRequestRoom, user, profile)
 
   // Camera drag detection to guard building select/deselect during drags
-  const [isCameraInteracting, setIsCameraInteracting] = useState(false)
-  const [lastCameraInteractionAt, setLastCameraInteractionAt] = useState(0)
+  const [/* isCameraInteracting */ , setIsCameraInteracting] = useState(false)
 
   // Camera controls hook
   useCameraControls(controlsRef, heroCollapsed)
@@ -223,6 +256,9 @@ function HomePage() {
 
   const handleCloseDropdown = () => {
     setIsDropdownClosing(true)
+    // Reset expanded floor and Building Info state immediately when dropdown closes
+    setExpandedFloorKey(null)
+    setIsBuildingInfoOpen(false)
     setTimeout(() => {
       setIsBuildingDropdownOpen(false)
       setIsDropdownClosing(false)
@@ -232,6 +268,15 @@ function HomePage() {
   const handleOpenDropdown = () => {
     setIsDropdownClosing(false)
     setIsBuildingDropdownOpen(true)
+    // Ensure rooms are loaded to populate floor/room list
+    if (selectedBuilding && buildingRooms.length === 0 && !buildingRoomsLoading) {
+      (async () => {
+        try {
+          const { data } = await fetchRoomsByBuildingId(selectedBuilding.id)
+          if (data) setBuildingRooms(data)
+        } catch { /* noop */ }
+      })()
+    }
   }
 
   // Dropdown stays open when panels open - don't auto-close it
@@ -269,6 +314,177 @@ function HomePage() {
   useEffect(() => {
     loadSchedules()
   }, [loadSchedules])
+
+  // Auto-reload schedules when building schedule is open
+  useEffect(() => {
+    if (!isScheduleOpen) return
+
+    // Initial load
+    loadSchedules()
+
+    // Set up polling interval (reload every 15 seconds)
+    const interval = setInterval(() => {
+      loadSchedules()
+    }, 15000)
+
+    return () => clearInterval(interval)
+  }, [isScheduleOpen, loadSchedules])
+
+  // Auto-reload schedules when room schedule is open
+  useEffect(() => {
+    if (!isRoomScheduleOpen) return
+
+    // Initial load (with loading screen)
+    loadSchedules()
+
+    // Set up polling interval (reload every 15 seconds, silent to avoid loading screen)
+    const interval = setInterval(() => {
+      loadSchedules(true) // silent reload
+    }, 15000)
+
+    return () => clearInterval(interval)
+  }, [isRoomScheduleOpen, loadSchedules])
+
+  // Initialize edit form when entering edit mode
+  const [editForm, setEditForm] = useState({
+    status: SCHEDULE_STATUS.occupied,
+    courseName: '',
+    bookedBy: ''
+  })
+
+  useEffect(() => {
+    if (requestState.isEditMode && requestState.existingEntry) {
+      const entry = requestState.existingEntry
+      setEditForm({
+        status: entry.status || SCHEDULE_STATUS.occupied,
+        courseName: entry.course_name || '',
+        bookedBy: entry.booked_by || ''
+      })
+    } else if (!requestState.isEditMode) {
+      setEditForm({
+        status: SCHEDULE_STATUS.occupied,
+        courseName: '',
+        bookedBy: ''
+      })
+    }
+  }, [requestState.isEditMode, requestState.existingEntry])
+
+  // Sync center panel with requestState
+  useEffect(() => {
+    if (requestState.isOpen && requestState.room) {
+      setCenterPanelContentType(requestState.isEditMode ? 'schedule-edit' : 'schedule-request')
+    } else {
+      setCenterPanelContentType(null)
+    }
+  }, [requestState.isOpen, requestState.room, requestState.isEditMode])
+
+  // Handle center panel close
+  const handleCenterPanelClose = useCallback(() => {
+    resetRequestModal()
+    setCenterPanelContentType(null)
+    isSubmittingRequestRef.current = false
+    setIsSubmittingRequest(false)
+    isSubmittingEditRef.current = false
+    setIsSubmittingEdit(false)
+  }, [resetRequestModal])
+
+  // Request submission loading state (using ref for reliable double-submission prevention)
+  const [isSubmittingRequest, setIsSubmittingRequest] = useState(false)
+  const isSubmittingRequestRef = useRef(false)
+
+  // Handle schedule request submit
+  const handleRequestSubmit = useCallback(async (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    // Prevent double submission using ref (more reliable than state)
+    if (isSubmittingRequestRef.current) return
+    if (!requestState.room || !requestState.startHour || !requestState.endHour) return
+
+    // Set both ref and state
+    isSubmittingRequestRef.current = true
+    setIsSubmittingRequest(true)
+    
+    try {
+      const success = await submitRequest({
+        room_number: requestState.room,
+        base_date: isoDate,
+        start_hour: requestState.startHour,
+        end_hour: requestState.endHour,
+        week_count: requestForm.weekCount,
+        course_name: requestForm.courseName || null,
+        notes: requestForm.notes || null
+      })
+
+      if (success) {
+        handleCenterPanelClose()
+        loadSchedules()
+      }
+    } finally {
+      isSubmittingRequestRef.current = false
+      setIsSubmittingRequest(false)
+    }
+  }, [requestState, requestForm, isoDate, submitRequest, handleCenterPanelClose, loadSchedules])
+
+  // Edit submission loading state (using ref for reliable double-submission prevention)
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false)
+  const isSubmittingEditRef = useRef(false)
+
+  // Handle schedule edit submit
+  const handleEditSubmit = useCallback(async (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    // Prevent double submission using ref (more reliable than state)
+    if (isSubmittingEditRef.current) return
+    if (!requestState.room || !requestState.startHour || !requestState.endHour) return
+
+    // Set both ref and state
+    isSubmittingEditRef.current = true
+    setIsSubmittingEdit(true)
+
+    try {
+      await saveSchedule(requestState, editForm)
+      handleCenterPanelClose()
+      loadSchedules()
+      notifySuccess('Schedule updated', {
+        description: `Room ${requestState.room} schedule has been updated.`
+      })
+    } catch (error) {
+      notifyError('Failed to update schedule', {
+        description: error.message || 'Please try again later.'
+      })
+    } finally {
+      isSubmittingEditRef.current = false
+      setIsSubmittingEdit(false)
+    }
+  }, [requestState, editForm, saveSchedule, handleCenterPanelClose, loadSchedules, notifySuccess, notifyError])
+
+  // Handle range change for request/edit
+  const handleRangeChange = useCallback((field) => (e) => {
+    const value = parseInt(e.target.value, 10)
+    setRequestState(prev => ({
+      ...prev,
+      [field]: value
+    }))
+  }, [setRequestState])
+
+  // Handle form change for request/edit
+  const handleRequestFormChange = useCallback((e) => {
+    const { name, value } = e.target
+    setRequestForm(prev => ({
+      ...prev,
+      [name]: value
+    }))
+  }, [setRequestForm])
+
+  const handleEditFormChange = useCallback((e) => {
+    const { name, value } = e.target
+    setEditForm(prev => ({
+      ...prev,
+      [name]: value
+    }))
+  }, [])
 
   // Handle schedule button click (internal function)
   const handleScheduleButtonClickInternal = async () => {
@@ -313,15 +529,6 @@ function HomePage() {
     setScheduleOpen((prev) => !prev)
   }
 
-  const handleHeroExplore = () => {
-    setHeroCollapsed(true)
-    
-    // Auto-rotate off when user starts exploring
-    if (controlsRef.current) {
-      controlsRef.current.autoRotate = false
-    }
-  }
-
   // eslint-disable-next-line no-unused-vars
   const closeAllPanels = () => {
     // Only close header-level panels, not modals
@@ -345,9 +552,19 @@ function HomePage() {
     } else {
       setUnifiedPanelContentType('requests')
       setRequestsPanelOpen(true)
-      setIsBuildingInfoOpen(false)
-      setScheduleOpen(false)
+      // Keep Building Info/Schedule states as-is
     }
+  }
+
+  // Central close for UnifiedPanel (same behavior as UnifiedPanel onClose prop)
+  const handleUnifiedPanelClose = () => {
+    const currentType = unifiedPanelContentType
+    setUnifiedPanelContentType(null)
+    if (currentType === 'requests') setRequestsPanelOpen(false)
+    if (currentType === 'my-requests') setMyRequestsPanelOpen(false)
+    if (currentType === 'user-management') setUserManagementOpen(false)
+    if (currentType === 'building-info') setIsBuildingInfoOpen(false)
+    if (currentType === 'schedule') setScheduleOpen(false)
   }
 
   const handleMyRequestsClick = () => {
@@ -358,8 +575,7 @@ function HomePage() {
     } else {
       setUnifiedPanelContentType('my-requests')
       setMyRequestsPanelOpen(true)
-      setIsBuildingInfoOpen(false)
-      setScheduleOpen(false)
+      // Keep Building Info/Schedule states as-is
     }
   }
 
@@ -370,22 +586,25 @@ function HomePage() {
       setUserManagementOpen(false)
     } else {
       setUnifiedPanelContentType('user-management')
-      setUserManagementOpen(true)
-      setIsBuildingInfoOpen(false)
-      setScheduleOpen(false)
+    setUserManagementOpen(true)
+      // Keep Building Info/Schedule states as-is
     }
   }
 
   const handleBuildingInfoToggle = () => {
     // Don't close dropdown - allow switching content types
-    if (unifiedPanelContentType === 'building-info') {
-      setUnifiedPanelContentType(null)
-      setIsBuildingInfoOpen(false)
-    } else {
-      // Switch to building-info content
-      setUnifiedPanelContentType('building-info')
-      setIsBuildingInfoOpen(true)
-      setScheduleOpen(false) // Close schedule if open
+    // Building Info no longer uses UnifiedPanel; just toggle the dropdown section
+    setIsBuildingInfoOpen((prev) => !prev)
+    // Do not touch the UnifiedPanel content; keep it open if any
+    setScheduleOpen(false)
+    // Ensure floors are loaded when first opening Building Info
+    if (!isBuildingInfoOpen && selectedBuilding && buildingRooms.length === 0 && !buildingRoomsLoading) {
+      (async () => {
+        try {
+          const { data } = await fetchRoomsByBuildingId(selectedBuilding.id)
+          if (data) setBuildingRooms(data)
+        } catch { /* noop */ }
+      })()
     }
   }
 
@@ -402,28 +621,38 @@ function HomePage() {
       }
       setUnifiedPanelContentType('schedule')
       setScheduleOpen(true)
-      setIsBuildingInfoOpen(false) // Close building-info if open
+      // Allow Building Info to stay open simultaneously
       // Ensure building rooms are loaded
       if (buildingRooms.length === 0 && !buildingRoomsLoading) {
-        handleScheduleButtonClickInternal()
+      handleScheduleButtonClickInternal()
       }
     }
   }
 
   const handleBuildingClick = (clickedBuilding) => {
-    // Ignore clicks that immediately follow camera drags to prevent accidental (de)select
-    if (isCameraInteracting || Date.now() - lastCameraInteractionAt < 200) {
+    // Ignore only if a drag just ended very recently (within 120ms)
+    if (Date.now() - (lastDragEndAtRef.current || 0) < 120) {
+      return
+    }
+    lastBuildingClickAtRef.current = Date.now()
+    // If unified panel is open, only close it and don't select/deselect buildings
+    if (isUnifiedPanelOpen) {
+      handleUnifiedPanelClose()
       return
     }
     if (selectedBuilding?.id === clickedBuilding?.id) {
+      // Trigger dropdown close animation only if it's currently open
+      if (isBuildingDropdownOpen) {
+        handleCloseDropdown()
+      }
       setSelectedBuilding(null)
       setIsBuildingInfoOpen(false)
       setScheduleOpen(false)
       setUnifiedPanelContentType(null)
-      // Close dropdown when deselecting building
-      handleCloseDropdown()
     } else {
       setSelectedBuilding(clickedBuilding)
+      // Auto-open dropdown to show actions immediately when a building is selected
+      handleOpenDropdown()
       // Don't open BuildingInfo automatically - only select the building
       // Don't auto-open dropdown - user clicks button to open it
     }
@@ -439,6 +668,8 @@ function HomePage() {
       
       // Select the building
       setSelectedBuilding(building)
+      // Auto-open dropdown to show actions immediately after selecting building
+      handleOpenDropdown()
       
       // Load building rooms
       setBuildingRoomsLoading(true)
@@ -448,16 +679,12 @@ function HomePage() {
       }
       setBuildingRoomsLoading(false)
 
-      // Open building info in unified panel
-      setIsBuildingInfoOpen(true)
-      setUnifiedPanelContentType('building-info')
-      
       // Collapse hero if not already collapsed
       if (!heroCollapsed) {
         setHeroCollapsed(true)
       }
 
-      // If room code is provided, navigate to the specific room
+      // If room code is provided, open room schedule directly
       if (roomCode) {
         // Search for the room in the building
         const { data: roomsData, error } = await fetchRoomsByBuildingId(building.id)
@@ -479,22 +706,54 @@ function HomePage() {
           return
         }
 
-        // Navigate to the specific room
-        // This will be handled by BuildingInfoModal
-        setTimeout(() => {
-          // Trigger selection of the room in the modal
-          const event = new CustomEvent('search-room', { detail: { roomCode: roomCode } })
-          window.dispatchEvent(event)
-        }, 300) // Small delay to ensure modal is mounted
+        // Set room schedule state and open room schedule
+        const displayName = room.room_name || room.roomNumber || room.room_number || room.room_code
+        setRoomScheduleRoomCode(room.room_code)
+        setRoomScheduleRoomName(displayName)
+        setRoomScheduleBookable(String(room.bookable).toLowerCase() === 'true' || room.bookable === true)
         
-        notifyInfo('Room found', {
-          description: `Showing ${building.building_code} - Room ${roomCode}`
-        })
+        // Also open BuildingInfo and expand the floor containing this room
+        setIsBuildingInfoOpen(true)
+        
+        // Find and expand the floor containing this room
+        // Compute the floor key directly from the room's floor data
+        // The floorKey logic in render: group.floor_id ?? group.floorId ?? group.floor_name ?? group.floorName ?? idx
+        // groupRoomsByFloor returns { id, name, rooms }, so we use id or name
+        if (room.floors) {
+          const floorId = room.floors.id
+          const floorName = room.floors.floor_name
+          // Use id first, then name, matching the groupRoomsByFloor structure
+          const floorKey = floorId ?? floorName
+          if (floorKey) {
+            // Use a small delay to ensure buildingRooms state is updated and roomsByFloor memo is recalculated
+            setTimeout(() => {
+              setExpandedFloorKey(floorKey)
+              
+              // Then scroll to the room button after floor is expanded
+              setTimeout(() => {
+                if (floorRoomListScrollRef.current) {
+                  const roomButton = floorRoomListScrollRef.current.querySelector(
+                    `button[data-room-code="${room.room_code}"]`
+                  )
+                  if (roomButton) {
+                    roomButton.scrollIntoView({ 
+                      behavior: 'smooth', 
+                      block: 'center',
+                      inline: 'nearest'
+                    })
+                  }
+                }
+              }, 100) // Additional delay to ensure room list is rendered
+            }, 50)
+          }
+        }
+        
+        // Open room schedule in UnifiedPanel
+        setUnifiedPanelContentType('room-schedule')
+        setIsRoomScheduleOpen(true)
       } else {
-        // Just open building info
-        notifyInfo('Building opened', {
-          description: `Showing building ${building.building_code}`
-        })
+        // Just open building dropdown - don't open unified panel
+        // The building is already selected and dropdown is opened above
       }
     } catch (err) {
       console.error('Error searching:', err)
@@ -528,7 +787,54 @@ function HomePage() {
   return (
     <div className={styles.screen}>
       {/* 3D Canvas */}
-      <div className={styles.canvasContainer}>
+      <div
+        className={`${styles.canvasContainer} canvas-container`}
+        onMouseDown={(e) => {
+          pointerRef.current.downX = e.clientX
+          pointerRef.current.downY = e.clientY
+          pointerRef.current.moved = false
+        }}
+        onMouseMove={(e) => {
+          const dx = Math.abs(e.clientX - pointerRef.current.downX)
+          const dy = Math.abs(e.clientY - pointerRef.current.downY)
+          if (dx > 6 || dy > 6) pointerRef.current.moved = true
+        }}
+        onMouseUp={() => {
+          if (pointerRef.current.moved) {
+            lastDragEndAtRef.current = Date.now()
+          }
+        }}
+        onClick={(e) => {
+          // Plain background click (not a drag) should deselect and close panel if open
+          const justDragged = Date.now() - (lastDragEndAtRef.current || 0) < 120
+          if (justDragged) return
+          // Only respond to left-clicks
+          if (e.button !== 0) return
+          const target = e.target
+          const panelEl = document.querySelector('.unified-panel')
+          const insidePanel = panelEl ? panelEl.contains(target) : false
+          const insideBuildingDropdown = dropdownRef.current ? dropdownRef.current.contains(target) : false
+          // Do not close if click was inside the unified panel or the select building dropdown/button
+          if (insidePanel || insideBuildingDropdown) return
+          // If a building mesh was just clicked, skip background handler
+          if (Date.now() - (lastBuildingClickAtRef.current || 0) < 50) return
+          if (isUnifiedPanelOpen) {
+            handleUnifiedPanelClose()
+            // When unified panel is open, only close the panel, don't deselect building
+            return
+          }
+          if (selectedBuilding) {
+            // Trigger dropdown close animation only if it's currently open
+            if (isBuildingDropdownOpen) {
+              handleCloseDropdown()
+            }
+            setSelectedBuilding(null)
+            setIsBuildingInfoOpen(false)
+            setScheduleOpen(false)
+            setUnifiedPanelContentType(null)
+          }
+        }}
+      >
         <Canvas camera={{ position: [40, 25, 40], fov: 50 }} style={{ background: 'radial-gradient(circle at 32% 18%, rgba(140,160,180,0.4) 0%, rgba(90,110,130,0.6) 55%, rgba(60,80,100,0.8) 100%)' }}>
           {!buildingLoading && (
           <SchoolModel 
@@ -560,26 +866,38 @@ function HomePage() {
             }}
             onEnd={() => {
               setIsCameraInteracting(false)
-              setLastCameraInteractionAt(Date.now())
+              // If OrbitControls ended with an actual drag, lastDragEndAtRef will already be set by onMouseUp
+              // No need to update a separate timestamp here that could block taps
             }}
           />
         </Canvas>
       </div>
 
-              {/* Canvas Instructions */}
-              <div 
-                className={`${styles.canvasInstructions} ${
-                  heroCollapsed ? styles.canvasInstructionsVisible : styles.canvasInstructionsHidden
-                }`}
-              >
-                <span className="mr-3">🖱️ Drag to rotate</span>
-                <span className="mr-3">•</span>
-                <span className="mr-3">Scroll to zoom</span>
-                <span className="mr-3">•</span>
-                <span className="mr-3">Right-click to pan</span>
-                <span className="mr-3">•</span>
-                <span>⌨️ WASD to move</span>
+      {/* Welcome Notice Overlay, replaces heroIntro and instructions tip */}
+      {!heroCollapsed && (
+        <div className="fixed inset-0 z-[55] flex items-center justify-center bg-black/50 backdrop-blur-xs pointer-events-auto">
+          <div className="box centered relative bg-[#393e46] border border-[#8991a4] shadow-2xl py-5 px-9 min-w-[340px] max-w-sm w-full flex flex-col items-center" style={{borderRadius: 0}}>
+            <div className="text-[#eee] text-center font-sans text-base tracking-wide w-full" style={{lineHeight: 1.25}}>
+              <p className="mb-2 text-[1.01rem] md:text-[1.09rem] font-normal whitespace-nowrap">Click and drag to rotate the camera.</p>
+              <p className="mb-2 text-[1.01rem] md:text-[1.09rem] font-normal whitespace-nowrap">Right-click and drag to pan.</p>
+              <p className="mb-1 text-[1.01rem] md:text-[1.09rem] font-normal whitespace-nowrap">WASD to move.</p>
+            </div>
+            <button
+              tabIndex={0}
+              type="button"
+              aria-label="Close welcome dialog"
+              onClick={() => setHeroCollapsed(true)}
+              className="btn-close absolute top-2 right-2 w-8 h-8 bg-transparent border-0 flex items-center justify-center cursor-pointer text-2xl transition text-[#eee] hover:bg-[#222831]/40 focus:outline-none"
+              style={{borderRadius: 0}}
+            >
+              <span className="sr-only">Close</span>
+              <svg width="24" height="24" aria-hidden="true" fill="none" stroke="#eee" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M6 6l12 12M6 18L18 6" />
+              </svg>
+            </button>
               </div>
+        </div>
+      )}
 
       {/* Main Overlay */}
       <div className={styles.heroOverlay}>
@@ -623,10 +941,9 @@ function HomePage() {
                 <button
                   type="button"
                   onClick={handleRequestsButtonClick}
-                  className={styles.headerRequestsButton(requestsPanelOpen, requestsLoading)}
-                  disabled={requestsLoading}
+                  className={styles.headerRequestsButton(requestsPanelOpen, false)}
                 >
-                  {requestsLoading ? 'Loading...' : 'Manage Requests'}
+                  Manage Requests
                 </button>
               )}
               {role === USER_ROLES.administrator && (
@@ -639,175 +956,394 @@ function HomePage() {
                 </button>
               )}
               <div className="ml-3 flex items-center">
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className={styles.logoutBtn}
-                >
-                  Logout
-                </button>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className={styles.logoutBtn}
+              >
+                Logout
+              </button>
               </div>
             </div>
           </div>
         </header>
 
-                {/* Hero Content - Left Side Fade Overlay */}
-                <div className={`absolute top-0 left-0 w-[45%] h-full z-0 transition-all duration-500 ease-in-out ${
-                      !heroCollapsed ? 'translate-x-0 opacity-100' : '-translate-x-full opacity-0'
-                    }`}>
-                  {/* Gradient Background - Fades from top to bottom and right to left */}
+                {/* Building-specific Controls */}
+                {/* Building Controls - Always visible when hero is collapsed, no sliding */}
                   <div 
-                    className="absolute inset-0"
-                    style={{
-                      background: 'linear-gradient(to bottom, rgba(34, 40, 49, 0.4) 0%, rgba(34, 40, 49, 0.3) 20%, rgba(34, 40, 49, 0.18) 45%, rgba(34, 40, 49, 0.08) 65%, rgba(34, 40, 49, 0.02) 80%, transparent 95%), linear-gradient(to right, rgba(34, 40, 49, 0.25) 0%, rgba(34, 40, 49, 0.15) 20%, rgba(34, 40, 49, 0.08) 45%, rgba(34, 40, 49, 0.03) 70%, rgba(34, 40, 49, 0.01) 85%, transparent 95%)'
-                    }}
-                    aria-hidden="true"
-                  />
-                  
-                  {/* Content */}
-                  <div className="relative h-full flex flex-col justify-center pl-8 md:pl-12">
-                    <div 
-                      className={`${styles.heroIntro} ${
-                        !heroCollapsed ? styles.heroIntroVisible : styles.heroIntroHidden
+                  className={`${styles.buildingControlsWrapper} ${
+                    heroCollapsed ? styles.buildingControlsVisible : styles.buildingControlsHidden
                       }`}
-                      style={{ transitionDelay: heroCollapsed ? '0s' : '0.2s' }}
                     >
-                      <div className="relative max-w-xl">
-                        <h1 className="text-4xl font-bold leading-tight text-white sm:text-5xl md:text-6xl drop-shadow-2xl">
-                          <span className="block bg-gradient-to-r from-white via-[#EEEEEE] to-white bg-clip-text text-transparent">See the school</span>
-                          <span className="block text-white mt-3">from within</span>
-                          <span className="mt-6 block text-xl font-light uppercase tracking-[0.5em] text-white drop-shadow-xl">Explore the campus</span>
-                        </h1>
-                        <div className={styles.heroActions} style={{ marginTop: '2.5rem' }}>
-                          <button
-                            type="button"
-                            onClick={handleHeroExplore}
-                            className="px-8 py-4 text-sm uppercase tracking-[0.35em] bg-[#3282B8] text-[#EEEEEE] shadow-xl transition-all duration-300 hover:bg-[#4BA3D3] hover:shadow-2xl hover:scale-105 border border-[#3282B8]/30 rounded-lg font-semibold"
+                  <div className="relative -ml-2" ref={dropdownRef}>
+                    <div
+                      className={cn(
+                        "canvas-building-btn border border-[#EEEEEE]/30 text-[#EEEEEE] shadow-lg backdrop-blur-sm transition-all duration-300 overflow-hidden flex items-center",
+                        selectedBuilding !== null ? "" : "border-[#EEEEEE]/10 text-[#EEEEEE]/30",
+                        isBuildingDropdownOpen && selectedBuilding
+                          ? "px-5 h-14 bg-[#393E46]/60"
+                          : "px-5 h-9 bg-[#393E46]/80"
+                      )}
                             style={{
-                              boxShadow: '0 6px 20px rgba(50, 130, 184, 0.5)'
-                            }}
-                          >
-                            Explore 3D Map
-                          </button>
-                        </div>
-                      </div>
-                    </div>
+                         width: '260px'
+                      }}
+                    >
+                      <div
+                        className={cn(
+                          "w-full text-left uppercase tracking-[0.28em] transition-all duration-300 flex flex-col items-start justify-center",
+                          isBuildingDropdownOpen && selectedBuilding
+                            ? "text-[0.9rem] font-bold"
+                            : "text-[0.72rem]"
+                        )}
+                        aria-hidden="true"
+                      >
+                        {selectedBuilding ? (
+                          <>
+                            <div className="leading-tight">{selectedBuilding.building_name}</div>
+                            <div className={cn(
+                              "text-[0.65rem] tracking-[0.24em] mt-1 text-[#EEEEEE]/75 font-normal leading-tight transition-opacity duration-300",
+                              isBuildingDropdownOpen ? "opacity-100" : "opacity-0"
+                            )}>Building code: {selectedBuilding.building_code}</div>
+                          </>
+                        ) : (
+                          'Select a Building'
+                        )}
                   </div>
                 </div>
 
-                {/* Building-specific Controls */}
-                {/* Building Controls - Always visible when hero is collapsed, no sliding */}
+                    {(isBuildingDropdownOpen || isDropdownClosing) && (
                 <div 
-                  className={`${styles.buildingControlsWrapper} ${
-                    heroCollapsed ? styles.buildingControlsVisible : styles.buildingControlsHidden
-                  }`}
-                >
-                  <div className="relative" ref={dropdownRef}>
-                    <button
-                      type="button"
-                      onClick={() => isBuildingDropdownOpen ? handleCloseDropdown() : handleOpenDropdown()}
-                      className={cn(
-                        "uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 border border-[#EEEEEE]/30 bg-[#393E46]/80 text-[#EEEEEE] shadow-lg backdrop-blur-sm transition-colors duration-200",
-                        selectedBuilding !== null ? (isBuildingInfoOpen || isScheduleOpen ? "bg-[#3282B8]" : "hover:bg-[#3282B8]") : "border-[#EEEEEE]/10 text-[#EEEEEE]/30 cursor-not-allowed"
-                      )}
-                      disabled={!selectedBuilding}
-                    >
-                      Building: {selectedBuilding ? selectedBuilding.building_name : 'Select a Building'}
-                    </button>
-                    
-                    {(isBuildingDropdownOpen || isDropdownClosing) && selectedBuilding && (
-                      <div 
-                        className="building-dropdown absolute top-full left-0 mt-2 z-40 flex flex-col gap-1 min-w-[200px]"
+                        className="building-dropdown absolute top-full left-0 mt-2 z-40 flex flex-col gap-0 pointer-events-auto select-none"
                         style={{
-                          animation: isDropdownClosing ? 'fadeOutDrop 0.2s ease-out' : 'fadeInDrop 0.2s ease-out'
+                          animation: isDropdownClosing ? 'slideOutDrop 0.3s ease-out' : 'slideInDrop 0.3s ease-out',
+                          background: 'none', border: 'none', boxShadow: 'none', padding: 0, width: '260px'
                         }}
                       >
                         <style>{`
-                          @keyframes fadeInDrop {
-                            from {
-                              opacity: 0;
-                              transform: translateY(-10px) scale(0.95);
-                            }
-                            to {
-                              opacity: 1;
-                              transform: translateY(0) scale(1);
-                            }
-                          }
-                          @keyframes fadeOutDrop {
-                            from {
-                              opacity: 1;
-                              transform: translateY(0) scale(1);
-                            }
-                            to {
-                              opacity: 0;
-                              transform: translateY(-10px) scale(0.95);
-                            }
-                          }
+                          @keyframes slideInDrop { from { opacity: 0; transform: translateY(-20px);} to { opacity: 1; transform: translateY(0);} }
+                          @keyframes slideOutDrop { from { opacity: 1; transform: translateY(0);} to { opacity: 0; transform: translateY(-20px);} }
+                          .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+                          .no-scrollbar::-webkit-scrollbar { display: none; }
                         `}</style>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            handleBuildingInfoToggle()
-                          }}
-                          className="uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 border border-[#EEEEEE]/30 bg-[#393E46]/90 text-[#EEEEEE] shadow-lg backdrop-blur-sm transition-all duration-200 text-left"
-                          onMouseEnter={(e) => {
-                            if (!isBuildingInfoOpen) {
-                              e.currentTarget.style.backgroundColor = COLORS.blue
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (!isBuildingInfoOpen) {
-                              e.currentTarget.style.backgroundColor = '#393E4690'
-                            }
-                          }}
-                          style={{ backgroundColor: isBuildingInfoOpen ? COLORS.blue : '#393E4690' }}
-                        >
-                          Building Info
-                        </button>
-                        
-                        <button
-                          type="button"
-                          onClick={() => {
-                            handleScheduleToggle()
-                          }}
-                          className="uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 border border-[#EEEEEE]/30 bg-[#393E46]/90 text-[#EEEEEE] shadow-lg backdrop-blur-sm transition-all duration-200 text-left"
-                          onMouseEnter={(e) => {
-                            if (!isScheduleOpen) {
-                              e.currentTarget.style.backgroundColor = COLORS.blue
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (!isScheduleOpen) {
-                              e.currentTarget.style.backgroundColor = '#393E4690'
-                            }
-                          }}
-                          style={{ backgroundColor: isScheduleOpen ? COLORS.blue : '#393E4690' }}
-                        >
-                          Schedule
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-      </div>
+ 
+                         {/* Actions row */}
+                        <div className="flex flex-row gap-2 justify-center mb-2 w-full">
+                    <button
+                      type="button"
+                            onClick={handleBuildingInfoToggle}
+                      className={cn(
+                              "brutal-btn w-1/2 px-2 py-2 text-[0.58rem] font-bold uppercase tracking-[0.16em] border shadow-none focus:outline-none transition-colors duration-150",
+                              isBuildingInfoOpen
+                                ? "bg-transparent text-white border-white"
+                                : "bg-transparent text-[#EEEEEE]/90 border-[#EEEEEE]/60 hover:text-white hover:border-white"
+                      )}
+                            style={{ borderRadius: 0 }}
+                          >
+                            Building Info
+                    </button>
+                          <button
+                            type="button"
+                            onClick={handleScheduleToggle}
+                            className={cn(
+                              "brutal-btn w-1/2 px-2 py-2 text-[0.58rem] font-bold uppercase tracking-[0.16em] border shadow-none focus:outline-none transition-colors duration-150",
+                              (unifiedPanelContentType === 'schedule')
+                                ? "bg-transparent text-white border-white"
+                                : "bg-transparent text-[#EEEEEE]/90 border-[#EEEEEE]/60 hover:text-white hover:border-white"
+                            )}
+                            style={{ borderRadius: 0 }}
+                          >
+                            Schedule
+                          </button>
+                        </div>
 
-      {/* Modals and Panels */}
-      {/* BuildingInfoModal removed - now using UnifiedPanel with BuildingSidebar */}
-      {/* Keep BuildingInfoModal for PreviewPanel and SchedulePanel functionality - but these stay separate */}
-      {isBuildingInfoOpen && selectedBuilding && unifiedPanelContentType !== 'building-info' && (
-        <BuildingInfoModal
-          building={selectedBuilding}
-          onClose={() => setIsBuildingInfoOpen(false)}
-          onRoomSelect={() => {
-            // Room selection now only shows the 2D preview popup
-            // The schedule panel doesn't automatically open anymore
-            // Users can manually open it using the schedule button if needed
-          }}
-          canEdit={canEditSchedule}
-          canRequest={canRequestRoom}
-          onAdminAction={(roomNumber, slotHour) => {
-            if (canEditSchedule) {
-              // Open edit modal for admin/building manager
+                        {/* Floor/room accordion with animated open/close and divider */}
+                        <>
+                          {/* Subtle divider line (centered) with fade/slide */}
+                      <div 
+                            className={cn("my-2 mx-auto transition-all duration-300 ease-out", isBuildingInfoOpen ? "opacity-100" : "opacity-0")}
+                            style={{ width: '260px', height: '1px', backgroundColor: 'rgba(255,255,255,0.6)' }}
+                          />
+                          <div
+                            ref={floorRoomListScrollRef}
+                            className="no-scrollbar flex flex-col gap-1 px-0 py-0 mx-auto overflow-y-auto"
+                            style={{
+                              width: '244px',
+                              maxHeight: 'calc(95vh - 250px)',
+                              opacity: isBuildingInfoOpen ? 1 : 0,
+                              transform: isBuildingInfoOpen ? 'translateY(0)' : 'translateY(-20px)',
+                              willChange: 'opacity, transform',
+                              transitionProperty: 'opacity, transform',
+                              transitionDuration: '300ms',
+                              transitionTimingFunction: 'ease-out',
+                              transitionDelay: '0ms'
+                            }}
+                          >
+                            {(Array.isArray(roomsByFloor) ? roomsByFloor : []).map((group, idx) => {
+                              const floorKey = group.floor_id ?? group.floorId ?? group.id ?? group.floor_name ?? group.floorName ?? group.name ?? idx
+                              const floorName = group.floor_name ?? group.floorName ?? group.name ?? `Floor ${idx+1}`
+                              const rooms = group.rooms ?? []
+                              const expanded = expandedFloorKey === floorKey
+                              return (
+                                <div key={`${floorKey}-${floorName}`} className="w-full">
+                        <button
+                          type="button"
+                                    onClick={() => toggleFloor(floorKey)}
+                                    className={cn(
+                                      "w-full text-left px-3 py-1.5 font-bold uppercase tracking-[0.19em] text-[0.62rem] mb-0 transition-colors duration-150",
+                                      expanded 
+                                        ? "bg-[#4a5568] border-white text-white" 
+                                        : "bg-[#323640] border-[#b8beca19] text-[#f0f0f0] hover:bg-[#4a5568] hover:border-white hover:text-white"
+                                    )}
+                                    style={{ borderRadius: 0 }}
+                                  >
+                                    <span className="text-[#F8F8F8]/90 mr-2">{expanded ? '−' : '+'}</span>{floorName}
+                        </button>
+                                  <div 
+                                    className="flex flex-col gap-1 mt-1 mb-1 overflow-hidden"
+                                    style={{
+                                      maxHeight: expanded && rooms.length > 0 ? '1000px' : '0px',
+                                      opacity: expanded && rooms.length > 0 ? 1 : 0,
+                                      transition: 'max-height 300ms ease-out, opacity 300ms ease-out',
+                                      pointerEvents: expanded && rooms.length > 0 ? 'auto' : 'none'
+                                    }}
+                                  >
+                                    {/* Two-column layout: left classroom, right administrative */}
+                                    {rooms.length > 0 && (
+                                      <div className="grid grid-cols-2 gap-2 w-full" style={{
+                                        opacity: expanded ? 1 : 0,
+                                        transition: 'opacity 300ms ease-out'
+                                      }}>
+                                        {/* Classroom column */}
+                                        <div className="flex flex-col gap-1">
+                                          {rooms.filter(r => (r.room_type || '').toLowerCase() === 'classroom').map((room, roomIdx) => (
+                                            <button
+                                              key={room.id || room.room_code}
+                                              data-room-code={room.room_code}
+                                              type="button"
+                                              onClick={() => {
+                                                const isCurrentlyOpen = isRoomScheduleOpen && roomScheduleRoomCode === room.room_code && unifiedPanelContentType === 'room-schedule'
+                                                if (isCurrentlyOpen) {
+                                                  // Close the room schedule
+                                                  setIsRoomScheduleOpen(false)
+                                                  setRoomScheduleRoomCode(null)
+                                                  setRoomScheduleRoomName('')
+                                                  setUnifiedPanelContentType(null)
+                                                } else {
+                                                  // Open the room schedule
+                                                  setRoomScheduleRoomCode(room.room_code)
+                                                  const displayName = room.room_name || room.roomNumber || room.room_number || room.room_code
+                                                  setRoomScheduleRoomName(displayName)
+                                                  setRoomScheduleBookable(String(room.bookable).toLowerCase() === 'true' || room.bookable === true)
+                                                  setUnifiedPanelContentType('room-schedule')
+                                                  setIsRoomScheduleOpen(true)
+                                                }
+                                              }}
+                                              className={cn(
+                                                "text-left px-3 py-1.5 text-[0.54rem] tracking-[0.12em] border-none shadow-none font-normal transition-colors duration-150",
+                                                isRoomScheduleOpen && roomScheduleRoomCode === room.room_code && unifiedPanelContentType === 'room-schedule'
+                                                  ? "bg-[#4a5568] text-white"
+                                                  : "bg-[#49505c] text-[#F8F8F8] hover:bg-[#4a5568] hover:text-white"
+                                              )}
+                                              style={{ 
+                                                borderRadius: 0, 
+                                                width: '100%',
+                                                opacity: expanded ? 1 : 0,
+                                                transition: expanded 
+                                                  ? `opacity 10ms ease-out ${roomIdx * 20}ms, background-color 150ms ease-out`
+                                                  : `opacity 300ms ease-out ${roomIdx * 10}ms`
+                                              }}
+                                            >
+                                              {`Room ${room.room_name || room.roomNumber || room.room_number || room.room_code || ''}`}
+                                            </button>
+                                          ))}
+                                        </div>
+                                        {/* Administrative column */}
+                                        <div className="flex flex-col gap-1">
+                                          {rooms.filter(r => (r.room_type || '').toLowerCase() === 'administrative').map((room, roomIdx) => (
+                                            <button
+                                              key={room.id || room.room_code}
+                                              data-room-code={room.room_code}
+                                              type="button"
+                                              onClick={() => {
+                                                const isCurrentlyOpen = isRoomScheduleOpen && roomScheduleRoomCode === room.room_code && unifiedPanelContentType === 'room-schedule'
+                                                if (isCurrentlyOpen) {
+                                                  // Close the room schedule
+                                                  setIsRoomScheduleOpen(false)
+                                                  setRoomScheduleRoomCode(null)
+                                                  setRoomScheduleRoomName('')
+                                                  setUnifiedPanelContentType(null)
+                                                } else {
+                                                  // Open the room schedule
+                                                  setRoomScheduleRoomCode(room.room_code)
+                                                  const displayName = room.room_name || room.roomNumber || room.room_number || room.room_code
+                                                  setRoomScheduleRoomName(displayName)
+                                                  setRoomScheduleBookable(String(room.bookable).toLowerCase() === 'true' || room.bookable === true)
+                                                  setUnifiedPanelContentType('room-schedule')
+                                                  setIsRoomScheduleOpen(true)
+                                                }
+                                              }}
+                                              className={cn(
+                                                "text-left px-3 py-1.5 text-[0.54rem] tracking-[0.12em] border-none shadow-none font-normal transition-colors duration-150",
+                                                isRoomScheduleOpen && roomScheduleRoomCode === room.room_code && unifiedPanelContentType === 'room-schedule'
+                                                  ? "bg-[#4a5568] text-white"
+                                                  : "bg-[#49505c] text-[#F8F8F8] hover:bg-[#4a5568] hover:text-white"
+                                              )}
+                                              style={{ 
+                                                borderRadius: 0, 
+                                                width: '100%',
+                                                opacity: expanded ? 1 : 0,
+                                                transition: expanded 
+                                                  ? `opacity 10ms ease-out ${roomIdx * 20}ms, background-color 150ms ease-out`
+                                                  : `opacity 300ms ease-out ${roomIdx * 10}ms`
+                                              }}
+                                            >
+                                              {room.room_name || room.roomNumber || room.room_number || room.room_code || ''}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                               </div>
+                             )
+                           })}
+                           {Array.isArray(roomsByFloor) && roomsByFloor.length === 0 && (
+                             <div className="px-2 py-2 text-[0.58rem] tracking-[0.18em] text-[#EEEEEE]/60">No floors found.</div>
+                           )}
+                         </div>
+                          {/* Subtle divider line below (centered) with fade/slide - outside scrollable container */}
+                          <div 
+                            className={cn("my-2 mx-auto transition-all duration-300 ease-out", isBuildingInfoOpen ? "opacity-100" : "opacity-0")}
+                            style={{ width: '260px', height: '1px', backgroundColor: 'rgba(255,255,255,0.6)' }}
+                          />
+                       </>
+                     </div>
+                   )}
+                 </div>
+               </div>
+       </div>
+ 
+       {/* Modals and Panels */}
+ 
+       {/* Unified Panel for Requests, My Requests, User Management, Building Info, and Schedule */}
+       <UnifiedPanel
+         isOpen={isUnifiedPanelOpen}
+         contentType={unifiedPanelContentType}
+         onClose={() => {
+           handleUnifiedPanelClose()
+         }}
+       >
+         {unifiedPanelContentType === 'requests' && canManageRequests && (
+           <RequestsPanelContent
+             pendingRequests={pendingRequests}
+             historicalRequests={historicalRequests}
+             requestsLoading={requestsLoading}
+             historicalDateFilter={historicalDateFilter}
+             rejectionReasons={rejectionReasons}
+             setRejectionReasons={setRejectionReasons}
+             requestActionLoading={requestActionLoading}
+             onDateFilterChange={setHistoricalDateFilter}
+             onApprove={(request) => approveRequest(request, { parseDateString: parseDateStringWrapper, toIsoDateString, getSlotLabel })}
+             onReject={rejectRequest}
+             onRevert={(request) => revertRequest(request, { parseDateString: parseDateStringWrapper, toIsoDateString })}
+           />
+         )}
+         {unifiedPanelContentType === 'my-requests' && canRequestRoom && (
+           <MyRequestsPanelContent
+             myRequests={myRequests}
+             filteredMyRequests={filteredMyRequests}
+             myRequestsLoading={myRequestsLoading}
+             myRequestsDateFilter={myRequestsDateFilter}
+             onDateFilterChange={setMyRequestsDateFilter}
+           />
+         )}
+         {unifiedPanelContentType === 'user-management' && (
+           <UserManagementContent currentUserId={user?.id} />
+         )}
+         {unifiedPanelContentType === 'schedule' && selectedBuilding && (
+           <BuildingSchedulePanelContent
+         selectedBuilding={selectedBuilding}
+         buildingRooms={buildingRooms}
+         buildingRoomsLoading={buildingRoomsLoading}
+             roomsByFloor={roomsByFloor}
+         scheduleDate={scheduleDate}
+         setScheduleDate={setScheduleDate}
+         timeSlots={timeSlots}
+         scheduleMap={scheduleMap}
+         scheduleLoading={scheduleLoading}
+         onCellClick={(roomNumber, slotHour) => {
+           if (canEditSchedule) {
+             // Open edit modal for admin/building manager
+             const key = buildScheduleKey(roomNumber, slotHour)
+             const existing = scheduleMap[key]
+             setRequestState({
+               isOpen: true,
+               isEditMode: true,
+               room: roomNumber,
+               startHour: slotHour,
+               endHour: slotHour,
+               existingEntry: existing
+             })
+           } else if (canRequestRoom) {
+             // Check if slot is available
+             const key = buildScheduleKey(roomNumber, slotHour)
+             const entry = scheduleMap[key]
+             
+             if (entry && entry.status !== SCHEDULE_STATUS.empty && entry.status !== SCHEDULE_STATUS.pending) {
+               notifyError('Slot not available', {
+                 description: `Room ${roomNumber} at ${getSlotLabel(slotHour)} is already ${SCHEDULE_STATUS_LABELS[entry.status].toLowerCase()}.`
+               })
+               return
+             }
+ 
+             // Open request modal for teacher
+             setRequestState({
+               isOpen: true,
+               isEditMode: false,
+               room: roomNumber,
+               startHour: slotHour,
+               endHour: slotHour
+             })
+           }
+         }}
+         canEdit={canEditSchedule}
+         canRequest={canRequestRoom}
+       />
+         )}
+        {unifiedPanelContentType === 'room-schedule' && isRoomScheduleOpen && roomScheduleRoomCode && (
+          <SchedulePanel
+            isOpen={true}
+            embedded={true}
+            roomCode={roomScheduleRoomCode}
+            roomName={roomScheduleRoomName}
+            bookable={roomScheduleBookable}
+            schedule={roomSchedule}
+            scheduleLoading={scheduleLoading}
+            scheduleDate={isoDate}
+            onDateChange={(val) => {
+              if (typeof val === 'string') {
+                const parts = val.split('/')
+                if (parts.length === 3) {
+                  const [dd, mm, yyyy] = parts
+                  const y = Number(yyyy)
+                  const m = Number(mm) - 1
+                  const dNum = Number(dd)
+                  const parsed = new Date(y, m, dNum)
+                  if (!isNaN(parsed.getTime())) {
+                    setScheduleDate(parsed)
+                    return
+                  }
+                }
+                // Fallback: today
+                setScheduleDate(new Date())
+              } else if (val instanceof Date) {
+                setScheduleDate(val)
+              }
+            }}
+            canEdit={canEditSchedule}
+            canRequest={canRequestRoom}
+            onAdminAction={(roomNumber, slotHour) => {
+              if (!canEditSchedule) return
               const key = buildScheduleKey(roomNumber, slotHour)
               const existing = scheduleMap[key]
               setRequestState({
@@ -818,25 +1354,17 @@ function HomePage() {
                 endHour: slotHour,
                 existingEntry: existing
               })
-            }
-          }}
-          onTeacherRequest={(roomNumber, slotHour) => {
-            if (!canRequestRoom) {
-              return
-            }
-
-            // Check if slot is available
-            const key = buildScheduleKey(roomNumber, slotHour)
-            const entry = scheduleMap[key]
-            
-            if (entry && entry.status !== SCHEDULE_STATUS.empty && entry.status !== SCHEDULE_STATUS.pending) {
-              notifyError('Slot not available', {
-                description: `Room ${roomNumber} at ${getSlotLabel(slotHour)} is already ${SCHEDULE_STATUS_LABELS[entry.status].toLowerCase()}.`
-              })
-              return
-            }
-
-              // Open request modal for teacher
+            }}
+            onTeacherRequest={(roomNumber, slotHour) => {
+              if (!canRequestRoom) return
+              const key = buildScheduleKey(roomNumber, slotHour)
+              const entry = scheduleMap[key]
+              if (entry && entry.status !== SCHEDULE_STATUS.empty && entry.status !== SCHEDULE_STATUS.pending) {
+                notifyError('Slot not available', {
+                  description: `Room ${roomNumber} at ${getSlotLabel(slotHour)} is already ${SCHEDULE_STATUS_LABELS[entry.status].toLowerCase()}.`
+                })
+                return
+              }
               setRequestState({
                 isOpen: true,
                 isEditMode: false,
@@ -844,221 +1372,54 @@ function HomePage() {
                 startHour: slotHour,
                 endHour: slotHour
               })
-          }}
-          userRole={role}
-        />
-      )}
-
-      {/* Unified Panel for Requests, My Requests, User Management, Building Info, and Schedule */}
-      <UnifiedPanel
-        isOpen={isUnifiedPanelOpen}
-        contentType={unifiedPanelContentType}
-        onClose={() => {
-          const currentType = unifiedPanelContentType
-          setUnifiedPanelContentType(null)
-          // Also close individual panel states when unified panel closes
-          if (currentType === 'requests') setRequestsPanelOpen(false)
-          if (currentType === 'my-requests') setMyRequestsPanelOpen(false)
-          if (currentType === 'user-management') setUserManagementOpen(false)
-          if (currentType === 'building-info') setIsBuildingInfoOpen(false)
-          if (currentType === 'schedule') setScheduleOpen(false)
-        }}
-      >
-        {unifiedPanelContentType === 'requests' && canManageRequests && (
-          <RequestsPanelContent
-            pendingRequests={pendingRequests}
-            historicalRequests={historicalRequests}
-            requestsLoading={requestsLoading}
-            historicalDateFilter={historicalDateFilter}
-            rejectionReasons={rejectionReasons}
-            setRejectionReasons={setRejectionReasons}
-            requestActionLoading={requestActionLoading}
-            onDateFilterChange={setHistoricalDateFilter}
-            onApprove={(request) => approveRequest(request, { parseDateString: parseDateStringWrapper, toIsoDateString, getSlotLabel })}
-            onReject={rejectRequest}
-            onRevert={(request) => revertRequest(request, { parseDateString: parseDateStringWrapper, toIsoDateString })}
-          />
-        )}
-        {unifiedPanelContentType === 'my-requests' && canRequestRoom && (
-          <MyRequestsPanelContent
-            myRequests={myRequests}
-            filteredMyRequests={filteredMyRequests}
-            myRequestsLoading={myRequestsLoading}
-            myRequestsDateFilter={myRequestsDateFilter}
-            onDateFilterChange={setMyRequestsDateFilter}
-          />
-        )}
-        {unifiedPanelContentType === 'user-management' && (
-          <UserManagementContent currentUserId={user?.id} />
-        )}
-        {unifiedPanelContentType === 'building-info' && selectedBuilding && (
-          <BuildingSidebar
-            building={selectedBuilding}
+            }}
             onClose={() => {
+              setIsRoomScheduleOpen(false)
+              setRoomScheduleRoomCode(null)
+              setRoomScheduleRoomName('')
+              setRoomScheduleBookable(true)
               setUnifiedPanelContentType(null)
-              setIsBuildingInfoOpen(false)
-              setSelectedFloor(null)
-              setSelectedRoomCode(null)
             }}
-            onRoomSelect={() => {
-              // Room selection handled within BuildingSidebar
-              // PreviewPanel and SchedulePanel stay separate (not in UnifiedPanel)
-            }}
-            selectedFloor={selectedFloor}
-            setSelectedFloor={setSelectedFloor}
-            selectedRoomCode={selectedRoomCode}
-            onRoomDeselect={() => {
-              setSelectedRoomCode(null)
-            }}
-            isOpen={true}
           />
         )}
-        {unifiedPanelContentType === 'schedule' && selectedBuilding && (
-          <BuildingSchedulePanelContent
-            selectedBuilding={selectedBuilding}
-            buildingRooms={buildingRooms}
-            buildingRoomsLoading={buildingRoomsLoading}
-            roomsByFloor={roomsByFloor}
-            scheduleDate={scheduleDate}
-            setScheduleDate={setScheduleDate}
-            timeSlots={timeSlots}
-            scheduleMap={scheduleMap}
-            scheduleLoading={scheduleLoading}
-            onCellClick={(roomNumber, slotHour) => {
-              if (canEditSchedule) {
-                // Open edit modal for admin/building manager
-                const key = buildScheduleKey(roomNumber, slotHour)
-                const existing = scheduleMap[key]
-                setRequestState({
-                  isOpen: true,
-                  isEditMode: true,
-                  room: roomNumber,
-                  startHour: slotHour,
-                  endHour: slotHour,
-                  existingEntry: existing
-                })
-              } else if (canRequestRoom) {
-                // Check if slot is available
-                const key = buildScheduleKey(roomNumber, slotHour)
-                const entry = scheduleMap[key]
-                
-                if (entry && entry.status !== SCHEDULE_STATUS.empty && entry.status !== SCHEDULE_STATUS.pending) {
-                  notifyError('Slot not available', {
-                    description: `Room ${roomNumber} at ${getSlotLabel(slotHour)} is already ${SCHEDULE_STATUS_LABELS[entry.status].toLowerCase()}.`
-                  })
-                  return
-                }
-
-                // Open request modal for teacher
-                setRequestState({
-                  isOpen: true,
-                  isEditMode: false,
-                  room: roomNumber,
-                  startHour: slotHour,
-                  endHour: slotHour
-                })
-              }
-            }}
-            canEdit={canEditSchedule}
-            canRequest={canRequestRoom}
-          />
-        )}
-      </UnifiedPanel>
+       </UnifiedPanel>
 
       {/* Legacy schedule panel removed; schedule now always renders inside UnifiedPanel */}
 
-      {/* Schedule Edit Modal (Admin/Building Manager) */}
-      {canEditSchedule && requestState.isOpen && requestState.isEditMode && (
-        <ScheduleEditModal
-          isOpen={requestState.isOpen}
-          editState={requestState}
-          editForm={requestForm}
-          timeSlots={timeSlots}
-          onClose={resetRequestModal}
-          onFormChange={(e) => {
-            const { name, value } = e.target
-            setRequestForm((prev) => ({ ...prev, [name]: value }))
-          }}
-          onRangeChange={(field) => (e) => {
-            const value = Number(e.target.value)
-            setRequestState((prev) => ({
-              ...prev,
-              [field]: value,
-              endHour: field === 'startHour' ? Math.max(value, prev.endHour || value) : value,
-              startHour: field === 'endHour' ? Math.min(prev.startHour || value, value) : (field === 'startHour' ? value : prev.startHour)
-            }))
-          }}
-          onSubmit={async (e) => {
-            e.preventDefault()
-            await saveSchedule(requestState, requestForm)
-            resetRequestModal()
-          }}
-        />
-      )}
+      {/* Per-room Schedule rendered in UnifiedPanel (embedded) */}
 
-      {/* Room Request Modal (Teacher) */}
-      {canRequestRoom && requestState.isOpen && !requestState.isEditMode && (
-        <RoomRequestModal
-          isOpen={requestState.isOpen}
-          requestState={requestState}
-          requestForm={requestForm}
-          timeSlots={timeSlots}
-          onClose={resetRequestModal}
-          onFormChange={(e) => {
-            const { name, value } = e.target
-            setRequestForm((prev) => ({ ...prev, [name]: value }))
-          }}
-          onRangeChange={(field) => (e) => {
-            const value = Number(e.target.value)
-            setRequestState((prev) => ({
-              ...prev,
-              [field]: value,
-              endHour: field === 'startHour' ? Math.max(value, prev.endHour || value) : value,
-              startHour: field === 'endHour' ? Math.min(prev.startHour || value, value) : (field === 'startHour' ? value : prev.startHour)
-            }))
-          }}
-          onSubmit={async (e) => {
-            e.preventDefault()
-            
-            if (!requestState.room || requestState.startHour === null || requestState.endHour === null) {
-              notifyError('Missing time selection', {
-                description: 'Please choose a valid time range before submitting your request.'
-              })
-              return
-            }
-
-            // Convert scheduleDate to ISO string
-            const toIsoDateString = (dateObj) => {
-              const local = new Date(dateObj.getTime() - dateObj.getTimezoneOffset() * 60000)
-              return local.toISOString().split('T')[0]
-            }
-            
-            const isoDate = toIsoDateString(scheduleDate)
-            const startHour = Math.min(requestState.startHour, requestState.endHour)
-            const endHour = Math.max(requestState.startHour, requestState.endHour)
-            const weekCount = requestForm.weekCount
-            const trimmedCourse = requestForm.courseName?.trim() || ''
-            const trimmedNotes = requestForm.notes?.trim() || ''
-
-            const result = await submitRequest({
-              room_number: requestState.room,
-              building_code: selectedBuilding?.building_code || '',
-              base_date: isoDate,
-              start_hour: startHour,
-              end_hour: endHour,
-              week_count: weekCount,
-              course_name: trimmedCourse || null,
-              notes: trimmedNotes || null
-            })
-            
-            if (result) {
-              resetRequestModal()
-            }
-          }}
-        />
-      )}
-
-      {/* Old RequestsPanel and MyRequestsPanel removed - now using UnifiedPanel */}
+      {/* Unified Panel Center for Schedule Request/Edit */}
+      <UnifiedPanelCenter
+        isOpen={isCenterPanelOpen}
+        contentType={centerPanelContentType}
+        onClose={handleCenterPanelClose}
+      >
+        {centerPanelContentType === 'schedule-request' && requestState.room && (
+          <ScheduleRequestContent
+            requestState={requestState}
+            requestForm={requestForm}
+            timeSlots={timeSlots}
+            isoDate={isoDate}
+            submitting={isSubmittingRequest}
+            onSubmit={handleRequestSubmit}
+            onFormChange={handleRequestFormChange}
+            onRangeChange={handleRangeChange}
+            onClose={handleCenterPanelClose}
+          />
+        )}
+        {centerPanelContentType === 'schedule-edit' && requestState.room && (
+          <ScheduleEditContent
+            editState={requestState}
+            editForm={editForm}
+            timeSlots={timeSlots}
+            submitting={isSubmittingEdit}
+            onSubmit={handleEditSubmit}
+            onFormChange={handleEditFormChange}
+            onRangeChange={handleRangeChange}
+            onClose={handleCenterPanelClose}
+          />
+        )}
+      </UnifiedPanelCenter>
     </div>
   )
 }

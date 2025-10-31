@@ -91,7 +91,7 @@ export const RequestsPanelContent = ({
                 pendingRequests.map((request) => {
                   const statusStyle = ROOM_REQUEST_STATUS_STYLES[request.status] || ROOM_REQUEST_STATUS_STYLES.pending
                   return (
-                    <div key={request.id} className="rounded border px-5 py-4 shadow-sm" style={{ border: '1px solid rgba(238,238,238,0.2)', backgroundColor: COLORS.darkGray }}>
+                    <div key={request.id} className="border px-5 py-4 shadow-sm" style={{ border: '1px solid rgba(238,238,238,0.2)', backgroundColor: COLORS.darkGray, borderRadius: 0 }}>
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
                           <p className="text-sm font-semibold" style={{ color: COLORS.white }}>{request.building_code} - Room {request.room_number}</p>
@@ -200,12 +200,22 @@ export const RequestsPanelContent = ({
                     <input
                       type="date"
                       value={historicalDateFilter.startDate}
-                      onChange={(e) => onDateFilterChange && onDateFilterChange({ ...historicalDateFilter, startDate: e.target.value })}
+                      onChange={(e) => {
+                        const v = e.target.value
+                        if (!onDateFilterChange) return
+                        if (!v) {
+                          const t = new Date()
+                          const iso = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`
+                          onDateFilterChange({ ...historicalDateFilter, startDate: iso })
+                        } else {
+                          onDateFilterChange({ ...historicalDateFilter, startDate: v })
+                        }
+                      }}
                       className="w-full"
                       style={{ 
                         padding: '6px 8px',
                         border: '1px solid rgba(238, 238, 238, 0.2)',
-                        borderRadius: '4px',
+                        borderRadius: '0',
                         fontSize: '12px',
                         color: 'rgb(238, 238, 238)',
                         backgroundColor: '#4A5058',
@@ -218,12 +228,22 @@ export const RequestsPanelContent = ({
                     <input
                       type="date"
                       value={historicalDateFilter.endDate}
-                      onChange={(e) => onDateFilterChange && onDateFilterChange({ ...historicalDateFilter, endDate: e.target.value })}
+                      onChange={(e) => {
+                        const v = e.target.value
+                        if (!onDateFilterChange) return
+                        if (!v) {
+                          const t = new Date()
+                          const iso = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`
+                          onDateFilterChange({ ...historicalDateFilter, endDate: iso })
+                        } else {
+                          onDateFilterChange({ ...historicalDateFilter, endDate: v })
+                        }
+                      }}
                       className="w-full"
                       style={{ 
                         padding: '6px 8px',
                         border: '1px solid rgba(238, 238, 238, 0.2)',
-                        borderRadius: '4px',
+                        borderRadius: '0',
                         fontSize: '12px',
                         color: 'rgb(238, 238, 238)',
                         backgroundColor: '#4A5058',
@@ -244,7 +264,7 @@ export const RequestsPanelContent = ({
                   const canRevert = request.status === 'approved'
                   
                   return (
-                    <div key={request.id} className="rounded border px-5 py-4 shadow-sm" style={{ border: '1px solid rgba(238,238,238,0.2)', backgroundColor: COLORS.darkGray }}>
+                    <div key={request.id} className="border px-5 py-4 shadow-sm" style={{ border: '1px solid rgba(238,238,238,0.2)', backgroundColor: COLORS.darkGray, borderRadius: 0 }}>
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
                           <p className="text-sm font-semibold" style={{ color: COLORS.white }}>{request.building_code} - Room {request.room_number}</p>
@@ -407,7 +427,17 @@ export const MyRequestsPanelContent = ({
                   <input
                     type="date"
                     value={myRequestsDateFilter.startDate}
-                    onChange={(e) => onDateFilterChange && onDateFilterChange({ ...myRequestsDateFilter, startDate: e.target.value })}
+                    onChange={(e) => {
+                      const v = e.target.value
+                      if (!onDateFilterChange) return
+                      if (!v) {
+                        const t = new Date()
+                        const iso = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`
+                        onDateFilterChange({ ...myRequestsDateFilter, startDate: iso })
+                      } else {
+                        onDateFilterChange({ ...myRequestsDateFilter, startDate: v })
+                      }
+                    }}
                     className="w-full"
                     style={{ 
                       padding: '6px 8px',
@@ -425,7 +455,17 @@ export const MyRequestsPanelContent = ({
                   <input
                     type="date"
                     value={myRequestsDateFilter.endDate}
-                    onChange={(e) => onDateFilterChange && onDateFilterChange({ ...myRequestsDateFilter, endDate: e.target.value })}
+                    onChange={(e) => {
+                      const v = e.target.value
+                      if (!onDateFilterChange) return
+                      if (!v) {
+                        const t = new Date()
+                        const iso = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`
+                        onDateFilterChange({ ...myRequestsDateFilter, endDate: iso })
+                      } else {
+                        onDateFilterChange({ ...myRequestsDateFilter, endDate: v })
+                      }
+                    }}
                     className="w-full"
                     style={{ 
                       padding: '6px 8px',

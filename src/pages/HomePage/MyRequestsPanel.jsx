@@ -101,7 +101,7 @@ const MyRequestsPanel = ({
                         style={{ 
                           padding: '6px 8px',
                           border: '1px solid rgba(238, 238, 238, 0.2)',
-                          borderRadius: '4px',
+                          borderRadius: '0',
                           fontSize: '12px',
                           color: 'rgb(238, 238, 238)',
                           backgroundColor: '#4A5058',
@@ -119,7 +119,7 @@ const MyRequestsPanel = ({
                         style={{ 
                           padding: '6px 8px',
                           border: '1px solid rgba(238, 238, 238, 0.2)',
-                          borderRadius: '4px',
+                          borderRadius: '0',
                           fontSize: '12px',
                           color: 'rgb(238, 238, 238)',
                           backgroundColor: '#4A5058',

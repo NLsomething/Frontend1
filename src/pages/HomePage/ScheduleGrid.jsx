@@ -1,6 +1,5 @@
 import { Fragment } from 'react'
 import { SCHEDULE_STATUS, SCHEDULE_STATUS_LABELS } from '../../constants/schedule'
-import ScheduleCellTooltip from '../../components/common/ScheduleCellTooltip'
 import { COLORS } from '../../constants/colors'
 import { getScheduleStatusColors } from '../../utils/scheduleUtils'
 
@@ -62,60 +61,53 @@ const ScheduleGrid = ({
                 const statusFontSize = status === SCHEDULE_STATUS.maintenance ? '7px' : '9px'
 
                 return (
-                  <ScheduleCellTooltip
+                  <button
                     key={key}
-                    status={status}
-                    room={room}
-                    timeSlot={slot.label}
-                    entry={entry}
+                    type="button"
+                    className="text-left transition-colors duration-150"
+                    style={{ 
+                      padding: '10px 7px', 
+                      width: '100%',
+                      backgroundColor: colors.bg,
+                      color: colors.text,
+                      border: 'none',
+                      borderTop: '1px solid rgba(238,238,238,0.2)',
+                      borderLeft: '1px solid rgba(238,238,238,0.2)',
+                      cursor: interactive ? 'pointer' : 'default',
+                      transition: 'filter 0.15s'
+                    }}
+                    onClick={() => {
+                      if (canEdit && onAdminAction) {
+                        onAdminAction(room, slot.hour)
+                      } else if (canRequest && onTeacherRequest) {
+                        onTeacherRequest(room, slot.hour)
+                      }
+                    }}
+                    disabled={!interactive}
+                    onMouseEnter={(e) => {
+                      if (interactive || status === SCHEDULE_STATUS.occupied) {
+                        e.currentTarget.style.filter = 'brightness(1.1)'
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (interactive || status === SCHEDULE_STATUS.occupied) {
+                        e.currentTarget.style.filter = 'none'
+                      }
+                    }}
                   >
-                    <button
-                      type="button"
-                      className="text-left transition-colors duration-150"
-                      style={{ 
-                        padding: '10px 7px', 
-                        width: '100%',
-                        backgroundColor: colors.bg,
-                        color: colors.text,
-                        border: 'none',
-                        borderTop: '1px solid rgba(238,238,238,0.2)',
-                        borderLeft: '1px solid rgba(238,238,238,0.2)',
-                        cursor: interactive ? 'pointer' : 'default',
-                        transition: 'filter 0.15s'
-                      }}
-                      onClick={() => {
-                        if (canEdit && onAdminAction) {
-                          onAdminAction(room, slot.hour)
-                        } else if (canRequest && onTeacherRequest) {
-                          onTeacherRequest(room, slot.hour)
-                        }
-                      }}
-                      disabled={!interactive}
-                      onMouseEnter={(e) => {
-                        if (interactive) {
-                          e.currentTarget.style.filter = 'brightness(1.1)'
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (interactive) {
-                          e.currentTarget.style.filter = 'none'
-                        }
-                      }}
-                    >
-                      <span className="block font-semibold uppercase tracking-wide" style={{ fontSize: statusFontSize, color: colors.text }}>
-                        {label}
+                    <span className="block font-semibold uppercase tracking-wide" style={{ fontSize: statusFontSize, color: colors.text }}>
+                      {label}
+                    </span>
+                    {details.length > 0 && (
+                      <span style={{ fontSize: '8px', marginTop: '4px', color: 'rgba(238,238,238,0.7)' }}>
+                        {details.map((line, index) => (
+                          <span key={`${key}-detail-${index}`} style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {line}
+                          </span>
+                        ))}
                       </span>
-                      {details.length > 0 && (
-                        <span style={{ fontSize: '8px', marginTop: '4px', color: 'rgba(238,238,238,0.7)' }}>
-                          {details.map((line, index) => (
-                            <span key={`${key}-detail-${index}`} style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {line}
-                            </span>
-                          ))}
-                        </span>
-                      )}
-                    </button>
-                  </ScheduleCellTooltip>
+                    )}
+                  </button>
                 )
               })}
             </Fragment>

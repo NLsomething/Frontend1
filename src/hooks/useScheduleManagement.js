@@ -20,13 +20,15 @@ export const useScheduleManagement = (isoDate, canViewSchedule) => {
     `${roomNumber}-${slotHour}`, 
   [])
 
-  const loadSchedules = useCallback(async () => {
+  const loadSchedules = useCallback(async (silent = false) => {
     if (!canViewSchedule) {
       setScheduleMap({})
       return
     }
 
-    setScheduleLoading(true)
+    if (!silent) {
+      setScheduleLoading(true)
+    }
     const { data, error } = await getSchedulesByDate(isoDate)
 
     if (error) {
@@ -35,7 +37,9 @@ export const useScheduleManagement = (isoDate, canViewSchedule) => {
       notifyError('Unable to load schedule data', {
         description: 'Please try again or contact an administrator if the problem continues.'
       })
-      setScheduleLoading(false)
+      if (!silent) {
+        setScheduleLoading(false)
+      }
       return
     }
 
@@ -80,7 +84,9 @@ export const useScheduleManagement = (isoDate, canViewSchedule) => {
     }
 
     setScheduleMap(next)
-    setScheduleLoading(false)
+    if (!silent) {
+      setScheduleLoading(false)
+    }
   }, [buildScheduleKey, isoDate, canViewSchedule, notifyError])
 
   const saveScheduleEntries = useCallback(async (requestState, form) => {

@@ -7,14 +7,15 @@ const PANEL_WIDTHS = {
   'my-requests': '691px',     // 768px - 10% = ~691px
   'user-management': '717px', // 1024px - 30% = ~717px
   'building-info': '300px',    // BuildingSidebar width
-  'schedule': '1024px'         // max-w-5xl (BuildingSchedulePanel)
+  'schedule': '1024px',        // max-w-5xl (BuildingSchedulePanel)
+  'room-schedule': '160px'     // Narrow room schedule panel width
 }
 
 const UnifiedPanel = ({ 
   isOpen, 
   contentType, // 'requests', 'my-requests', 'user-management', 'building-info'
   children,
-  onClose 
+  onClose
 }) => {
   const [mounted, setMounted] = useState(false)
   const [contentKey, setContentKey] = useState(0)
@@ -39,55 +40,7 @@ const UnifiedPanel = ({
   const SLIDE_MS = limitSlide ? LIMITED_SLIDE_MS : DEFAULT_SLIDE_MS
   const WIDTH_MS = limitSlide ? LIMITED_WIDTH_MS : DEFAULT_WIDTH_MS
 
-  // Handle closing rules (only close on 3D canvas clicks), ignore drags
-  useEffect(() => {
-    if (!isOpen) return
-
-    let downX = 0, downY = 0, downT = 0, moved = false
-
-    const handleMouseDown = (event) => {
-      downX = event.clientX
-      downY = event.clientY
-      downT = Date.now()
-      moved = false
-    }
-
-    const handleMouseMove = (event) => {
-      if (!downT) return
-      const dx = Math.abs(event.clientX - downX)
-      const dy = Math.abs(event.clientY - downY)
-      if (dx > 4 || dy > 4) moved = true
-    }
-
-    const handleMouseUp = (event) => {
-      const target = event.target
-      const clickedInsidePanel = panelRef.current && panelRef.current.contains(target)
-      if (clickedInsidePanel) { downT = 0; return }
-
-      const isHeader = target.closest('header')
-      const isDropdown = target.closest('.building-dropdown') || target.closest('[class*="dropdown"]')
-      if (isHeader || isDropdown) { downT = 0; return }
-
-      const isCanvas = target.tagName === 'CANVAS' || target.closest('canvas')
-      const isCanvasContainer = target.closest('.' + 'canvasContainer')
-      const elapsed = Date.now() - downT
-      // Close only for quick, stationary clicks on canvas/container
-      if ((isCanvas || isCanvasContainer) && !moved && elapsed < 350) {
-        onClose()
-      }
-      downT = 0
-    }
-
-    // Use bubble phase so canvas handlers run first
-    document.addEventListener('mousedown', handleMouseDown, false)
-    document.addEventListener('mousemove', handleMouseMove, false)
-    document.addEventListener('mouseup', handleMouseUp, false)
-    return () => {
-      document.removeEventListener('mousedown', handleMouseDown, false)
-      document.removeEventListener('mousemove', handleMouseMove, false)
-      document.removeEventListener('mouseup', handleMouseUp, false)
-    }
-  }, [isOpen, onClose])
+  // Outside click to close is handled by HomePage canvas-container onClick for reliability
 
   // Get width for current content type
   const panelWidth = PANEL_WIDTHS[contentType] || '768px'
@@ -106,7 +59,7 @@ const UnifiedPanel = ({
   }, [isOpen, SLIDE_MS])
 
   // Only animate fade/slide for main panel contentType changes
-  const MAIN_CONTEXTS = ['requests', 'my-requests', 'user-management', 'building-info', 'schedule'];
+  const MAIN_CONTEXTS = ['requests', 'my-requests', 'user-management', 'building-info', 'schedule', 'room-schedule'];
   useEffect(() => {
     if (!isOpen) {
       prevContentTypeRef.current = contentType;
@@ -150,7 +103,7 @@ const UnifiedPanel = ({
       {/* Unified Panel */}
       <aside
         ref={panelRef}
-        className="fixed right-0 z-40 overflow-hidden"
+        className="unified-panel fixed right-0 z-40 overflow-hidden"
         style={{
           top: '56px', // Below header
           height: 'calc(100vh - 56px)', // Full height minus header

@@ -129,7 +129,14 @@ export const filterHistoricalRequests = (requests, dateFilter, excludeStatus = '
  * @returns {object} Date filter object with startDate and endDate
  */
 export const getDefaultDateFilter = () => ({
-  startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-  endDate: new Date().toISOString().split('T')[0]
+  startDate: (() => {
+    const today = new Date()
+    const start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6)
+    return toIsoDateString(start)
+  })(),
+  endDate: (() => {
+    const today = new Date()
+    return toIsoDateString(today)
+  })()
 })
 

@@ -64,7 +64,7 @@ const BuildingSchedulePanel = ({
               style={{ 
                 padding: '6px 8px',
                 border: '1px solid rgba(238, 238, 238, 0.2)',
-                borderRadius: '4px',
+                borderRadius: '0',
                 fontSize: '12px',
                 color: 'rgb(238, 238, 238)',
                 backgroundColor: 'rgb(57, 62, 70)',

@@ -10,7 +10,7 @@ const SearchBuilding = ({ buildings, onRoomSelect, onOpen }) => {
   const roomCodeInputRef = useRef(null)
   const buildingCodeInputRef = useRef(null)
 
-  // Handle click outside dropdown
+  // Handle click outside (closes the inline panel)
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -74,20 +74,6 @@ const SearchBuilding = ({ buildings, onRoomSelect, onOpen }) => {
     }
   }
 
-  const handleBuildingCodeKeyPress = (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      // If building code is filled, trigger search
-      if (buildingCode.trim()) {
-        handleSearch()
-      } else {
-        // Otherwise move to room code
-        if (roomCodeInputRef.current) {
-          roomCodeInputRef.current.focus()
-        }
-      }
-    }
-  }
 
   // Get unique building codes
   const buildingCodes = buildings
@@ -97,89 +83,108 @@ const SearchBuilding = ({ buildings, onRoomSelect, onOpen }) => {
 
   return (
     <div className="relative h-full flex items-stretch" ref={dropdownRef}>
-      <button
-        type="button"
-        onClick={() => {
-          setIsOpen(!isOpen)
-          if (!isOpen && onOpen) {
-            onOpen()
-          }
-        }}
-        className="uppercase tracking-[0.28em] text-[0.6rem] px-6 h-full inline-flex items-center border-y-0 border-l border-r border-[#2f3a4a] bg-transparent text-[#EEEEEE] transition-all duration-200 hover:bg-[#2f3a4a]"
-      >
-        Search Building
-      </button>
-
-      {isOpen && (
-        <div 
-          className="absolute top-full right-0 mt-2 z-50 flex flex-col gap-3 p-4 min-w-[500px] rounded"
-          style={{
-            backgroundColor: COLORS.darkGray,
-            border: '1px solid rgba(238,238,238,0.2)',
-            boxShadow: '0 10px 25px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2)'
+      {/* Base button (hidden when open) */}
+      {!isOpen && (
+        <button
+          type="button"
+          onClick={() => {
+            setIsOpen(true)
+            if (onOpen) onOpen()
           }}
+          className="uppercase tracking-[0.28em] text-[0.6rem] px-6 h-full inline-flex items-center border-y-0 border-l border-r border-[#2f3a4a] bg-transparent text-[#EEEEEE] transition-all duration-200 hover:bg-[#2f3a4a]"
         >
-          <div className="flex gap-3">
-            {/* Room Code Input (Optional) */}
+          Search Building
+        </button>
+      )}
+
+      {/* Inline expanding panel anchored to the button, expands to the left */}
+      <div
+        className="absolute top-0 right-0 z-50 h-full uppercase tracking-[0.28em] text-[0.6rem] border-y-0 border-l border-r border-[#2f3a4a] bg-[#2f3a4a] text-[#EEEEEE]"
+        style={{
+          width: '440px',
+          transform: isOpen ? 'scaleX(1)' : 'scaleX(0)',
+          transformOrigin: 'right center',
+          transition: 'transform 180ms ease, opacity 180ms ease',
+          opacity: isOpen ? 1 : 0
+        }}
+        aria-hidden={!isOpen}
+      >
+        <div
+          className="h-full flex items-center gap-3 px-3"
+        >
+          {/* Room Code Input (Optional) */}
+          <div className="relative" style={{ width: '152px' }}>
             <input
               ref={roomCodeInputRef}
               type="text"
-              placeholder="Room Code (optional)"
+              placeholder="Room Code"
               value={roomCode}
               onChange={(e) => setRoomCode(e.target.value)}
               onKeyPress={handleRoomCodeKeyPress}
-              className="flex-1 px-3 py-2 text-sm rounded"
+              className="w-full px-3 py-2 text-[0.6rem]"
               style={{
+                fontFamily: 'inherit',
                 border: '1px solid rgba(238,238,238,0.2)',
                 color: COLORS.white,
                 backgroundColor: '#4A5058'
               }}
               autoFocus
             />
+          </div>
 
-            {/* Building Code Input with Autocomplete */}
-            <div className="relative w-40">
-              <input
-                ref={buildingCodeInputRef}
-                type="text"
-                placeholder="Building Code *"
-                value={buildingCode}
-                onChange={(e) => setBuildingCode(e.target.value)}
-                onKeyPress={handleBuildingCodeKeyPress}
-                list="building-codes"
-                className="w-full px-3 py-2 text-sm rounded"
-                style={{
-                  border: '1px solid rgba(238,238,238,0.2)',
-                  color: COLORS.white,
-                  backgroundColor: '#4A5058'
-                }}
-              />
-              <datalist id="building-codes">
-                {buildingCodes.map(code => (
-                  <option key={code} value={code} />
-                ))}
-              </datalist>
-            </div>
-
-            {/* Search Button */}
-            <button
-              type="button"
-              onClick={handleSearch}
-              disabled={isSearching || !buildingCode.trim()}
-              className="px-6 py-2 text-sm font-semibold rounded transition-all duration-200"
+          {/* Building Code Dropdown */}
+          <div className="relative" style={{ width: '152px' }}>
+            <select
+              ref={buildingCodeInputRef}
+              value={buildingCode}
+              onChange={(e) => setBuildingCode(e.target.value)}
+              className="w-full pr-7 px-3 py-2 text-[0.6rem]"
               style={{
-                backgroundColor: isSearching || !buildingCode.trim() ? '#4A5058' : COLORS.blue,
+                fontFamily: 'inherit',
+                border: '1px solid rgba(238,238,238,0.2)',
                 color: COLORS.white,
-                border: '1px solid transparent',
-                cursor: (isSearching || !buildingCode.trim()) ? 'not-allowed' : 'pointer',
-                opacity: (isSearching || !buildingCode.trim()) ? 0.5 : 1
+                backgroundColor: '#4A5058',
+                appearance: 'none',
+                WebkitAppearance: 'none',
+                MozAppearance: 'none',
+                cursor: 'pointer'
               }}
             >
-              {isSearching ? 'Searching...' : 'Search'}
-            </button>
+              <option value="" disabled hidden>Building Code</option>
+              {buildingCodes.map(code => (
+                <option key={code} value={code}>{code}</option>
+              ))}
+            </select>
+            {/* Custom dropdown arrow (single) */}
+            <span
+              className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-[#EEEEEE]/70"
+              aria-hidden="true"
+            >
+              <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.06l3.71-2.83a.75.75 0 1 1 .92 1.18l-4.17 3.18a.75.75 0 0 1-.92 0L5.25 8.41a.75.75 0 0 1-.02-1.2z"/>
+              </svg>
+            </span>
           </div>
+
+          {/* Search Button */}
+          <button
+            type="button"
+            onClick={handleSearch}
+            disabled={isSearching || !buildingCode.trim()}
+            className="px-3 py-2 text-[0.6rem] font-semibold transition-all duration-200"
+            style={{
+              fontFamily: 'inherit',
+              backgroundColor: isSearching || !buildingCode.trim() ? '#4A5058' : COLORS.blue,
+              color: COLORS.white,
+              border: '1px solid transparent',
+              cursor: (isSearching || !buildingCode.trim()) ? 'not-allowed' : 'pointer',
+              opacity: (isSearching || !buildingCode.trim()) ? 0.5 : 1
+            }}
+          >
+            {isSearching ? 'Searching...' : 'Search'}
+          </button>
         </div>
-      )}
+      </div>
     </div>
   )
 }
