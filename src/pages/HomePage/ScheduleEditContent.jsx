@@ -11,6 +11,7 @@ const ScheduleEditContent = ({
   onRangeChange,
   onClose 
 }) => {
+
   if (!editState.room) return null
 
   return (
@@ -47,11 +48,15 @@ const ScheduleEditContent = ({
                 borderRadius: 0 // Square corners
               }}
             >
-              {timeSlots.map((slot) => (
-                <option key={`start-${slot.hour}`} value={slot.hour} style={{ backgroundColor: '#4A5058' }}>
-                  {slot.label}
-                </option>
-              ))}
+              {timeSlots.map((slot, index) => {
+                const value = slot.id ?? slot.slot_id ?? slot.slotId ?? slot.hour ?? slot.slot_order ?? index
+                const label = slot.slot_name || slot.label || slot.name || `Slot ${index + 1}`
+                return (
+                  <option key={`start-${value}`} value={value} style={{ backgroundColor: '#4A5058' }}>
+                    {label}
+                  </option>
+                )
+              })}
             </select>
           </div>
           <div>
@@ -67,11 +72,15 @@ const ScheduleEditContent = ({
                 borderRadius: 0 // Square corners
               }}
             >
-              {timeSlots.map((slot) => (
-                <option key={`end-${slot.hour}`} value={slot.hour} style={{ backgroundColor: '#4A5058' }}>
-                  {slot.label}
-                </option>
-              ))}
+              {timeSlots.map((slot, index) => {
+                const value = slot.id ?? slot.slot_id ?? slot.slotId ?? slot.hour ?? slot.slot_order ?? index
+                const label = slot.slot_name || slot.label || slot.name || `Slot ${index + 1}`
+                return (
+                  <option key={`end-${value}`} value={value} style={{ backgroundColor: '#4A5058' }}>
+                    {label}
+                  </option>
+                )
+              })}
             </select>
           </div>
         </div>

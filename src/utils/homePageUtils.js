@@ -1,20 +1,4 @@
 /**
- * Generate time slots for the schedule grid
- * @returns {Array} Array of time slot objects with label and hour
- */
-export const generateTimeSlots = () => {
-  return Array.from({ length: 14 }, (_, index) => {
-    const hour = 7 + index
-    const period = hour < 12 ? 'AM' : 'PM'
-    const twelveHour = ((hour + 11) % 12) + 1
-    return {
-      label: `${twelveHour}:00 ${period}`,
-      hour
-    }
-  })
-}
-
-/**
  * Parse a date string (YYYY-MM-DD) to Date object
  * @param {string} dateString - Date string in YYYY-MM-DD format
  * @returns {Date} Date object
@@ -46,12 +30,42 @@ export const formatDateDisplay = (dateString) => {
 
 /**
  * Get the label for a time slot by hour
- * @param {number} hour - Hour in 24-hour format
+ * @param {string} slotId - Timeslot identifier
  * @param {Array} timeSlots - Array of time slot objects
  * @returns {string} Time slot label
  */
-export const getSlotLabel = (hour, timeSlots) => {
-  return timeSlots.find((slot) => slot.hour === hour)?.label || ''
+const sanitizeSlotLabel = (label) => {
+  if (!label || typeof label !== 'string') {
+    return ''
+  }
+
+  const withoutBullet = label.includes('•') ? label.split('•')[0].trim() : label
+  return withoutBullet.trim()
+}
+
+export const getSlotLabel = (slotId, timeSlots) => {
+  if (slotId === undefined || slotId === null) return ''
+  const normalized = String(slotId)
+
+  const match = timeSlots.find((slot) => {
+    const id = slot.id ?? slot.slot_id ?? slot.slotId ?? slot.timeslot_id
+    if (id !== undefined && id !== null && String(id) === normalized) return true
+    const order = slot.slot_order ?? slot.slotOrder
+    if (order !== undefined && order !== null && String(order) === normalized) return true
+    return false
+  })
+
+  if (!match) return ''
+
+  const rawLabel =
+    match.slot_name ??
+    match.slotName ??
+    match.label ??
+    match.name ??
+    match.displayLabel ??
+    ''
+
+  return sanitizeSlotLabel(rawLabel)
 }
 
 /**
@@ -61,11 +75,24 @@ export const getSlotLabel = (hour, timeSlots) => {
  * @returns {string} Formatted time range
  */
 export const formatRequestRange = (request, timeSlots) => {
-  const start = Math.min(request.start_hour, request.end_hour)
-  const end = Math.max(request.start_hour, request.end_hour)
-  const startLabel = getSlotLabel(start, timeSlots)
-  const endLabel = getSlotLabel(end, timeSlots)
-  return startLabel === endLabel ? startLabel : `${startLabel} – ${endLabel}`
+  const startId = request.start_timeslot_id || request.start_slot_id || request.start_hour
+  const endId = request.end_timeslot_id || request.end_slot_id || request.end_hour
+
+  if (!startId) return ''
+
+  const startLabel = getSlotLabel(startId, timeSlots)
+  const endLabel = endId ? getSlotLabel(endId, timeSlots) : ''
+
+  if (!endLabel || startLabel === endLabel) {
+    return startLabel
+  }
+
+  return `${startLabel} to ${endLabel}`
+}
+
+export const getRequestRoomLabel = (request) => {
+  if (!request) return ''
+  return request.room_name || request.room_number || request.room_code || ''
 }
 
 /**

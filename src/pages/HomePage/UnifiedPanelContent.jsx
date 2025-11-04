@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import BuildingSidebar from '../../components/BuildingInfo/BuildingSidebar'
 import { ROOM_REQUEST_STATUS_LABELS, ROOM_REQUEST_STATUS_STYLES } from '../../constants/requests'
-import { formatDateDisplay, formatRequestRange, getDefaultDateFilter } from '../../utils'
+import { formatDateDisplay, formatRequestRange, getDefaultDateFilter, getRequestRoomLabel } from '../../utils'
 import { COLORS } from '../../constants/colors'
 
 // Requests Panel Content
@@ -16,7 +16,8 @@ export const RequestsPanelContent = ({
   onDateFilterChange,
   onApprove,
   onReject,
-  onRevert
+  onRevert,
+  timeSlots = []
 }) => {
   const [showingRejectField, setShowingRejectField] = useState(null)
   const [showingRevertField, setShowingRevertField] = useState(null)
@@ -40,17 +41,6 @@ export const RequestsPanelContent = ({
       setShowingRevertField(request.id)
     }
   }
-
-  // Generate time slots
-  const timeSlots = Array.from({ length: 14 }, (_, index) => {
-    const hour = 7 + index
-    const period = hour < 12 ? 'AM' : 'PM'
-    const twelveHour = ((hour + 11) % 12) + 1
-    return {
-      label: `${twelveHour}:00 ${period}`,
-      hour
-    }
-  })
 
   return (
     <div className="flex h-full w-full flex-col" style={{ backgroundColor: COLORS.black }}>
@@ -90,11 +80,14 @@ export const RequestsPanelContent = ({
               ) : (
                 pendingRequests.map((request) => {
                   const statusStyle = ROOM_REQUEST_STATUS_STYLES[request.status] || ROOM_REQUEST_STATUS_STYLES.pending
+                  const roomLabel = getRequestRoomLabel(request)
                   return (
                     <div key={request.id} className="border px-5 py-4 shadow-sm" style={{ border: '1px solid rgba(238,238,238,0.2)', backgroundColor: COLORS.darkGray, borderRadius: 0 }}>
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                          <p className="text-sm font-semibold" style={{ color: COLORS.white }}>{request.building_code} - Room {request.room_number}</p>
+                          <p className="text-sm font-semibold" style={{ color: COLORS.white }}>
+                            {request.building_code} {roomLabel}
+                          </p>
                           <p className="text-xs" style={{ color: COLORS.whiteTransparentLow }}>
                             {formatDateDisplay(request.base_date)} • {formatRequestRange(request, timeSlots)} • {request.week_count} week{request.week_count > 1 ? 's' : ''}
                           </p>
@@ -262,12 +255,15 @@ export const RequestsPanelContent = ({
                 historicalRequests.map((request) => {
                   const statusStyle = ROOM_REQUEST_STATUS_STYLES[request.status] || ROOM_REQUEST_STATUS_STYLES.pending
                   const canRevert = request.status === 'approved'
+                  const roomLabel = getRequestRoomLabel(request)
                   
                   return (
                     <div key={request.id} className="border px-5 py-4 shadow-sm" style={{ border: '1px solid rgba(238,238,238,0.2)', backgroundColor: COLORS.darkGray, borderRadius: 0 }}>
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                          <p className="text-sm font-semibold" style={{ color: COLORS.white }}>{request.building_code} - Room {request.room_number}</p>
+                          <p className="text-sm font-semibold" style={{ color: COLORS.white }}>
+                            {request.building_code} {roomLabel}
+                          </p>
                           <p className="text-xs" style={{ color: COLORS.whiteTransparentLow }}>
                             {formatDateDisplay(request.base_date)} • {formatRequestRange(request, timeSlots)} • {request.week_count} week{request.week_count > 1 ? 's' : ''}
                           </p>
@@ -363,19 +359,9 @@ export const MyRequestsPanelContent = ({
   filteredMyRequests,
   myRequestsLoading,
   myRequestsDateFilter,
-  onDateFilterChange
+  onDateFilterChange,
+  timeSlots = []
 }) => {
-  // Generate time slots for display
-  const timeSlots = Array.from({ length: 14 }, (_, index) => {
-    const hour = 7 + index
-    const period = hour < 12 ? 'AM' : 'PM'
-    const twelveHour = ((hour + 11) % 12) + 1
-    return {
-      label: `${twelveHour}:00 ${period}`,
-      hour
-    }
-  })
-
   return (
     <div className="flex h-full w-full flex-col" style={{ backgroundColor: COLORS.black }}>
       <style>
@@ -495,11 +481,14 @@ export const MyRequestsPanelContent = ({
                   .filter((r) => r.status === 'pending')
                   .map((request) => {
                     const statusStyle = ROOM_REQUEST_STATUS_STYLES[request.status] || ROOM_REQUEST_STATUS_STYLES.pending
+                    const roomLabel = getRequestRoomLabel(request)
                     return (
                       <div key={request.id} className="border px-5 py-4 shadow-sm" style={{ border: '1px solid rgba(238,238,238,0.2)', backgroundColor: COLORS.darkGray }}>
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <div>
-                            <p className="text-sm font-semibold" style={{ color: COLORS.white }}>{request.building_code} - Room {request.room_number}</p>
+                            <p className="text-sm font-semibold" style={{ color: COLORS.white }}>
+                              {request.building_code} {roomLabel}
+                            </p>
                             <p className="text-xs" style={{ color: COLORS.whiteTransparentLow }}>
                               {formatDateDisplay(request.base_date)} • {formatRequestRange(request, timeSlots)} • {request.week_count} week{request.week_count > 1 ? 's' : ''}
                             </p>
@@ -548,6 +537,7 @@ export const MyRequestsPanelContent = ({
                   .map((request) => {
                     const statusStyle = ROOM_REQUEST_STATUS_STYLES[request.status]
                     const isReverted = request.status === 'reverted'
+                    const roomLabel = getRequestRoomLabel(request)
                     return (
                       <div key={request.id} className="border px-5 py-4 shadow-sm" style={{ 
                         border: '1px solid rgba(238,238,238,0.2)', 
@@ -555,7 +545,9 @@ export const MyRequestsPanelContent = ({
                       }}>
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <div>
-                            <p className="text-sm font-semibold" style={{ color: COLORS.white }}>{request.building_code} - Room {request.room_number}</p>
+                            <p className="text-sm font-semibold" style={{ color: COLORS.white }}>
+                              {request.building_code} {roomLabel}
+                            </p>
                             <p className="text-xs" style={{ color: COLORS.whiteTransparentLow }}>
                               {formatDateDisplay(request.base_date)} • {formatRequestRange(request, timeSlots)} • {request.week_count} week{request.week_count > 1 ? 's' : ''}
                             </p>
@@ -612,6 +604,7 @@ export const MyRequestsPanelContent = ({
                   .filter((r) => r.status === 'rejected')
                   .map((request) => {
                     const statusStyle = ROOM_REQUEST_STATUS_STYLES[request.status]
+                    const roomLabel = getRequestRoomLabel(request)
                     return (
                       <div key={request.id} className="border px-5 py-4 shadow-sm" style={{ 
                         border: '1px solid rgba(238,238,238,0.2)', 
@@ -619,7 +612,9 @@ export const MyRequestsPanelContent = ({
                       }}>
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <div>
-                            <p className="text-sm font-semibold" style={{ color: COLORS.white }}>{request.building_code} - Room {request.room_number}</p>
+                            <p className="text-sm font-semibold" style={{ color: COLORS.white }}>
+                              {request.building_code} {roomLabel}
+                            </p>
                             <p className="text-xs" style={{ color: COLORS.whiteTransparentLow }}>
                               {formatDateDisplay(request.base_date)} • {formatRequestRange(request, timeSlots)} • {request.week_count} week{request.week_count > 1 ? 's' : ''}
                             </p>

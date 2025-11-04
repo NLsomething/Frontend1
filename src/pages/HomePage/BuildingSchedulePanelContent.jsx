@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react'
 import ScheduleGrid from './ScheduleGrid'
 import { COLORS } from '../../constants/colors'
 
@@ -15,6 +16,52 @@ export const BuildingSchedulePanelContent = ({
   canEdit,
   canRequest
 }) => {
+  const [activeSlotCategory, setActiveSlotCategory] = useState('classroom')
+
+  const normalizedSlots = useMemo(() => {
+    if (!Array.isArray(timeSlots)) return []
+
+    return timeSlots.map((slot, index) => {
+      const slotType = (slot.slotType || slot.slot_type || slot.type || 'classroom').toLowerCase()
+      const baseLabel = slot.displayLabel || slot.label || slot.slot_name || slot.name || `Slot ${index + 1}`
+      const resolvedId = slot.id ?? slot.timeslot_id ?? slot.slot_id ?? slot.slotId ?? slot.hour ?? slot.slot_order ?? `${slotType}-${index}`
+      const key = resolvedId
+
+      return {
+        ...slot,
+        slotType,
+        displayLabel: baseLabel,
+        key,
+        hour: resolvedId
+      }
+    })
+  }, [timeSlots])
+
+  const filteredSlots = useMemo(() => {
+    const matching = normalizedSlots.filter((slot) => slot.slotType === activeSlotCategory)
+    return matching.length > 0 ? matching : normalizedSlots
+  }, [normalizedSlots, activeSlotCategory])
+
+  const currentRoomType = useMemo(() => {
+    return activeSlotCategory === 'administrative' ? 'administrative' : 'classroom'
+  }, [activeSlotCategory])
+
+  const hasScheduleEntries = useMemo(() => {
+    if (!scheduleMap || typeof scheduleMap !== 'object') {
+      return false
+    }
+    return Object.keys(scheduleMap).length > 0
+  }, [scheduleMap])
+
+  const shouldShowScheduleLoading = scheduleLoading && !hasScheduleEntries
+
+  const hasRooms = buildingRooms.length > 0
+  const roomSubtitle = hasRooms
+    ? `${buildingRooms.length} Classroom${buildingRooms.length !== 1 ? 's' : ''}`
+    : (buildingRoomsLoading ? '' : 'No classrooms found')
+
+  const showRoomsLoadingPlaceholder = buildingRoomsLoading && !hasRooms
+
   // Convert Date object to local date string for input (avoiding timezone issues)
   const formatLocalDate = (date) => {
     const year = date.getFullYear()
@@ -38,7 +85,10 @@ export const BuildingSchedulePanelContent = ({
   }
   
   // Build schedule key
-  const buildKey = (roomNumber, slotHour) => `${roomNumber}-${slotHour}`
+  const buildKey = (roomMeta, slotKey) => {
+    const roomCode = typeof roomMeta === 'string' ? roomMeta : (roomMeta?.room_code || roomMeta?.roomNumber || roomMeta?.room_number || roomMeta?.code || '')
+    return `${roomCode}-${slotKey}`
+  }
 
   return (
     <div className="flex h-full w-full flex-col" style={{ backgroundColor: COLORS.panelBackground }}>
@@ -47,14 +97,46 @@ export const BuildingSchedulePanelContent = ({
           <h2 className="text-xl font-semibold" style={{ color: COLORS.white }}>
             {selectedBuilding ? `${selectedBuilding.building_name} Schedule` : 'Room Schedule'}
           </h2>
-          <p className="text-sm" style={{ color: COLORS.whiteTransparentMid }}>
-            {buildingRoomsLoading ? 'Loading rooms...' : buildingRooms.length > 0 ? `${buildingRooms.length} Classroom${buildingRooms.length !== 1 ? 's' : ''} • 7:00 AM – 8:00 PM` : 'No classrooms found'}
-          </p>
+          {roomSubtitle && (
+            <p className="text-sm" style={{ color: COLORS.whiteTransparentMid }}>
+              {roomSubtitle}
+            </p>
+          )}
           {!canEdit && !canRequest && (
             <p className="text-xs" style={{ color: COLORS.whiteTransparentLow }}>View only - No editing permissions</p>
           )}
         </div>
         <div className="flex items-center gap-3">
+          <div className="flex items-center" style={{ gap: '6px' }}>
+            <button
+              type="button"
+              onClick={() => setActiveSlotCategory('classroom')}
+              className="px-3 py-2 text-xs font-semibold uppercase tracking-wide"
+              style={{
+                border: '1px solid rgba(238, 238, 238, 0.2)',
+                borderRadius: 0,
+                backgroundColor: activeSlotCategory === 'classroom' ? COLORS.darkGray : 'transparent',
+                color: COLORS.white,
+                transition: 'background-color 0.15s ease-in-out'
+              }}
+            >
+              Classroom
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveSlotCategory('administrative')}
+              className="px-3 py-2 text-xs font-semibold uppercase tracking-wide"
+              style={{
+                border: '1px solid rgba(238, 238, 238, 0.2)',
+                borderRadius: 0,
+                backgroundColor: activeSlotCategory === 'administrative' ? COLORS.darkGray : 'transparent',
+                color: COLORS.white,
+                transition: 'background-color 0.15s ease-in-out'
+              }}
+            >
+              Administrative
+            </button>
+          </div>
           <input
             type="date"
             value={isoDate}
@@ -97,7 +179,7 @@ export const BuildingSchedulePanelContent = ({
         </style>
         
         {/* Loading indicator at panel level */}
-        {scheduleLoading && (
+        {shouldShowScheduleLoading && (
           <div className="absolute inset-0 z-10 flex items-center justify-center backdrop-blur-sm" style={{ backgroundColor: `${COLORS.panelBackground}EE` }}>
             <div className="flex flex-col items-center gap-3">
               <div className="animate-spin rounded-full h-12 w-12 border-4 border-t-transparent" style={{ borderColor: COLORS.blue }}></div>
@@ -106,31 +188,40 @@ export const BuildingSchedulePanelContent = ({
           </div>
         )}
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '27px', opacity: scheduleLoading ? 0.4 : 1, transition: 'opacity 0.2s ease-out' }}>
-          {buildingRoomsLoading ? (
-            <div className="flex h-full w-full items-center justify-center text-sm" style={{ border: `1px dashed ${COLORS.whiteTransparentBorder}`, backgroundColor: COLORS.screenBackground, color: COLORS.whiteTransparentMid, borderRadius: 0 }}>
-              Loading classroom rooms...
-            </div>
-          ) : buildingRooms.length === 0 ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '27px', opacity: shouldShowScheduleLoading ? 0.4 : 1, transition: 'opacity 0.2s ease-out' }}>
+          {showRoomsLoadingPlaceholder ? null : !hasRooms ? (
             <div className="flex h-full w-full items-center justify-center text-sm" style={{ border: `1px dashed ${COLORS.whiteTransparentBorder}`, backgroundColor: COLORS.screenBackground, color: COLORS.whiteTransparentMid, borderRadius: 0 }}>
               No classroom rooms found in this building.
             </div>
           ) : (
             <>
               {roomsByFloor.map((floor, floorIndex) => {
-                const bookableRooms = floor.rooms.filter(room => String(room.bookable).toLowerCase() === 'true' || room.bookable === true)
+                const bookableRooms = floor.rooms.filter(room => {
+                  const isBookable = String(room.bookable).toLowerCase() === 'true' || room.bookable === true
+                  if (!isBookable) return false
+                  if (!room.room_type) return currentRoomType === 'classroom'
+                  return room.room_type.toLowerCase() === currentRoomType
+                })
                 if (bookableRooms.length === 0) return null
                 return (
                   <section key={floor.id} className="shadow-sm overflow-hidden" style={{ marginLeft: '0', border: '1px solid rgba(238,238,238,0.2)', backgroundColor: COLORS.screenBackground, borderTop: floorIndex === 0 ? '1px solid rgba(238,238,238,0.2)' : undefined, borderRadius: 0 }}>
                     <header className="flex items-center justify-between font-semibold uppercase tracking-wide" style={{ padding: '10px 21px', fontSize: '12px', backgroundColor: COLORS.darkGray, color: COLORS.white }}>
-                      <span>{floor.name} • {bookableRooms.length} Room{bookableRooms.length !== 1 ? 's' : ''}</span>
+                      <span>{floor.name}</span>
                     </header>
                     <ScheduleGrid
-                      rooms={bookableRooms.map(room => room.room_code)}
-                      timeSlots={timeSlots}
+                      rooms={bookableRooms}
+                      timeSlots={filteredSlots}
                       scheduleMap={scheduleMap}
-                      onAdminAction={(room, hour) => canEdit && onCellClick && onCellClick(room, hour)}
-                      onTeacherRequest={(room, hour) => canRequest && onCellClick && onCellClick(room, hour)}
+                      onAdminAction={(room, slotKey) => {
+                        if (canEdit && onCellClick) {
+                          onCellClick(room, slotKey)
+                        }
+                      }}
+                      onTeacherRequest={(room, slotKey) => {
+                        if (canRequest && onCellClick) {
+                          onCellClick(room, slotKey)
+                        }
+                      }}
                       buildKey={buildKey}
                       canEdit={canEdit}
                       canRequest={canRequest}

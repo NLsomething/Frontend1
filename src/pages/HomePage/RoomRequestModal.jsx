@@ -40,11 +40,15 @@ const RoomRequestModal = ({
                   backgroundColor: '#4A5058'
                 }}
               >
-                {timeSlots.map((slot) => (
-                  <option key={`request-start-${slot.hour}`} value={slot.hour} style={{ backgroundColor: '#4A5058' }}>
-                    {slot.label}
-                  </option>
-                ))}
+                {timeSlots.map((slot, index) => {
+                  const value = slot.id ?? slot.slot_id ?? slot.slotId ?? slot.hour ?? slot.slot_order ?? index
+                  const label = slot.label || slot.slot_name || `Slot ${index + 1}`
+                  return (
+                    <option key={`request-start-${value}`} value={value} style={{ backgroundColor: '#4A5058' }}>
+                      {label}
+                    </option>
+                  )
+                })}
               </select>
             </div>
             <div>
@@ -59,11 +63,15 @@ const RoomRequestModal = ({
                   backgroundColor: '#4A5058'
                 }}
               >
-                {timeSlots.map((slot) => (
-                  <option key={`request-end-${slot.hour}`} value={slot.hour} style={{ backgroundColor: '#4A5058' }}>
-                    {slot.label}
-                  </option>
-                ))}
+                {timeSlots.map((slot, index) => {
+                  const value = slot.id ?? slot.slot_id ?? slot.slotId ?? slot.hour ?? slot.slot_order ?? index
+                  const label = slot.label || slot.slot_name || `Slot ${index + 1}`
+                  return (
+                    <option key={`request-end-${value}`} value={value} style={{ backgroundColor: '#4A5058' }}>
+                      {label}
+                    </option>
+                  )
+                })}
               </select>
             </div>
           </div>

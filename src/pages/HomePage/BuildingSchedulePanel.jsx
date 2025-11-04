@@ -37,6 +37,15 @@ const BuildingSchedulePanel = ({
   // Build schedule key
   const buildKey = (roomNumber, slotHour) => `${roomNumber}-${slotHour}`
 
+  const hasScheduleEntries = scheduleMap && typeof scheduleMap === 'object' && Object.keys(scheduleMap).length > 0
+  const shouldShowScheduleLoading = scheduleLoading && !hasScheduleEntries
+
+  const hasRooms = buildingRooms.length > 0
+  const roomSubtitle = hasRooms
+    ? `${buildingRooms.length} Classroom${buildingRooms.length !== 1 ? 's' : ''}`
+    : (buildingRoomsLoading ? '' : 'No classrooms found')
+  const showRoomsLoadingPlaceholder = buildingRoomsLoading && !hasRooms
+
   return (
     <aside
       className={`absolute top-0 left-0 z-20 h-full w-full max-w-5xl transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
@@ -48,9 +57,11 @@ const BuildingSchedulePanel = ({
             <h2 className="text-xl font-semibold" style={{ color: COLORS.white }}>
               {selectedBuilding ? `${selectedBuilding.building_name} Schedule` : 'Room Schedule'}
             </h2>
-            <p className="text-sm" style={{ color: COLORS.whiteTransparentMid }}>
-              {buildingRoomsLoading ? 'Loading rooms...' : buildingRooms.length > 0 ? `${buildingRooms.length} Classroom${buildingRooms.length !== 1 ? 's' : ''} • 7:00 AM – 8:00 PM` : 'No classrooms found'}
-            </p>
+            {roomSubtitle && (
+              <p className="text-sm" style={{ color: COLORS.whiteTransparentMid }}>
+                {roomSubtitle}
+              </p>
+            )}
             {!canEdit && !canRequest && (
               <p className="text-xs" style={{ color: COLORS.whiteTransparentLow }}>View only - No editing permissions</p>
             )}
@@ -105,7 +116,7 @@ const BuildingSchedulePanel = ({
           </style>
           
           {/* Loading indicator at panel level */}
-          {scheduleLoading && (
+          {shouldShowScheduleLoading && (
             <div className="absolute inset-0 z-10 flex items-center justify-center backdrop-blur-sm" style={{ backgroundColor: `${COLORS.panelBackground}EE` }}>
               <div className="flex flex-col items-center gap-3">
                 <div className="animate-spin rounded-full h-12 w-12 border-4 border-t-transparent" style={{ borderColor: COLORS.blue }}></div>
@@ -114,12 +125,8 @@ const BuildingSchedulePanel = ({
             </div>
           )}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '27px', opacity: scheduleLoading ? 0.4 : 1, transition: 'opacity 0.2s ease-in-out' }}>
-          {buildingRoomsLoading ? (
-            <div className="flex h-full w-full items-center justify-center rounded text-sm" style={{ border: `1px dashed ${COLORS.whiteTransparentBorder}`, backgroundColor: COLORS.screenBackground, color: COLORS.whiteTransparentMid }}>
-              Loading classroom rooms...
-            </div>
-          ) : buildingRooms.length === 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '27px', opacity: shouldShowScheduleLoading ? 0.4 : 1, transition: 'opacity 0.2s ease-in-out' }}>
+          {showRoomsLoadingPlaceholder ? null : !hasRooms ? (
             <div className="flex h-full w-full items-center justify-center rounded text-sm" style={{ border: `1px dashed ${COLORS.whiteTransparentBorder}`, backgroundColor: COLORS.screenBackground, color: COLORS.whiteTransparentMid }}>
               No classroom rooms found in this building.
             </div>
@@ -128,7 +135,7 @@ const BuildingSchedulePanel = ({
               {roomsByFloor.map((floor, floorIndex) => (
                 <section key={floor.id} className="shadow-sm overflow-hidden" style={{ marginLeft: '0', border: '1px solid rgba(238,238,238,0.2)', backgroundColor: COLORS.screenBackground, borderTop: floorIndex === 0 ? '1px solid rgba(238,238,238,0.2)' : undefined }}>
                   <header className="flex items-center justify-between font-semibold uppercase tracking-wide" style={{ padding: '10px 21px', fontSize: '12px', backgroundColor: COLORS.darkGray, color: COLORS.white }}>
-                    <span>{floor.name} • {floor.rooms.length} Room{floor.rooms.length !== 1 ? 's' : ''}</span>
+                    <span>{floor.name}</span>
                   </header>
                   <ScheduleGrid
                     rooms={floor.rooms.map(room => room.room_code)}

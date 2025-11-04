@@ -15,6 +15,7 @@ import { USER_ROLES } from '../../constants/roles'
 import { SCHEDULE_STATUS, SCHEDULE_STATUS_LABELS } from '../../constants/schedule'
 import { fetchBuildings } from '../../services/buildingService'
 import { fetchRoomsByBuildingId } from '../../services/roomService'
+import { fetchTimeslots } from '../../services/timeslotService'
 import { cn } from '../../styles/shared'
 
 // Import extracted components
@@ -40,10 +41,10 @@ import { useCameraControls } from '../../hooks/useCameraControls'
 
 // Import utilities
 import {
-  generateTimeSlots,
   toIsoDateString,
   parseDateString,
-  groupRoomsByFloor
+  groupRoomsByFloor,
+  getSlotLabel as resolveSlotLabel
 } from '../../utils'
 
 // Styles
@@ -118,6 +119,7 @@ function HomePage() {
   const [isScheduleOpen, setScheduleOpen] = useState(false)
   const [isRoomScheduleOpen, setIsRoomScheduleOpen] = useState(false)
   const [roomScheduleRoomCode, setRoomScheduleRoomCode] = useState(null)
+  const [roomScheduleRoomType, setRoomScheduleRoomType] = useState(null)
   
   // Building dropdown state
   const [isBuildingDropdownOpen, setIsBuildingDropdownOpen] = useState(false)
@@ -128,6 +130,8 @@ function HomePage() {
   const [buildingRooms, setBuildingRooms] = useState([])
   const [buildingRoomsLoading, setBuildingRoomsLoading] = useState(false)
   const [scheduleDate, setScheduleDate] = useState(() => new Date())
+  const [timeSlots, setTimeSlots] = useState([])
+  const [timeSlotsLoading, setTimeSlotsLoading] = useState(true)
   
   // UI state (kept for backward compatibility with existing button states)
   // eslint-disable-next-line no-unused-vars
@@ -151,9 +155,6 @@ function HomePage() {
   // Calculate ISO date
   const isoDate = useMemo(() => toIsoDateString(scheduleDate), [scheduleDate])
 
-  // Generate time slots
-  const timeSlots = useMemo(() => generateTimeSlots(), [])
-
   const {
     scheduleMap,
     scheduleLoading,
@@ -165,24 +166,43 @@ function HomePage() {
     role === USER_ROLES.teacher ||
       role === USER_ROLES.student ||
       role === USER_ROLES.administrator ||
-      role === USER_ROLES.buildingManager
+      role === USER_ROLES.buildingManager,
+    {
+      timeSlots,
+      rooms: buildingRooms
+    }
   )
   const [roomScheduleRoomName, setRoomScheduleRoomName] = useState('')
   const [roomScheduleBookable, setRoomScheduleBookable] = useState(true)
 
   const roomSchedule = useMemo(() => {
     if (!roomScheduleRoomCode) return []
-    const hours = Array.from({ length: 14 }, (_, i) => 7 + i)
-    return hours.map((hour) => {
-      const key = buildScheduleKey(roomScheduleRoomCode, hour)
+    return timeSlots.map((slot) => {
+      const slotId = slot.id || slot.slot_id
+      const key = buildScheduleKey(roomScheduleRoomCode, slotId)
       const entry = scheduleMap[key]
-      return entry ? entry : { slot_hour: hour, status: SCHEDULE_STATUS.empty }
+      if (entry) {
+        return entry
+      }
+
+      return {
+        room_number: roomScheduleRoomCode,
+        slot_hour: slotId,
+        status: SCHEDULE_STATUS.empty,
+        timeslot_id: slotId,
+        slot_id: slotId,
+        slot_order: slot.slotOrder ?? slot.slot_order ?? null,
+        slot_type: slot.slotType || slot.slot_type || null,
+        slot_name: slot.slotName || slot.slot_name || null,
+        start_time: slot.start_time || slot.startTime || null,
+        end_time: slot.end_time || slot.endTime || null
+      }
     })
-  }, [roomScheduleRoomCode, scheduleMap, buildScheduleKey])
+  }, [roomScheduleRoomCode, scheduleMap, buildScheduleKey, timeSlots])
 
   // Utility functions for hooks
-  const getSlotLabel = useCallback((hour) => {
-    return timeSlots.find((slot) => slot.hour === hour)?.label || ''
+  const getSlotLabel = useCallback((slotId) => {
+    return resolveSlotLabel(slotId, timeSlots)
   }, [timeSlots])
 
   const parseDateStringWrapper = useCallback((dateString) => {
@@ -230,7 +250,10 @@ function HomePage() {
     setRequestForm,
     submitRequest,
     resetRequestModal
-  } = useRoomRequests(canManageRequests, canRequestRoom, user, profile)
+  } = useRoomRequests(canManageRequests, canRequestRoom, user, profile, {
+    timeSlots,
+    rooms: buildingRooms
+  })
 
   // Camera drag detection to guard building select/deselect during drags
   const [/* isCameraInteracting */ , setIsCameraInteracting] = useState(false)
@@ -243,6 +266,67 @@ function HomePage() {
     groupRoomsByFloor(buildingRooms), 
     [buildingRooms]
   )
+
+  const roomLookupByCode = useMemo(() => {
+    const map = new Map()
+    buildingRooms.forEach((room) => {
+      const code = room?.room_code || room?.roomNumber || room?.room_number || room?.code
+      if (code) {
+        map.set(code, room)
+      }
+    })
+    return map
+  }, [buildingRooms])
+
+  const normalizeSlotTypeValue = useCallback((value) => {
+    if (!value) return ''
+    return value.toString().toLowerCase().replace(/[^a-z0-9]/g, '')
+  }, [])
+
+  const requestRoomType = useMemo(() => {
+    const roomCode = requestState?.room
+    if (!roomCode) return null
+
+    const roomMeta = roomLookupByCode.get(roomCode)
+    if (roomMeta?.room_type) {
+      return roomMeta.room_type
+    }
+
+    const existingEntry = requestState?.existingEntry
+    if (existingEntry) {
+      return (
+        existingEntry.slot_type ||
+        existingEntry.timeslot?.slot_type ||
+        existingEntry.start_timeslot?.slot_type ||
+        existingEntry.end_timeslot?.slot_type ||
+        null
+      )
+    }
+
+    return null
+  }, [requestState, roomLookupByCode])
+
+  const filteredRequestTimeSlots = useMemo(() => {
+    if (!Array.isArray(timeSlots) || timeSlots.length === 0) {
+      return []
+    }
+
+    if (!requestRoomType) {
+      return timeSlots
+    }
+
+    const targetType = normalizeSlotTypeValue(requestRoomType)
+    if (!targetType) {
+      return timeSlots
+    }
+
+    const subset = timeSlots.filter((slot) => {
+      const slotType = normalizeSlotTypeValue(slot.slotType || slot.slot_type || slot.type)
+      return slotType && slotType === targetType
+    })
+
+    return subset.length > 0 ? subset : timeSlots
+  }, [timeSlots, requestRoomType, normalizeSlotTypeValue])
 
   // Redirect if not logged in
   useEffect(() => {
@@ -280,6 +364,35 @@ function HomePage() {
   }
 
   // Dropdown stays open when panels open - don't auto-close it
+
+  useEffect(() => {
+    const loadTimeSlots = async () => {
+      setTimeSlotsLoading(true)
+      try {
+        const { data, error } = await fetchTimeslots()
+
+        if (error) {
+          console.error('Error loading time slots:', error)
+          setTimeSlots([])
+          notifyError('Failed to load time slots', {
+            description: 'Schedule views may be incomplete until the issue is resolved.'
+          })
+        } else {
+          setTimeSlots(data || [])
+        }
+      } catch (err) {
+        console.error('Unexpected error loading time slots:', err)
+        setTimeSlots([])
+        notifyError('Failed to load time slots', {
+          description: 'Schedule views may be incomplete until the issue is resolved.'
+        })
+      } finally {
+        setTimeSlotsLoading(false)
+      }
+    }
+
+    loadTimeSlots()
+  }, [notifyError])
 
           // Load building on mount
           useEffect(() => {
@@ -406,11 +519,24 @@ function HomePage() {
     setIsSubmittingRequest(true)
     
     try {
+      const roomCode = requestState.room
+      const roomMeta = roomCode ? roomLookupByCode.get(roomCode) : null
+      const resolvedRoomId = requestState.roomId || roomMeta?.id || requestState.existingEntry?.room_id
+
+      if (!resolvedRoomId) {
+        notifyError('Missing room information', {
+          description: 'Unable to submit the request because the room identifier could not be resolved.'
+        })
+        return
+      }
+
       const success = await submitRequest({
-        room_number: requestState.room,
+        room_id: resolvedRoomId,
+        room_code: roomCode,
+        room_name: requestState.roomName || roomMeta?.room_name || null,
         base_date: isoDate,
-        start_hour: requestState.startHour,
-        end_hour: requestState.endHour,
+        start_timeslot_id: requestState.startHour,
+        end_timeslot_id: requestState.endHour,
         week_count: requestForm.weekCount,
         course_name: requestForm.courseName || null,
         notes: requestForm.notes || null
@@ -424,7 +550,7 @@ function HomePage() {
       isSubmittingRequestRef.current = false
       setIsSubmittingRequest(false)
     }
-  }, [requestState, requestForm, isoDate, submitRequest, handleCenterPanelClose, loadSchedules])
+  }, [requestState, requestForm, isoDate, submitRequest, handleCenterPanelClose, loadSchedules, roomLookupByCode, notifyError])
 
   // Edit submission loading state (using ref for reliable double-submission prevention)
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false)
@@ -462,10 +588,12 @@ function HomePage() {
 
   // Handle range change for request/edit
   const handleRangeChange = useCallback((field) => (e) => {
-    const value = parseInt(e.target.value, 10)
-    setRequestState(prev => ({
+    const rawValue = e.target.value
+    const numericValue = Number(rawValue)
+    const nextValue = Number.isNaN(numericValue) ? rawValue : numericValue
+    setRequestState((prev) => ({
       ...prev,
-      [field]: value
+      [field]: nextValue
     }))
   }, [setRequestState])
 
@@ -614,6 +742,20 @@ function HomePage() {
       setUnifiedPanelContentType(null)
       setScheduleOpen(false)
     } else {
+      if (timeSlotsLoading) {
+        notifyInfo('Time slots are still loading', {
+          description: 'Please try again in a moment.'
+        })
+        return
+      }
+
+      if (!timeSlots || timeSlots.length === 0) {
+        notifyError('No time slots available', {
+          description: 'Unable to display the schedule without time slot information.'
+        })
+        return
+      }
+
       // Switch to schedule content in UnifiedPanel
       if (!selectedBuilding) {
         // Need a building selected first
@@ -711,6 +853,7 @@ function HomePage() {
         setRoomScheduleRoomCode(room.room_code)
         setRoomScheduleRoomName(displayName)
         setRoomScheduleBookable(String(room.bookable).toLowerCase() === 'true' || room.bookable === true)
+  setRoomScheduleRoomType(room.room_type || null)
         
         // Also open BuildingInfo and expand the floor containing this room
         setIsBuildingInfoOpen(true)
@@ -1127,6 +1270,7 @@ function HomePage() {
                                                   setIsRoomScheduleOpen(false)
                                                   setRoomScheduleRoomCode(null)
                                                   setRoomScheduleRoomName('')
+                                                  setRoomScheduleRoomType(null)
                                                   setUnifiedPanelContentType(null)
                                                 } else {
                                                   // Open the room schedule
@@ -1134,6 +1278,7 @@ function HomePage() {
                                                   const displayName = room.room_name || room.roomNumber || room.room_number || room.room_code
                                                   setRoomScheduleRoomName(displayName)
                                                   setRoomScheduleBookable(String(room.bookable).toLowerCase() === 'true' || room.bookable === true)
+                                                  setRoomScheduleRoomType(room.room_type || null)
                                                   setUnifiedPanelContentType('room-schedule')
                                                   setIsRoomScheduleOpen(true)
                                                 }
@@ -1171,6 +1316,7 @@ function HomePage() {
                                                   setIsRoomScheduleOpen(false)
                                                   setRoomScheduleRoomCode(null)
                                                   setRoomScheduleRoomName('')
+                                                  setRoomScheduleRoomType(null)
                                                   setUnifiedPanelContentType(null)
                                                 } else {
                                                   // Open the room schedule
@@ -1178,6 +1324,7 @@ function HomePage() {
                                                   const displayName = room.room_name || room.roomNumber || room.room_number || room.room_code
                                                   setRoomScheduleRoomName(displayName)
                                                   setRoomScheduleBookable(String(room.bookable).toLowerCase() === 'true' || room.bookable === true)
+                                                  setRoomScheduleRoomType(room.room_type || null)
                                                   setUnifiedPanelContentType('room-schedule')
                                                   setIsRoomScheduleOpen(true)
                                                 }
@@ -1229,9 +1376,6 @@ function HomePage() {
        <UnifiedPanel
          isOpen={isUnifiedPanelOpen}
          contentType={unifiedPanelContentType}
-         onClose={() => {
-           handleUnifiedPanelClose()
-         }}
        >
          {unifiedPanelContentType === 'requests' && canManageRequests && (
            <RequestsPanelContent
@@ -1245,7 +1389,8 @@ function HomePage() {
              onDateFilterChange={setHistoricalDateFilter}
              onApprove={(request) => approveRequest(request, { parseDateString: parseDateStringWrapper, toIsoDateString, getSlotLabel })}
              onReject={rejectRequest}
-             onRevert={(request) => revertRequest(request, { parseDateString: parseDateStringWrapper, toIsoDateString })}
+          onRevert={(request) => revertRequest(request, { parseDateString: parseDateStringWrapper, toIsoDateString })}
+          timeSlots={timeSlots}
            />
          )}
          {unifiedPanelContentType === 'my-requests' && canRequestRoom && (
@@ -1255,6 +1400,7 @@ function HomePage() {
              myRequestsLoading={myRequestsLoading}
              myRequestsDateFilter={myRequestsDateFilter}
              onDateFilterChange={setMyRequestsDateFilter}
+            timeSlots={timeSlots}
            />
          )}
          {unifiedPanelContentType === 'user-management' && (
@@ -1271,38 +1417,51 @@ function HomePage() {
          timeSlots={timeSlots}
          scheduleMap={scheduleMap}
          scheduleLoading={scheduleLoading}
-         onCellClick={(roomNumber, slotHour) => {
+         onCellClick={(roomMeta, slotHour) => {
+           const roomCode = typeof roomMeta === 'string' ? roomMeta : roomMeta?.room_code || roomMeta?.roomNumber || roomMeta?.room_number || null
+           const roomName = typeof roomMeta === 'string' ? null : roomMeta?.room_name || roomMeta?.name || null
+           const roomId = typeof roomMeta === 'string' ? null : roomMeta?.id || null
+
+           if (!roomCode) {
+             notifyError('Missing room details', {
+               description: 'Unable to determine which room was selected.'
+             })
+             return
+           }
+
            if (canEditSchedule) {
-             // Open edit modal for admin/building manager
-             const key = buildScheduleKey(roomNumber, slotHour)
+             const key = buildScheduleKey(roomCode, slotHour)
              const existing = scheduleMap[key]
              setRequestState({
                isOpen: true,
                isEditMode: true,
-               room: roomNumber,
+               room: roomCode,
+               roomId: roomId || existing?.room_id || null,
+               roomName: roomName || null,
                startHour: slotHour,
                endHour: slotHour,
                existingEntry: existing
              })
            } else if (canRequestRoom) {
-             // Check if slot is available
-             const key = buildScheduleKey(roomNumber, slotHour)
+             const key = buildScheduleKey(roomCode, slotHour)
              const entry = scheduleMap[key]
-             
+
              if (entry && entry.status !== SCHEDULE_STATUS.empty && entry.status !== SCHEDULE_STATUS.pending) {
                notifyError('Slot not available', {
-                 description: `Room ${roomNumber} at ${getSlotLabel(slotHour)} is already ${SCHEDULE_STATUS_LABELS[entry.status].toLowerCase()}.`
+                 description: `Room ${roomCode} at ${getSlotLabel(slotHour)} is already ${SCHEDULE_STATUS_LABELS[entry.status].toLowerCase()}.`
                })
                return
              }
- 
-             // Open request modal for teacher
+
              setRequestState({
                isOpen: true,
                isEditMode: false,
-               room: roomNumber,
+               room: roomCode,
+               roomId: roomId || null,
+               roomName: roomName || null,
                startHour: slotHour,
-               endHour: slotHour
+               endHour: slotHour,
+               existingEntry: null
              })
            }
          }}
@@ -1320,6 +1479,8 @@ function HomePage() {
             schedule={roomSchedule}
             scheduleLoading={scheduleLoading}
             scheduleDate={isoDate}
+            timeSlots={timeSlots}
+            roomType={roomScheduleRoomType}
             onDateChange={(val) => {
               if (typeof val === 'string') {
                 const parts = val.split('/')
@@ -1344,12 +1505,15 @@ function HomePage() {
             canRequest={canRequestRoom}
             onAdminAction={(roomNumber, slotHour) => {
               if (!canEditSchedule) return
+              const roomMeta = roomLookupByCode.get(roomNumber)
               const key = buildScheduleKey(roomNumber, slotHour)
               const existing = scheduleMap[key]
               setRequestState({
                 isOpen: true,
                 isEditMode: true,
                 room: roomNumber,
+                roomId: existing?.room_id || roomMeta?.id || null,
+                roomName: roomMeta?.room_name || roomScheduleRoomName || null,
                 startHour: slotHour,
                 endHour: slotHour,
                 existingEntry: existing
@@ -1365,20 +1529,17 @@ function HomePage() {
                 })
                 return
               }
+              const roomMeta = roomLookupByCode.get(roomNumber)
               setRequestState({
                 isOpen: true,
                 isEditMode: false,
                 room: roomNumber,
+                roomId: roomMeta?.id || null,
+                roomName: roomMeta?.room_name || roomScheduleRoomName || null,
                 startHour: slotHour,
-                endHour: slotHour
+                endHour: slotHour,
+                existingEntry: null
               })
-            }}
-            onClose={() => {
-              setIsRoomScheduleOpen(false)
-              setRoomScheduleRoomCode(null)
-              setRoomScheduleRoomName('')
-              setRoomScheduleBookable(true)
-              setUnifiedPanelContentType(null)
             }}
           />
         )}
@@ -1398,7 +1559,7 @@ function HomePage() {
           <ScheduleRequestContent
             requestState={requestState}
             requestForm={requestForm}
-            timeSlots={timeSlots}
+            timeSlots={filteredRequestTimeSlots}
             isoDate={isoDate}
             submitting={isSubmittingRequest}
             onSubmit={handleRequestSubmit}
@@ -1411,7 +1572,7 @@ function HomePage() {
           <ScheduleEditContent
             editState={requestState}
             editForm={editForm}
-            timeSlots={timeSlots}
+            timeSlots={filteredRequestTimeSlots}
             submitting={isSubmittingEdit}
             onSubmit={handleEditSubmit}
             onFormChange={handleEditFormChange}

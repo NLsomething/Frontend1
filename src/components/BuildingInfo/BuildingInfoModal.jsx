@@ -1,10 +1,7 @@
 import { useState, useEffect } from 'react'
 import BuildingSidebar from './BuildingSidebar'
-import PreviewPanel from './PreviewPanel'
 import SchedulePanel from './SchedulePanel'
-import DeviceEditModal from './DeviceEditModal'
 import { useRoomSchedule } from '../../hooks/useRoomSchedule'
-import { useRoomDevices } from '../../hooks/useRoomDevices'
 import { getTodayLocalDate } from '../../utils/dateUtils'
 
 const BuildingInfoPanel = ({ 
@@ -15,56 +12,25 @@ const BuildingInfoPanel = ({
   canRequest, 
   onAdminAction, 
   onTeacherRequest, 
-  userRole 
+  timeSlots = []
 }) => {
   // Navigation state
   const [selectedFloor, setSelectedFloor] = useState(null)
   
-  // Preview state
-  const [previewImage, setPreviewImage] = useState(null)
-  const [previewTitle, setPreviewTitle] = useState('')
+  const [selectedRoomName, setSelectedRoomName] = useState(null)
   const [selectedRoomCode, setSelectedRoomCode] = useState(null)
-  // eslint-disable-next-line no-unused-vars
-  const [selectedRoomId, setSelectedRoomId] = useState(null)
+  const [selectedRoomType, setSelectedRoomType] = useState(null)
   
   // Schedule state
   const [scheduleDate, setScheduleDate] = useState(() => getTodayLocalDate())
   
   // Custom hooks
-  const { roomSchedule, scheduleLoading } = useRoomSchedule(selectedRoomCode, scheduleDate)
-  const {
-    devices,
-    devicesLoading,
-    isEditDeviceModalOpen,
-    selectedDevice,
-    editDeviceForm,
-    setEditDeviceForm,
-    loadDevices,
-    handleDeviceToggle,
-    handleEditDevice,
-    handleSaveDevice,
-    handleCloseDeviceModal,
-    clearDevices
-  } = useRoomDevices()
-
+  const { roomSchedule, scheduleLoading } = useRoomSchedule(selectedRoomCode, scheduleDate, { timeSlots })
   // Update preview when floor is selected
   useEffect(() => {
-    if (selectedFloor?.model_url) {
-      setPreviewImage(selectedFloor.model_url)
-      setPreviewTitle('2D Layout')
-      // Clear room schedule and devices when switching to floor view
-      setSelectedRoomCode(null)
-      setSelectedRoomId(null)
-      clearDevices()
-    } else {
-      setPreviewImage(null)
-      setPreviewTitle('')
-      // Clear room schedule when going back to floor view
-      setSelectedRoomCode(null)
-      setSelectedRoomId(null)
-      clearDevices()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setSelectedRoomCode(null)
+    setSelectedRoomType(null)
+    setSelectedRoomName(null)
   }, [selectedFloor])
 
   // Listen for search-room events
@@ -104,12 +70,8 @@ const BuildingInfoPanel = ({
               // After sidebar loads rooms, select the room and devices
               setTimeout(() => {
                 setSelectedRoomCode(room.room_code)
-                setSelectedRoomId(room.id)
-                if (room.model_url) {
-                  setPreviewImage(room.model_url)
-                  setPreviewTitle('2D Layout')
-                }
-                loadDevices(room.id)
+                setSelectedRoomType(room.room_type || null)
+                setSelectedRoomName(room.room_name || null)
               }, 600)
             } else {
               console.error('[BuildingInfoModal] Floor not found for ID:', floorId)
@@ -127,50 +89,21 @@ const BuildingInfoPanel = ({
 
     window.addEventListener('search-room', handleSearchRoom)
     return () => window.removeEventListener('search-room', handleSearchRoom)
-  }, [building, loadDevices])
+  }, [building])
 
 
-  const handleRoomClick = async (room) => {
-    if (room.model_url) {
-      setPreviewImage(room.model_url)
-      setPreviewTitle('2D Layout')
-    }
+  const handleRoomClick = (room) => {
     setSelectedRoomCode(room.room_code)
-    setSelectedRoomId(room.id)
-    await loadDevices(room.id)
+    setSelectedRoomType(room.room_type || null)
+    setSelectedRoomName(room.room_name || null)
     onRoomSelect(room)
   }
 
-  const handleClosePreview = () => {
-    setPreviewImage(null)
-    setPreviewTitle('')
-    setSelectedRoomCode(null)
-    setSelectedRoomId(null)
-    clearDevices()
-  }
-
-  const handleCloseSchedule = () => {
-    setSelectedRoomCode(null)
-    setSelectedRoomId(null)
-    clearDevices()
-    
-    // Restore floor preview if we have a selected floor
-    if (selectedFloor?.model_url) {
-      setPreviewImage(selectedFloor.model_url)
-      setPreviewTitle('2D Layout')
-    }
-  }
 
   const handleRoomDeselect = () => {
     setSelectedRoomCode(null)
-    setSelectedRoomId(null)
-    clearDevices()
-    
-    // Restore floor preview if we have a selected floor
-    if (selectedFloor?.model_url) {
-      setPreviewImage(selectedFloor.model_url)
-      setPreviewTitle('2D Layout')
-    }
+    setSelectedRoomType(null)
+    setSelectedRoomName(null)
   }
 
   if (!building) return null
@@ -188,22 +121,10 @@ const BuildingInfoPanel = ({
         isOpen={true}
       />
 
-      <PreviewPanel
-        isOpen={!!previewImage}
-        previewImage={previewImage}
-        previewTitle={previewTitle}
-        selectedRoomCode={selectedRoomCode}
-        devices={devices}
-        devicesLoading={devicesLoading}
-        userRole={userRole}
-        onToggleDevice={handleDeviceToggle}
-        onEditDevice={handleEditDevice}
-        onClose={handleClosePreview}
-      />
-
       <SchedulePanel
         isOpen={!!selectedRoomCode}
         roomCode={selectedRoomCode}
+        roomName={selectedRoomName}
         schedule={roomSchedule}
         scheduleLoading={scheduleLoading}
         scheduleDate={scheduleDate}
@@ -212,16 +133,8 @@ const BuildingInfoPanel = ({
         canRequest={canRequest}
         onAdminAction={onAdminAction}
         onTeacherRequest={onTeacherRequest}
-        onClose={handleCloseSchedule}
-      />
-
-      <DeviceEditModal
-        isOpen={isEditDeviceModalOpen}
-        device={selectedDevice}
-        formData={editDeviceForm}
-        onFormChange={setEditDeviceForm}
-        onSave={handleSaveDevice}
-        onClose={handleCloseDeviceModal}
+        timeSlots={timeSlots}
+        roomType={selectedRoomType}
       />
     </>
   )

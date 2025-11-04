@@ -8,14 +8,15 @@ const PANEL_WIDTHS = {
   'user-management': '717px', // 1024px - 30% = ~717px
   'building-info': '300px',    // BuildingSidebar width
   'schedule': '1024px',        // max-w-5xl (BuildingSchedulePanel)
-  'room-schedule': '160px'     // Narrow room schedule panel width
+  'room-schedule': '180px'     // Wider room schedule panel width (~22% wider)
 }
+
+const MAIN_CONTEXTS = ['requests', 'my-requests', 'user-management', 'building-info', 'schedule', 'room-schedule']
 
 const UnifiedPanel = ({ 
   isOpen, 
   contentType, // 'requests', 'my-requests', 'user-management', 'building-info'
-  children,
-  onClose
+  children
 }) => {
   const [mounted, setMounted] = useState(false)
   const [contentKey, setContentKey] = useState(0)
@@ -59,7 +60,6 @@ const UnifiedPanel = ({
   }, [isOpen, SLIDE_MS])
 
   // Only animate fade/slide for main panel contentType changes
-  const MAIN_CONTEXTS = ['requests', 'my-requests', 'user-management', 'building-info', 'schedule', 'room-schedule'];
   useEffect(() => {
     if (!isOpen) {
       prevContentTypeRef.current = contentType;
@@ -92,7 +92,7 @@ const UnifiedPanel = ({
       }, 12); // tiny delay to ensure fade out completes
     }, FADE_OUT_MS);
     return () => clearTimeout(fadeOutTimer);
-  }, [contentType, children]);
+  }, [contentType, children, isOpen]);
 
   if (!mounted && !isOpen) return null
 

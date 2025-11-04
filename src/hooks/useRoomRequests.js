@@ -17,12 +17,109 @@ import { useNotifications } from '../context/NotificationContext'
  * @param {object} profile - User profile
  * @returns {object} - Request state and handlers
  */
-export const useRoomRequests = (canManage, canRequest, user, profile) => {
-  const { notifySuccess, notifyError, notifyInfo } = useNotifications()
+export const useRoomRequests = (canManage, canRequest, user, profile, options = {}) => {
+  const { notifySuccess, notifyError } = useNotifications()
   const [requests, setRequests] = useState([])
   const [requestsLoading, setRequestsLoading] = useState(false)
   const [requestActionLoading, setRequestActionLoading] = useState(false)
   const [rejectionReasons, setRejectionReasons] = useState({})
+
+  const { timeSlots = [], rooms = [] } = options
+
+  const slotLookup = useMemo(() => {
+    const map = new Map()
+
+    timeSlots.forEach((slot) => {
+      const baseId = slot?.id ?? slot?.slot_id ?? slot?.slotId ?? slot?.hour ?? slot?.slot_order
+      if (baseId === undefined || baseId === null) {
+        return
+      }
+
+      const normalized = {
+        ...slot,
+        id: baseId,
+        slotType: (slot.slotType || slot.slot_type || 'classroom').toLowerCase(),
+        slotOrder: slot.slotOrder ?? slot.slot_order ?? Number.MAX_SAFE_INTEGER
+      }
+
+      const keys = new Set([baseId])
+      if (typeof baseId === 'string') {
+        const numeric = Number(baseId)
+        if (!Number.isNaN(numeric)) {
+          keys.add(numeric)
+        }
+      } else if (typeof baseId === 'number') {
+        keys.add(String(baseId))
+      }
+
+      keys.forEach((key) => {
+        map.set(key, normalized)
+      })
+    })
+
+    return map
+  }, [timeSlots])
+
+  const slotsByType = useMemo(() => {
+    const grouped = new Map()
+
+    slotLookup.forEach((slot) => {
+      if (!slot || !slot.slotType) return
+      if (!grouped.has(slot.slotType)) {
+        grouped.set(slot.slotType, [])
+      }
+      const bucket = grouped.get(slot.slotType)
+      if (!bucket.some((existing) => existing.id === slot.id)) {
+        bucket.push(slot)
+      }
+    })
+
+    grouped.forEach((bucket) => {
+      bucket.sort((a, b) => {
+        const orderA = a.slotOrder ?? 0
+        const orderB = b.slotOrder ?? 0
+        if (orderA !== orderB) return orderA - orderB
+        return String(a.id).localeCompare(String(b.id))
+      })
+    })
+
+    return grouped
+  }, [slotLookup])
+
+  const roomLookup = useMemo(() => {
+    const map = new Map()
+    rooms.forEach((room) => {
+      const code = room?.room_code || room?.roomNumber || room?.room_number || room?.code
+      if (code) {
+        map.set(code, room)
+      }
+    })
+    return map
+  }, [rooms])
+
+  const resolveSlotSequence = useCallback((startId, endId, preferredType) => {
+    if (!startId) return []
+
+    const startSlot = slotLookup.get(startId) || slotLookup.get(String(startId))
+    const endSlot = endId ? (slotLookup.get(endId) || slotLookup.get(String(endId))) : startSlot
+
+    const slotType = (preferredType || startSlot?.slotType || startSlot?.slot_type || 'classroom').toLowerCase()
+    const pool = slotsByType.get(slotType) || []
+
+    if (!pool.length) {
+      return [startId].concat(endId && endId !== startId ? [endId] : [])
+    }
+
+    const startIndex = pool.findIndex((slot) => String(slot.id) === String(startId))
+    const endIndex = endSlot ? pool.findIndex((slot) => String(slot.id) === String(endId)) : startIndex
+
+    if (startIndex === -1 || endIndex === -1) {
+      return [startId].concat(endId && endId !== startId ? [endId] : [])
+    }
+
+    const [from, to] = startIndex <= endIndex ? [startIndex, endIndex] : [endIndex, startIndex]
+    return pool.slice(from, to + 1).map((slot) => slot.id ?? slot.slot_id ?? slot.slotId ?? slot.hour ?? slot.slot_order)
+  }, [slotLookup, slotsByType])
 
   const loadRequests = useCallback(async ({ silent = false } = {}) => {
     if (!canManage && !canRequest) {
@@ -74,12 +171,29 @@ export const useRoomRequests = (canManage, canRequest, user, profile) => {
     if (requestActionLoading) return
 
     setRequestActionLoading(true)
+    const roomCode = request.room_code || request.room_number
+    const roomMeta = roomCode ? roomLookup.get(roomCode) : null
+    const roomId = request.room_id || roomMeta?.id
 
-    const startHour = Math.min(request.start_hour, request.end_hour)
-    const endHour = Math.max(request.start_hour, request.end_hour)
-    const hoursToBlock = []
-    for (let hour = startHour; hour <= endHour; hour++) {
-      hoursToBlock.push(hour)
+    if (!roomId) {
+      notifyError('Unable to approve request', {
+        description: 'Room metadata is incomplete. Please refresh and try again.'
+      })
+      setRequestActionLoading(false)
+      return false
+    }
+
+    const startSlotId = request.start_timeslot_id || request.start_timeslot?.id
+    const endSlotId = request.end_timeslot_id || request.end_timeslot?.id || startSlotId
+    const slotType = request.start_timeslot?.slot_type || request.end_timeslot?.slot_type
+    const slotsToBlock = resolveSlotSequence(startSlotId, endSlotId, slotType)
+
+    if (!slotsToBlock.length) {
+      notifyError('Unable to approve request', {
+        description: 'No valid time slots were found for this request.'
+      })
+      setRequestActionLoading(false)
+      return false
     }
 
     const scheduledDates = []
@@ -107,14 +221,24 @@ export const useRoomRequests = (canManage, canRequest, user, profile) => {
 
       const map = new Map()
       data.forEach((entry) => {
-        map.set(`${entry.room_number}-${entry.slot_hour}`, entry)
+        const entrySlotKey = entry.timeslot_id || entry.slot_hour
+        if (!entrySlotKey) {
+          return
+        }
+        if (entry.room_id) {
+          map.set(`${entry.room_id}-${entrySlotKey}`, entry)
+        }
+        const legacyRoomKey = entry.room_code || entry.room_number
+        if (legacyRoomKey) {
+          map.set(`${legacyRoomKey}-${entrySlotKey}`, entry)
+        }
       })
 
-      for (const hour of hoursToBlock) {
-        const entry = map.get(`${request.room_number}-${hour}`)
+      for (const slotId of slotsToBlock) {
+        const entry = map.get(`${roomId}-${slotId}`) || map.get(`${roomCode}-${slotId}`)
         if (entry && entry.status !== SCHEDULE_STATUS.empty) {
           notifyError('Schedule conflict detected', {
-            description: `Room ${request.room_number} on ${dateInfo.display.toLocaleDateString()} at ${getSlotLabel(hour)} is already reserved.`
+            description: `Room ${roomCode} on ${dateInfo.display.toLocaleDateString()} at ${getSlotLabel(slotId)} is already reserved.`
           })
           setRequestActionLoading(false)
           return
@@ -124,11 +248,11 @@ export const useRoomRequests = (canManage, canRequest, user, profile) => {
 
     const appliedEntries = []
     for (const dateInfo of scheduledDates) {
-      for (const hour of hoursToBlock) {
-        const { error } = await upsertScheduleEntry({
+      for (const slotId of slotsToBlock) {
+        const { data: savedEntry, error } = await upsertScheduleEntry({
           schedule_date: dateInfo.iso,
-          room_number: request.room_number,
-          slot_hour: hour,
+          room_id: roomId,
+          timeslot_id: slotId,
           status: SCHEDULE_STATUS.occupied,
           course_name: request.course_name || null,
           booked_by: request.requester_name || 'Reserved'
@@ -138,7 +262,15 @@ export const useRoomRequests = (canManage, canRequest, user, profile) => {
           console.error('Error applying schedule entry:', error.message || error)
           // rollback entries already applied
           for (const applied of appliedEntries) {
-            await deleteScheduleEntry(applied)
+            await deleteScheduleEntry(
+              applied.id
+                ? { id: applied.id }
+                : {
+                    schedule_date: applied.schedule_date,
+                    room_id: applied.room_id,
+                    timeslot_id: applied.timeslot_id
+                  }
+            )
           }
           notifyError('Unable to approve request', {
             description: 'Failed to update the schedule. No changes were kept.'
@@ -148,9 +280,10 @@ export const useRoomRequests = (canManage, canRequest, user, profile) => {
         }
 
         appliedEntries.push({
+          id: savedEntry?.id || null,
           schedule_date: dateInfo.iso,
-          room_number: request.room_number,
-          slot_hour: hour
+          room_id: roomId,
+          timeslot_id: slotId
         })
       }
     }
@@ -167,7 +300,15 @@ export const useRoomRequests = (canManage, canRequest, user, profile) => {
     if (statusError) {
       console.error('Error finalising approval:', statusError.message || statusError)
       for (const applied of appliedEntries) {
-        await deleteScheduleEntry(applied)
+        await deleteScheduleEntry(
+          applied.id
+            ? { id: applied.id }
+            : {
+                schedule_date: applied.schedule_date,
+                room_id: applied.room_id,
+                timeslot_id: applied.timeslot_id
+              }
+        )
       }
       notifyError('Unable to finalise approval', {
         description: 'The request status could not be updated. The schedule changes were reverted.'
@@ -176,8 +317,10 @@ export const useRoomRequests = (canManage, canRequest, user, profile) => {
       return
     }
 
+    const displayRoom = request.room_name || request.room_number || request.room_code
+
     notifySuccess('Request approved', {
-      description: `Room ${request.room_number} reserved from ${scheduledDates[0].display.toLocaleDateString()} for ${request.week_count} week${request.week_count > 1 ? 's' : ''}.`
+      description: `Room ${displayRoom} reserved from ${scheduledDates[0].display.toLocaleDateString()} for ${request.week_count} week${request.week_count > 1 ? 's' : ''}.`
     })
 
     setRejectionReasons((prev) => ({
@@ -187,7 +330,7 @@ export const useRoomRequests = (canManage, canRequest, user, profile) => {
     
     setRequestActionLoading(false)
     return true
-  }, [requestActionLoading, user, profile, notifySuccess, notifyError])
+  }, [requestActionLoading, user, profile, notifySuccess, notifyError, resolveSlotSequence, roomLookup])
 
   const rejectRequest = useCallback(async (request) => {
     if (requestActionLoading) return
@@ -214,8 +357,10 @@ export const useRoomRequests = (canManage, canRequest, user, profile) => {
       return false
     }
 
+    const displayRoom = request.room_name || request.room_number || request.room_code
+
     notifySuccess('Request rejected', {
-      description: `Room request for ${request.room_number} has been rejected.`
+      description: `Room request for ${displayRoom} has been rejected.`
     })
 
     setRejectionReasons((prev) => ({
@@ -238,12 +383,22 @@ export const useRoomRequests = (canManage, canRequest, user, profile) => {
 
     setRequestActionLoading(true)
 
-    const startHour = Math.min(request.start_hour, request.end_hour)
-    const endHour = Math.max(request.start_hour, request.end_hour)
-    const hoursToBlock = []
-    for (let hour = startHour; hour <= endHour; hour++) {
-      hoursToBlock.push(hour)
+    const roomCode = request.room_code || request.room_number
+    const roomMeta = roomCode ? roomLookup.get(roomCode) : null
+    const roomId = request.room_id || roomMeta?.id
+
+    if (!roomId) {
+      notifyError('Unable to revert request', {
+        description: 'Room metadata is incomplete. Please refresh and try again.'
+      })
+      setRequestActionLoading(false)
+      return false
     }
+
+    const startSlotId = request.start_timeslot_id || request.start_timeslot?.id
+    const endSlotId = request.end_timeslot_id || request.end_timeslot?.id || startSlotId
+    const slotType = request.start_timeslot?.slot_type || request.end_timeslot?.slot_type
+    const slotsToRemove = resolveSlotSequence(startSlotId, endSlotId, slotType)
 
     const scheduledDates = []
     const baseDate = parseDateString(request.base_date)
@@ -259,18 +414,18 @@ export const useRoomRequests = (canManage, canRequest, user, profile) => {
     // Delete all schedule entries for this request
     const deletedEntries = []
     for (const dateInfo of scheduledDates) {
-      for (const hour of hoursToBlock) {
+      for (const slotId of slotsToRemove) {
         const { error } = await deleteScheduleEntry({
           schedule_date: dateInfo.iso,
-          room_number: request.room_number,
-          slot_hour: hour
+          room_id: roomId,
+          timeslot_id: slotId
         })
 
         if (!error) {
           deletedEntries.push({
             schedule_date: dateInfo.iso,
-            room_number: request.room_number,
-            slot_hour: hour
+            room_id: roomId,
+            timeslot_id: slotId
           })
         }
       }
@@ -295,8 +450,10 @@ export const useRoomRequests = (canManage, canRequest, user, profile) => {
       return false
     }
 
+    const displayRoom = request.room_name || request.room_number || request.room_code
+
     notifySuccess('Request reverted', {
-      description: `Room ${request.room_number} request has been reverted. ${deletedEntries.length} schedule ${deletedEntries.length === 1 ? 'entry' : 'entries'} deleted.`
+      description: `Room ${displayRoom} request has been reverted. ${deletedEntries.length} schedule ${deletedEntries.length === 1 ? 'entry' : 'entries'} deleted.`
     })
 
     setRejectionReasons((prev) => ({
@@ -306,7 +463,7 @@ export const useRoomRequests = (canManage, canRequest, user, profile) => {
     
     setRequestActionLoading(false)
     return true
-  }, [requestActionLoading, user, profile, rejectionReasons, notifySuccess, notifyError])
+  }, [requestActionLoading, user, profile, rejectionReasons, notifySuccess, notifyError, resolveSlotSequence, roomLookup])
 
   const submitRequest = useCallback(async (requestData) => {
     try {
@@ -316,6 +473,19 @@ export const useRoomRequests = (canManage, canRequest, user, profile) => {
         requester_id: user?.id,
         requester_name: profile?.username || profile?.full_name || user?.user_metadata?.username || user?.email || 'Teacher',
         requester_email: user?.email || null
+      }
+
+      if (!fullRequestData.room_id) {
+        const fallbackRoom = fullRequestData.room_code ? roomLookup.get(fullRequestData.room_code) : null
+        fullRequestData.room_id = fallbackRoom?.id || null
+      }
+
+      if (!fullRequestData.room_id) {
+        throw new Error('Unable to determine the room identifier for this request.')
+      }
+
+      if (!fullRequestData.start_timeslot_id || !fullRequestData.end_timeslot_id) {
+        throw new Error('Time slot selection is incomplete.')
       }
 
       const { error } = await createRoomRequest(fullRequestData)
@@ -336,7 +506,7 @@ export const useRoomRequests = (canManage, canRequest, user, profile) => {
       })
       return false
     }
-  }, [user, profile, notifySuccess, notifyError])
+  }, [user, profile, notifySuccess, notifyError, roomLookup])
 
   // UI state for panels
   const [requestsPanelOpen, setRequestsPanelOpen] = useState(false)
@@ -346,7 +516,9 @@ export const useRoomRequests = (canManage, canRequest, user, profile) => {
   const [requestState, setRequestState] = useState({ 
     isOpen: false, 
     isEditMode: false,
-    room: null, 
+    room: null,
+    roomId: null,
+    roomName: null,
     startHour: null, 
     endHour: null,
     existingEntry: null
@@ -364,7 +536,9 @@ export const useRoomRequests = (canManage, canRequest, user, profile) => {
     setRequestState({ 
       isOpen: false, 
       isEditMode: false,
-      room: null, 
+      room: null,
+      roomId: null,
+      roomName: null,
       startHour: null, 
       endHour: null,
       existingEntry: null

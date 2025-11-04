@@ -1,35 +1,23 @@
-import { Suspense, useState } from 'react'
+import { Suspense } from 'react'
 import { useGLTF } from '@react-three/drei'
 
 function Model({ modelUrl, position, onClick }) {
-  const [error, setError] = useState(null)
-  
-  try {
-    const { scene } = useGLTF(modelUrl)
-    
-    if (error) {
-      console.error('[SchoolModel] Model loading error:', error)
-      return null
-    }
+  const { scene } = useGLTF(modelUrl)
 
-    return (
-      <primitive 
-        object={scene} 
-        scale={1} 
-        position={position}
-        onClick={onClick}
-        onPointerOver={() => {
-          document.body.style.cursor = 'pointer'
-        }}
-        onPointerOut={() => {
-          document.body.style.cursor = 'auto'
-        }}
-      />
-    )
-  } catch (err) {
-    console.error('[SchoolModel] useGLTF error:', err)
-    return null
-  }
+  return (
+    <primitive 
+      object={scene} 
+      scale={1} 
+      position={position}
+      onClick={onClick}
+      onPointerOver={() => {
+        document.body.style.cursor = 'pointer'
+      }}
+      onPointerOut={() => {
+        document.body.style.cursor = 'auto'
+      }}
+    />
+  )
 }
 
 function SchoolModel({ building, onBuildingClick }) {
