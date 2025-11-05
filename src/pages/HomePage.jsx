@@ -1,43 +1,37 @@
 import { useNavigate } from 'react-router-dom'
-import { COLORS } from '../../constants/colors'
+import { COLORS } from '../constants/colors'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
-import { useAuth } from '../../context/AuthContext'
-import { signOut } from '../../services/authService'
+import { useAuth } from '../context/AuthContext'
+import { signOut } from '../services/authService'
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
-import SchoolModel from '../../components/SchoolModel'
-import BuildingInfoModal from '../../components/BuildingInfo'
-import UserManagementModal from '../../components/UserManagementModal'
-import SchedulePanel from '../../components/BuildingInfo/SchedulePanel'
-import { useNotifications } from '../../context/NotificationContext'
-import { USER_ROLES } from '../../constants/roles'
-import { SCHEDULE_STATUS, SCHEDULE_STATUS_LABELS } from '../../constants/schedule'
-import { fetchBuildings } from '../../services/buildingService'
-import { fetchRoomsByBuildingId } from '../../services/roomService'
-import { fetchTimeslots } from '../../services/timeslotService'
-import { cn } from '../../styles/shared'
+import SchoolModel from '../components/SchoolModel'
+import { useNotifications } from '../context/NotificationContext'
+import { USER_ROLES } from '../constants/roles'
+import { SCHEDULE_STATUS, SCHEDULE_STATUS_LABELS } from '../constants/schedule'
+import { fetchBuildings } from '../services/buildingService'
+import { fetchRoomsByBuildingId } from '../services/roomService'
+import { fetchTimeslots } from '../services/timeslotService'
+import { cn } from '../styles/shared'
 
 // Import extracted components
-import {
-  ScheduleEditModal,
-  RoomRequestModal,
-  BuildingSchedulePanel,
-  SearchBuilding
-} from './'
-import UnifiedPanel from './UnifiedPanel'
-import UnifiedPanelCenter from './UnifiedPanelCenter'
-import { RequestsPanelContent, MyRequestsPanelContent } from './UnifiedPanelContent'
-import { UserManagementContent } from './UserManagementContent'
-import { BuildingSchedulePanelContent } from './BuildingSchedulePanelContent'
-import BuildingSidebar from '../../components/BuildingInfo/BuildingSidebar'
-import ScheduleRequestContent from './ScheduleRequestContent'
-import ScheduleEditContent from './ScheduleEditContent'
+import BuildingInfoModal from '../components/HomePage/BuildingInfoModal'
+import BuildingScheduleContent from '../components/HomePage/BuildingScheduleContent'
+import RoomScheduleContent from '../components/HomePage/RoomScheduleContent'
+import SearchBuilding from '../components/HomePage/SearchBuilding'
+import UnifiedPanel from '../components/HomePage/UnifiedPanel'
+import UnifiedPanelCenter from '../components/HomePage/UnifiedPanelCenter'
+import RequestsPanelContent from '../components/HomePage/RequestsPanelContent'
+import MyRequestsPanelContent from '../components/HomePage/MyRequestsPanelContent'
+import { UserManagementContent } from '../components/HomePage/UserManagementContent'
+import ScheduleRequestContent from '../components/HomePage/ScheduleRequestContent'
+import ScheduleEditContent from '../components/HomePage/ScheduleEditContent'
 
 // Import custom hooks
-import { useScheduleManagement } from '../../hooks/useScheduleManagement'
-import { useRoomRequests } from '../../hooks/useRoomRequests'
-import { useCameraControls } from '../../hooks/useCameraControls'
+import { useScheduleManagement } from '../hooks/useScheduleManagement'
+import { useRoomRequests } from '../hooks/useRoomRequests'
+import { useCameraControls } from '../hooks/useCameraControls'
 
 // Import utilities
 import {
@@ -45,7 +39,7 @@ import {
   parseDateString,
   groupRoomsByFloor,
   getSlotLabel as resolveSlotLabel
-} from '../../utils'
+} from '../utils'
 
 // Styles
 const styles = {
@@ -125,7 +119,6 @@ function HomePage() {
   const [isBuildingDropdownOpen, setIsBuildingDropdownOpen] = useState(false)
   const [isDropdownClosing, setIsDropdownClosing] = useState(false)
   const dropdownRef = useRef(null)
-  const floorRoomListScrollRef = useRef(null)
   
   const [buildingRooms, setBuildingRooms] = useState([])
   const [buildingRoomsLoading, setBuildingRoomsLoading] = useState(false)
@@ -146,12 +139,6 @@ function HomePage() {
   const [centerPanelContentType, setCenterPanelContentType] = useState(null) // 'schedule-request' | 'schedule-edit' | null
   const isCenterPanelOpen = centerPanelContentType !== null
   
-  // BuildingSidebar state (for UnifiedPanel building-info content)
-  const [expandedFloorKey, setExpandedFloorKey] = useState(null)
-  const toggleFloor = (floorKey) => {
-    setExpandedFloorKey((prev) => (prev === floorKey ? null : floorKey))
-  }
-
   // Calculate ISO date
   const isoDate = useMemo(() => toIsoDateString(scheduleDate), [scheduleDate])
 
@@ -199,6 +186,33 @@ function HomePage() {
       }
     })
   }, [roomScheduleRoomCode, scheduleMap, buildScheduleKey, timeSlots])
+
+  const handleOpenRoomSchedulePanel = useCallback((roomMeta) => {
+    if (!roomMeta) return
+    const roomCode =
+      roomMeta.room_code || roomMeta.roomNumber || roomMeta.room_number || roomMeta.code || null
+    if (!roomCode) return
+
+    const displayName = roomMeta.room_name || roomMeta.roomNumber || roomMeta.room_number || roomCode
+    const isBookable =
+      String(roomMeta.bookable).toLowerCase() === 'true' || roomMeta.bookable === true
+
+    setRoomScheduleRoomCode(roomCode)
+    setRoomScheduleRoomName(displayName)
+    setRoomScheduleBookable(isBookable)
+    setRoomScheduleRoomType(roomMeta.room_type || null)
+    setUnifiedPanelContentType('room-schedule')
+    setIsRoomScheduleOpen(true)
+  }, [])
+
+  const handleCloseRoomSchedulePanel = useCallback(() => {
+    setIsRoomScheduleOpen(false)
+    setRoomScheduleRoomCode(null)
+    setRoomScheduleRoomName('')
+    setRoomScheduleBookable(true)
+    setRoomScheduleRoomType(null)
+    setUnifiedPanelContentType((prev) => (prev === 'room-schedule' ? null : prev))
+  }, [])
 
   // Utility functions for hooks
   const getSlotLabel = useCallback((slotId) => {
@@ -340,8 +354,7 @@ function HomePage() {
 
   const handleCloseDropdown = () => {
     setIsDropdownClosing(true)
-    // Reset expanded floor and Building Info state immediately when dropdown closes
-    setExpandedFloorKey(null)
+    // Reset Building Info state immediately when dropdown closes
     setIsBuildingInfoOpen(false)
     setTimeout(() => {
       setIsBuildingDropdownOpen(false)
@@ -687,6 +700,10 @@ function HomePage() {
   // Central close for UnifiedPanel (same behavior as UnifiedPanel onClose prop)
   const handleUnifiedPanelClose = () => {
     const currentType = unifiedPanelContentType
+    if (currentType === 'room-schedule') {
+      handleCloseRoomSchedulePanel()
+      return
+    }
     setUnifiedPanelContentType(null)
     if (currentType === 'requests') setRequestsPanelOpen(false)
     if (currentType === 'my-requests') setMyRequestsPanelOpen(false)
@@ -848,52 +865,14 @@ function HomePage() {
           return
         }
 
-        // Set room schedule state and open room schedule
-        const displayName = room.room_name || room.roomNumber || room.room_number || room.room_code
-        setRoomScheduleRoomCode(room.room_code)
-        setRoomScheduleRoomName(displayName)
-        setRoomScheduleBookable(String(room.bookable).toLowerCase() === 'true' || room.bookable === true)
-  setRoomScheduleRoomType(room.room_type || null)
-        
-        // Also open BuildingInfo and expand the floor containing this room
+        // Open Building Info and focus the floor containing this room
         setIsBuildingInfoOpen(true)
-        
-        // Find and expand the floor containing this room
-        // Compute the floor key directly from the room's floor data
-        // The floorKey logic in render: group.floor_id ?? group.floorId ?? group.floor_name ?? group.floorName ?? idx
-        // groupRoomsByFloor returns { id, name, rooms }, so we use id or name
-        if (room.floors) {
-          const floorId = room.floors.id
-          const floorName = room.floors.floor_name
-          // Use id first, then name, matching the groupRoomsByFloor structure
-          const floorKey = floorId ?? floorName
-          if (floorKey) {
-            // Use a small delay to ensure buildingRooms state is updated and roomsByFloor memo is recalculated
-            setTimeout(() => {
-              setExpandedFloorKey(floorKey)
-              
-              // Then scroll to the room button after floor is expanded
-              setTimeout(() => {
-                if (floorRoomListScrollRef.current) {
-                  const roomButton = floorRoomListScrollRef.current.querySelector(
-                    `button[data-room-code="${room.room_code}"]`
-                  )
-                  if (roomButton) {
-                    roomButton.scrollIntoView({ 
-                      behavior: 'smooth', 
-                      block: 'center',
-                      inline: 'nearest'
-                    })
-                  }
-                }
-              }, 100) // Additional delay to ensure room list is rendered
-            }, 50)
-          }
-        }
-        
+        window.dispatchEvent(new CustomEvent('search-room', {
+          detail: { roomCode: room.room_code }
+        }))
+
         // Open room schedule in UnifiedPanel
-        setUnifiedPanelContentType('room-schedule')
-        setIsRoomScheduleOpen(true)
+        handleOpenRoomSchedulePanel(room)
       } else {
         // Just open building dropdown - don't open unified panel
         // The building is already selected and dropdown is opened above
@@ -1206,158 +1185,14 @@ function HomePage() {
                             className={cn("my-2 mx-auto transition-all duration-300 ease-out", isBuildingInfoOpen ? "opacity-100" : "opacity-0")}
                             style={{ width: '260px', height: '1px', backgroundColor: 'rgba(255,255,255,0.6)' }}
                           />
-                          <div
-                            ref={floorRoomListScrollRef}
-                            className="no-scrollbar flex flex-col gap-1 px-0 py-0 mx-auto overflow-y-auto"
-                            style={{
-                              width: '244px',
-                              maxHeight: 'calc(95vh - 250px)',
-                              opacity: isBuildingInfoOpen ? 1 : 0,
-                              transform: isBuildingInfoOpen ? 'translateY(0)' : 'translateY(-20px)',
-                              willChange: 'opacity, transform',
-                              transitionProperty: 'opacity, transform',
-                              transitionDuration: '300ms',
-                              transitionTimingFunction: 'ease-out',
-                              transitionDelay: '0ms'
-                            }}
-                          >
-                            {(Array.isArray(roomsByFloor) ? roomsByFloor : []).map((group, idx) => {
-                              const floorKey = group.floor_id ?? group.floorId ?? group.id ?? group.floor_name ?? group.floorName ?? group.name ?? idx
-                              const floorName = group.floor_name ?? group.floorName ?? group.name ?? `Floor ${idx+1}`
-                              const rooms = group.rooms ?? []
-                              const expanded = expandedFloorKey === floorKey
-                              return (
-                                <div key={`${floorKey}-${floorName}`} className="w-full">
-                        <button
-                          type="button"
-                                    onClick={() => toggleFloor(floorKey)}
-                                    className={cn(
-                                      "w-full text-left px-3 py-1.5 font-bold uppercase tracking-[0.19em] text-[0.62rem] mb-0 transition-colors duration-150",
-                                      expanded 
-                                        ? "bg-[#4a5568] border-white text-white" 
-                                        : "bg-[#323640] border-[#b8beca19] text-[#f0f0f0] hover:bg-[#4a5568] hover:border-white hover:text-white"
-                                    )}
-                                    style={{ borderRadius: 0 }}
-                                  >
-                                    <span className="text-[#F8F8F8]/90 mr-2">{expanded ? '−' : '+'}</span>{floorName}
-                        </button>
-                                  <div 
-                                    className="flex flex-col gap-1 mt-1 mb-1 overflow-hidden"
-                                    style={{
-                                      maxHeight: expanded && rooms.length > 0 ? '1000px' : '0px',
-                                      opacity: expanded && rooms.length > 0 ? 1 : 0,
-                                      transition: 'max-height 300ms ease-out, opacity 300ms ease-out',
-                                      pointerEvents: expanded && rooms.length > 0 ? 'auto' : 'none'
-                                    }}
-                                  >
-                                    {/* Two-column layout: left classroom, right administrative */}
-                                    {rooms.length > 0 && (
-                                      <div className="grid grid-cols-2 gap-2 w-full" style={{
-                                        opacity: expanded ? 1 : 0,
-                                        transition: 'opacity 300ms ease-out'
-                                      }}>
-                                        {/* Classroom column */}
-                                        <div className="flex flex-col gap-1">
-                                          {rooms.filter(r => (r.room_type || '').toLowerCase() === 'classroom').map((room, roomIdx) => (
-                                            <button
-                                              key={room.id || room.room_code}
-                                              data-room-code={room.room_code}
-                                              type="button"
-                                              onClick={() => {
-                                                const isCurrentlyOpen = isRoomScheduleOpen && roomScheduleRoomCode === room.room_code && unifiedPanelContentType === 'room-schedule'
-                                                if (isCurrentlyOpen) {
-                                                  // Close the room schedule
-                                                  setIsRoomScheduleOpen(false)
-                                                  setRoomScheduleRoomCode(null)
-                                                  setRoomScheduleRoomName('')
-                                                  setRoomScheduleRoomType(null)
-                                                  setUnifiedPanelContentType(null)
-                                                } else {
-                                                  // Open the room schedule
-                                                  setRoomScheduleRoomCode(room.room_code)
-                                                  const displayName = room.room_name || room.roomNumber || room.room_number || room.room_code
-                                                  setRoomScheduleRoomName(displayName)
-                                                  setRoomScheduleBookable(String(room.bookable).toLowerCase() === 'true' || room.bookable === true)
-                                                  setRoomScheduleRoomType(room.room_type || null)
-                                                  setUnifiedPanelContentType('room-schedule')
-                                                  setIsRoomScheduleOpen(true)
-                                                }
-                                              }}
-                                              className={cn(
-                                                "text-left px-3 py-1.5 text-[0.54rem] tracking-[0.12em] border-none shadow-none font-normal transition-colors duration-150",
-                                                isRoomScheduleOpen && roomScheduleRoomCode === room.room_code && unifiedPanelContentType === 'room-schedule'
-                                                  ? "bg-[#4a5568] text-white"
-                                                  : "bg-[#49505c] text-[#F8F8F8] hover:bg-[#4a5568] hover:text-white"
-                                              )}
-                                              style={{ 
-                                                borderRadius: 0, 
-                                                width: '100%',
-                                                opacity: expanded ? 1 : 0,
-                                                transition: expanded 
-                                                  ? `opacity 10ms ease-out ${roomIdx * 20}ms, background-color 150ms ease-out`
-                                                  : `opacity 300ms ease-out ${roomIdx * 10}ms`
-                                              }}
-                                            >
-                                              {`Room ${room.room_name || room.roomNumber || room.room_number || room.room_code || ''}`}
-                                            </button>
-                                          ))}
-                                        </div>
-                                        {/* Administrative column */}
-                                        <div className="flex flex-col gap-1">
-                                          {rooms.filter(r => (r.room_type || '').toLowerCase() === 'administrative').map((room, roomIdx) => (
-                                            <button
-                                              key={room.id || room.room_code}
-                                              data-room-code={room.room_code}
-                                              type="button"
-                                              onClick={() => {
-                                                const isCurrentlyOpen = isRoomScheduleOpen && roomScheduleRoomCode === room.room_code && unifiedPanelContentType === 'room-schedule'
-                                                if (isCurrentlyOpen) {
-                                                  // Close the room schedule
-                                                  setIsRoomScheduleOpen(false)
-                                                  setRoomScheduleRoomCode(null)
-                                                  setRoomScheduleRoomName('')
-                                                  setRoomScheduleRoomType(null)
-                                                  setUnifiedPanelContentType(null)
-                                                } else {
-                                                  // Open the room schedule
-                                                  setRoomScheduleRoomCode(room.room_code)
-                                                  const displayName = room.room_name || room.roomNumber || room.room_number || room.room_code
-                                                  setRoomScheduleRoomName(displayName)
-                                                  setRoomScheduleBookable(String(room.bookable).toLowerCase() === 'true' || room.bookable === true)
-                                                  setRoomScheduleRoomType(room.room_type || null)
-                                                  setUnifiedPanelContentType('room-schedule')
-                                                  setIsRoomScheduleOpen(true)
-                                                }
-                                              }}
-                                              className={cn(
-                                                "text-left px-3 py-1.5 text-[0.54rem] tracking-[0.12em] border-none shadow-none font-normal transition-colors duration-150",
-                                                isRoomScheduleOpen && roomScheduleRoomCode === room.room_code && unifiedPanelContentType === 'room-schedule'
-                                                  ? "bg-[#4a5568] text-white"
-                                                  : "bg-[#49505c] text-[#F8F8F8] hover:bg-[#4a5568] hover:text-white"
-                                              )}
-                                              style={{ 
-                                                borderRadius: 0, 
-                                                width: '100%',
-                                                opacity: expanded ? 1 : 0,
-                                                transition: expanded 
-                                                  ? `opacity 10ms ease-out ${roomIdx * 20}ms, background-color 150ms ease-out`
-                                                  : `opacity 300ms ease-out ${roomIdx * 10}ms`
-                                              }}
-                                            >
-                                              {room.room_name || room.roomNumber || room.room_number || room.room_code || ''}
-                                            </button>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-                               </div>
-                             )
-                           })}
-                           {Array.isArray(roomsByFloor) && roomsByFloor.length === 0 && (
-                             <div className="px-2 py-2 text-[0.58rem] tracking-[0.18em] text-[#EEEEEE]/60">No floors found.</div>
-                           )}
-                         </div>
+                        <BuildingInfoModal
+                          isOpen={isBuildingInfoOpen}
+                          roomsByFloor={roomsByFloor}
+                          isRoomScheduleOpen={isRoomScheduleOpen}
+                          activeRoomCode={roomScheduleRoomCode}
+                          onOpenRoomSchedule={handleOpenRoomSchedulePanel}
+                          onCloseRoomSchedule={handleCloseRoomSchedulePanel}
+                        />
                           {/* Subtle divider line below (centered) with fade/slide - outside scrollable container */}
                           <div 
                             className={cn("my-2 mx-auto transition-all duration-300 ease-out", isBuildingInfoOpen ? "opacity-100" : "opacity-0")}
@@ -1407,7 +1242,7 @@ function HomePage() {
            <UserManagementContent currentUserId={user?.id} />
          )}
          {unifiedPanelContentType === 'schedule' && selectedBuilding && (
-           <BuildingSchedulePanelContent
+           <BuildingScheduleContent
          selectedBuilding={selectedBuilding}
          buildingRooms={buildingRooms}
          buildingRoomsLoading={buildingRoomsLoading}
@@ -1470,7 +1305,7 @@ function HomePage() {
        />
          )}
         {unifiedPanelContentType === 'room-schedule' && isRoomScheduleOpen && roomScheduleRoomCode && (
-          <SchedulePanel
+          <RoomScheduleContent
             isOpen={true}
             embedded={true}
             roomCode={roomScheduleRoomCode}

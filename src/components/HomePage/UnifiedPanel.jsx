@@ -7,7 +7,7 @@ const PANEL_WIDTHS = {
   'my-requests': '691px',     // 768px - 10% = ~691px
   'user-management': '717px', // 1024px - 30% = ~717px
   'building-info': '300px',    // BuildingSidebar width
-  'schedule': '1024px',        // max-w-5xl (BuildingSchedulePanel)
+  'schedule': '1024px',        // max-w-5xl (BuildingScheduleContent)
   'room-schedule': '180px'     // Wider room schedule panel width (~22% wider)
 }
 
