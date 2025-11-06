@@ -1,14 +1,30 @@
 import { useState } from 'react'
 import { ROOM_REQUEST_STATUS_LABELS, ROOM_REQUEST_STATUS_STYLES } from '../../constants/requests'
 import { formatDateDisplay, formatRequestRange, getDefaultDateFilter, getRequestRoomLabel } from '../../utils'
-import { COLORS } from '../../constants/colors'
+import '../../styles/HomePageStyle/RequestsPanelStyle.css'
+
+const toIsoDate = (date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const resolveStatusStyles = (statusStyle) => {
+  if (!statusStyle || typeof statusStyle !== 'object') return undefined
+  const styles = {}
+  if (statusStyle.backgroundColor) styles.backgroundColor = statusStyle.backgroundColor
+  if (statusStyle.color) styles.color = statusStyle.color
+  if (statusStyle.borderColor) styles.borderColor = statusStyle.borderColor
+  return styles
+}
 
 const RequestsPanelContent = ({
-  pendingRequests,
-  historicalRequests,
+  pendingRequests = [],
+  historicalRequests = [],
   requestsLoading,
   historicalDateFilter,
-  rejectionReasons,
+  rejectionReasons = {},
   setRejectionReasons,
   requestActionLoading,
   onDateFilterChange,
@@ -20,11 +36,31 @@ const RequestsPanelContent = ({
   const [showingRejectField, setShowingRejectField] = useState(null)
   const [showingRevertField, setShowingRevertField] = useState(null)
 
+  const activeHistoricalFilter = historicalDateFilter || getDefaultDateFilter()
+  const pendingCount = pendingRequests.length
+  const historicalCount = historicalRequests.length
+
+  const updateReason = (id, value) => {
+    if (typeof setRejectionReasons !== 'function') return
+    setRejectionReasons((previous = {}) => ({ ...previous, [id]: value }))
+  }
+
+  const getReasonValue = (id) => rejectionReasons[id] || ''
+
   const handleRejectClick = (request) => {
     if (showingRejectField === request.id) {
-      if (window.confirm(`Are you sure you want to reject the request for Room ${request.room_number}?`)) {
+      if (typeof onReject !== 'function') return
+      const confirmMessage = `Are you sure you want to reject the request for Room ${request.room_number}?`
+      if (typeof window === 'undefined' || window.confirm(confirmMessage)) {
         onReject(request)
         setShowingRejectField(null)
+        if (Array.isArray(timeSlots)) {
+          timeSlots.forEach((slot) => {
+            if (slot && typeof slot === 'object') {
+              slot.selected = false
+            }
+          })
+        }
       }
     } else {
       setShowingRejectField(request.id)
@@ -33,6 +69,7 @@ const RequestsPanelContent = ({
 
   const handleRevertClick = (request) => {
     if (showingRevertField === request.id) {
+      if (typeof onRevert !== 'function') return
       onRevert(request)
       setShowingRevertField(null)
     } else {
@@ -40,310 +77,263 @@ const RequestsPanelContent = ({
     }
   }
 
+  const handleHistoryReset = () => {
+    if (typeof onDateFilterChange === 'function') {
+      onDateFilterChange(getDefaultDateFilter())
+    }
+  }
+
+  const handleHistoryInputChange = (key) => (event) => {
+    if (typeof onDateFilterChange !== 'function') return
+    const value = event.target.value
+    if (!value) {
+      const today = new Date()
+      onDateFilterChange({ ...activeHistoricalFilter, [key]: toIsoDate(today) })
+      return
+    }
+    onDateFilterChange({ ...activeHistoricalFilter, [key]: value })
+  }
+
   return (
-    <div className="flex h-full w-full flex-col" style={{ backgroundColor: COLORS.black }}>
-      <style>
-        {`
-          input[type="date"]::-webkit-calendar-picker-indicator {
-            filter: invert(1);
-          }
-          input[type="date"]::-webkit-inner-spin-button {
-            filter: invert(1);
-          }
-        `}
-      </style>
-      <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: `1px solid ${COLORS.darkGray}` }}>
-        <div>
-          <h2 className="text-xl font-semibold" style={{ color: COLORS.white }}>Room Requests</h2>
-        </div>
+    <div className="rq-panel">
+      <div className="rq-header">
+        <h2 className="rq-title">Room Requests</h2>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6" style={{ scrollbarWidth: 'thin', scrollbarColor: '#3282B8 #222831' }}>
+      <div className="rq-content">
         {requestsLoading ? (
-          <div className="flex h-full items-center justify-center text-sm" style={{ color: COLORS.whiteTransparentMid }}>
-            Loading requests…
-          </div>
+          <div className="rq-loading">Loading requests…</div>
         ) : (
-          <>
-            <section className="space-y-4">
-              <header className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: COLORS.blue }}>Pending</h3>
-                <span className="text-xs font-medium" style={{ color: COLORS.whiteTransparentMid }}>{pendingRequests.length} awaiting decision</span>
+          <div className="rq-stack">
+            <section className="rq-section">
+              <header className="rq-section-header" data-status="pending">
+                <h3 className="rq-section-title">Pending</h3>
+                <span className="rq-section-count">{pendingCount} awaiting decision</span>
               </header>
 
-              {pendingRequests.length === 0 ? (
-                <div className="px-4 py-6 text-center text-sm" style={{ border: `1px dashed ${COLORS.darkGray}`, color: COLORS.whiteTransparentMid }}>
-                  All caught up. No pending requests.
-                </div>
+              {pendingCount === 0 ? (
+                <div className="rq-empty-card">All caught up. No pending requests.</div>
               ) : (
-                pendingRequests.map((request) => {
-                  const statusStyle = ROOM_REQUEST_STATUS_STYLES[request.status] || ROOM_REQUEST_STATUS_STYLES.pending
-                  const roomLabel = getRequestRoomLabel(request)
-                  return (
-                    <div key={request.id} className="border px-5 py-4 shadow-sm" style={{ border: '1px solid rgba(238,238,238,0.2)', backgroundColor: COLORS.darkGray, borderRadius: 0 }}>
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold" style={{ color: COLORS.white }}>
-                            {request.building_code} {roomLabel}
-                          </p>
-                          <p className="text-xs" style={{ color: COLORS.whiteTransparentLow }}>
-                            {formatDateDisplay(request.base_date)} • {formatRequestRange(request, timeSlots)} • {request.week_count} week{request.week_count > 1 ? 's' : ''}
-                          </p>
-                        </div>
-                        <span 
-                          className={`border px-2 py-1 text-xs font-semibold uppercase tracking-wide ${typeof statusStyle === 'string' ? statusStyle : ''}`}
-                          style={typeof statusStyle === 'object' ? { ...statusStyle, border: `1px solid ${statusStyle.borderColor}` } : {}}
-                        >
-                          {ROOM_REQUEST_STATUS_LABELS[request.status]}
-                        </span>
-                      </div>
+                <div className="rq-card-list">
+                  {pendingRequests.map((request) => {
+                    const statusStyle = ROOM_REQUEST_STATUS_STYLES[request.status] || ROOM_REQUEST_STATUS_STYLES.pending
+                    const roomLabel = getRequestRoomLabel(request)
+                    const statusStyles = resolveStatusStyles(statusStyle)
 
-                      <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2" style={{ color: COLORS.whiteTransparentMid }}>
-                        <div>
-                          <span className="font-semibold" style={{ color: COLORS.white }}>Teacher:</span> {request.requester_name || request.requester_email}
-                        </div>
-                        {request.course_name && (
-                          <div className="sm:col-span-2">
-                            <span className="font-semibold" style={{ color: COLORS.white }}>Course/Event:</span> {request.course_name}
+                    return (
+                      <article key={request.id} className="rq-card">
+                        <div className="rq-card-header">
+                          <div className="rq-card-meta">
+                            <p className="rq-card-title">{request.building_code} {roomLabel}</p>
+                            <p className="rq-card-subtitle">
+                              {formatDateDisplay(request.base_date)} • {formatRequestRange(request, timeSlots)} • {request.week_count} week
+                              {request.week_count > 1 ? 's' : ''}
+                            </p>
                           </div>
-                        )}
-                        {request.notes && (
-                          <div className="sm:col-span-2">
-                            <span className="font-semibold" style={{ color: COLORS.white }}>Notes:</span> {request.notes}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="mt-4 space-y-3">
-                        {showingRejectField === request.id && (
-                          <textarea
-                            value={rejectionReasons[request.id] || ''}
-                            onChange={(event) => setRejectionReasons((prev) => ({ ...prev, [request.id]: event.target.value }))}
-                            placeholder="Add a rejection note (optional)"
-                            className="w-full px-3 py-2 text-sm"
-                            style={{ 
-                              borderColor: '#4A5058', 
-                              backgroundColor: '#4A5058',
-                              color: COLORS.white,
-                              border: '1px solid #4A5058',
-                              borderRadius: 0
-                            }}
-                            rows={2}
-                          />
-                        )}
-
-                        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-                          <button
-                            type="button"
-                            onClick={() => handleRejectClick(request)}
-                            className="px-4 py-2 text-sm font-semibold transition-colors duration-150"
-                            style={{ 
-                              border: '1px solid rgba(238,238,238,0.2)',
-                              color: '#FFFFFF',
-                              backgroundColor: '#ef4444'
-                            }}
-                            disabled={requestActionLoading}
-                          >
-                            {requestActionLoading ? 'Working…' : 'Reject'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => onApprove(request)}
-                            className="px-4 py-2 text-sm font-semibold shadow transition-colors"
-                            style={{ 
-                              backgroundColor: COLORS.blue,
-                              color: COLORS.white,
-                              border: '1px solid transparent'
-                            }}
-                            disabled={requestActionLoading}
-                          >
-                            {requestActionLoading ? 'Working…' : 'Approve'}
-                          </button>
+                          <span className="rq-status-badge" style={statusStyles}>
+                            {ROOM_REQUEST_STATUS_LABELS[request.status]}
+                          </span>
                         </div>
-                      </div>
-                    </div>
-                  )
-                })
+
+                        <div className="rq-meta-grid">
+                          <div className="rq-meta-entry">
+                            <span className="rq-meta-label">Teacher:</span>
+                            <span>{request.requester_name || request.requester_email}</span>
+                          </div>
+                          {request.course_name && (
+                            <div className="rq-meta-entry" data-span="full">
+                              <span className="rq-meta-label">Course/Event:</span>
+                              <span>{request.course_name}</span>
+                            </div>
+                          )}
+                          {request.notes && (
+                            <div className="rq-meta-entry" data-span="full">
+                              <span className="rq-meta-label">Notes:</span>
+                              <span>{request.notes}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="rq-card-actions">
+                          {showingRejectField === request.id && (
+                            <textarea
+                              value={getReasonValue(request.id)}
+                              onChange={(event) => updateReason(request.id, event.target.value)}
+                              placeholder="Add a rejection note (optional)"
+                              className="rq-textarea"
+                              rows={2}
+                            />
+                          )}
+                          <div className="rq-button-row">
+                            <button
+                              type="button"
+                              onClick={() => handleRejectClick(request)}
+                              className="rq-button"
+                              data-variant="reject"
+                              disabled={requestActionLoading}
+                            >
+                              {requestActionLoading ? 'Working…' : 'Reject'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (typeof onApprove === 'function') {
+                                  onApprove(request)
+                                }
+                              }}
+                              className="rq-button"
+                              data-variant="approve"
+                              disabled={requestActionLoading}
+                            >
+                              {requestActionLoading ? 'Working…' : 'Approve'}
+                            </button>
+                          </div>
+                        </div>
+                      </article>
+                    )
+                  })}
+                </div>
               )}
             </section>
 
-            <section className="space-y-4">
-              <header className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: COLORS.blue }}>Recent decisions</h3>
-                <span className="text-xs font-medium" style={{ color: COLORS.whiteTransparentMid }}>Showing last {historicalRequests.length}</span>
+            <section className="rq-section">
+              <header className="rq-section-header" data-status="history">
+                <h3 className="rq-section-title">Recent decisions</h3>
+                <span className="rq-history-count">Showing last {historicalCount}</span>
               </header>
 
-              <div className="p-4" style={{ border: '1px solid rgba(238,238,238,0.2)', backgroundColor: COLORS.darkGray }}>
-                <div className="mb-2 flex items-center justify-between">
-                  <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: COLORS.white }}>Filter by Date</label>
+              <div className="rq-filter-card">
+                <div className="rq-filter-header">
+                  <span className="rq-filter-label">Filter by Date</span>
                   <button
-                    onClick={() => onDateFilterChange && onDateFilterChange(getDefaultDateFilter())}
-                    className="text-xs font-medium hover:underline"
-                    style={{ color: COLORS.blue }}
+                    type="button"
+                    onClick={handleHistoryReset}
+                    className="rq-filter-button"
+                    disabled={typeof onDateFilterChange !== 'function'}
                   >
                     Reset to Last 7 Days
                   </button>
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <label className="mb-1 block text-xs font-medium" style={{ color: COLORS.white }}>From</label>
+                <div className="rq-filter-grid">
+                  <div className="rq-filter-field">
+                    <label className="rq-input-label" htmlFor="rq-history-from">From</label>
                     <input
+                      id="rq-history-from"
                       type="date"
-                      value={historicalDateFilter.startDate}
-                      onChange={(e) => {
-                        const v = e.target.value
-                        if (!onDateFilterChange) return
-                        if (!v) {
-                          const t = new Date()
-                          const iso = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`
-                          onDateFilterChange({ ...historicalDateFilter, startDate: iso })
-                        } else {
-                          onDateFilterChange({ ...historicalDateFilter, startDate: v })
-                        }
-                      }}
-                      className="w-full"
-                      style={{ 
-                        padding: '6px 8px',
-                        border: '1px solid rgba(238, 238, 238, 0.2)',
-                        borderRadius: '0',
-                        fontSize: '12px',
-                        color: 'rgb(238, 238, 238)',
-                        backgroundColor: '#4A5058',
-                        boxSizing: 'border-box'
-                      }}
+                      value={activeHistoricalFilter.startDate || ''}
+                      onChange={handleHistoryInputChange('startDate')}
+                      className="rq-filter-input"
                     />
                   </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium" style={{ color: COLORS.white }}>To</label>
+                  <div className="rq-filter-field">
+                    <label className="rq-input-label" htmlFor="rq-history-to">To</label>
                     <input
+                      id="rq-history-to"
                       type="date"
-                      value={historicalDateFilter.endDate}
-                      onChange={(e) => {
-                        const v = e.target.value
-                        if (!onDateFilterChange) return
-                        if (!v) {
-                          const t = new Date()
-                          const iso = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`
-                          onDateFilterChange({ ...historicalDateFilter, endDate: iso })
-                        } else {
-                          onDateFilterChange({ ...historicalDateFilter, endDate: v })
-                        }
-                      }}
-                      className="w-full"
-                      style={{ 
-                        padding: '6px 8px',
-                        border: '1px solid rgba(238, 238, 238, 0.2)',
-                        borderRadius: '0',
-                        fontSize: '12px',
-                        color: 'rgb(238, 238, 238)',
-                        backgroundColor: '#4A5058',
-                        boxSizing: 'border-box'
-                      }}
+                      value={activeHistoricalFilter.endDate || ''}
+                      onChange={handleHistoryInputChange('endDate')}
+                      className="rq-filter-input"
                     />
                   </div>
                 </div>
               </div>
 
-              {historicalRequests.length === 0 ? (
-                <div className="px-4 py-6 text-center text-sm" style={{ border: `1px dashed ${COLORS.darkGray}`, color: COLORS.whiteTransparentMid }}>
-                  No decisions found for the selected date range.
-                </div>
+              {historicalCount === 0 ? (
+                <div className="rq-empty-card">No decisions found for the selected date range.</div>
               ) : (
-                historicalRequests.map((request) => {
-                  const statusStyle = ROOM_REQUEST_STATUS_STYLES[request.status] || ROOM_REQUEST_STATUS_STYLES.pending
-                  const canRevert = request.status === 'approved'
-                  const roomLabel = getRequestRoomLabel(request)
-                  
-                  return (
-                    <div key={request.id} className="border px-5 py-4 shadow-sm" style={{ border: '1px solid rgba(238,238,238,0.2)', backgroundColor: COLORS.darkGray, borderRadius: 0 }}>
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold" style={{ color: COLORS.white }}>
-                            {request.building_code} {roomLabel}
-                          </p>
-                          <p className="text-xs" style={{ color: COLORS.whiteTransparentLow }}>
-                            {formatDateDisplay(request.base_date)} • {formatRequestRange(request, timeSlots)} • {request.week_count} week{request.week_count > 1 ? 's' : ''}
-                          </p>
-                        </div>
-                        <span 
-                          className={`border px-2 py-1 text-xs font-semibold uppercase tracking-wide ${typeof statusStyle === 'string' ? statusStyle : ''}`}
-                          style={typeof statusStyle === 'object' ? { ...statusStyle, border: `1px solid ${statusStyle.borderColor}` } : {}}
-                        >
-                          {ROOM_REQUEST_STATUS_LABELS[request.status]}
-                        </span>
-                      </div>
+                <div className="rq-card-list">
+                  {historicalRequests.map((request) => {
+                    const statusStyle = ROOM_REQUEST_STATUS_STYLES[request.status] || ROOM_REQUEST_STATUS_STYLES.pending
+                    const statusStyles = resolveStatusStyles(statusStyle)
+                    const canRevert = request.status === 'approved'
+                    const roomLabel = getRequestRoomLabel(request)
 
-                      <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2" style={{ color: COLORS.whiteTransparentMid }}>
-                        <div>
-                          <span className="font-semibold" style={{ color: COLORS.white }}>Teacher:</span> {request.requester_name || request.requester_email}
+                    return (
+                      <article key={request.id} className="rq-card">
+                        <div className="rq-card-header">
+                          <div className="rq-card-meta">
+                            <p className="rq-card-title">{request.building_code} {roomLabel}</p>
+                            <p className="rq-card-subtitle">
+                              {formatDateDisplay(request.base_date)} • {formatRequestRange(request, timeSlots)} • {request.week_count} week
+                              {request.week_count > 1 ? 's' : ''}
+                            </p>
+                          </div>
+                          <span className="rq-status-badge" style={statusStyles}>
+                            {ROOM_REQUEST_STATUS_LABELS[request.status]}
+                          </span>
                         </div>
-                        {request.course_name && (
-                          <div className="sm:col-span-2">
-                            <span className="font-semibold" style={{ color: COLORS.white }}>Course/Event:</span> {request.course_name}
-                          </div>
-                        )}
-                        {request.notes && (
-                          <div className="sm:col-span-2">
-                            <span className="font-semibold" style={{ color: COLORS.white }}>Notes:</span> {request.notes}
-                          </div>
-                        )}
-                        {request.reviewer_name && (
-                          <div className="sm:col-span-2">
-                            <span className="font-semibold" style={{ color: COLORS.white }}>Reviewed by:</span> {request.reviewer_name} {request.reviewed_at ? `• ${formatDateDisplay(request.reviewed_at.slice(0, 10))}` : ''}
-                          </div>
-                        )}
-                        {request.rejection_reason && (
-                          <div className="sm:col-span-2">
-                            <span className="font-semibold" style={{ color: COLORS.white }}>Reason:</span> {request.rejection_reason}
-                          </div>
-                        )}
-                      </div>
 
-                      {canRevert && (
-                        <div className="mt-4 space-y-2">
-                          {showingRevertField === request.id && (
-                            <>
-                              <label htmlFor={`revert-reason-${request.id}`} className="block text-xs font-semibold" style={{ color: COLORS.white }}>
-                                Reason for reverting (optional)
-                              </label>
-                              <textarea
-                                id={`revert-reason-${request.id}`}
-                                rows={2}
-                                placeholder="Explain why this approval is being reverted..."
-                                value={rejectionReasons[request.id] || ''}
-                                onChange={(event) => setRejectionReasons((prev) => ({ ...prev, [request.id]: event.target.value }))}
-                                className="w-full px-3 py-2 text-sm"
-                                style={{ 
-                                  borderColor: '#4A5058',
-                                  backgroundColor: '#4A5058',
-                                  color: COLORS.white,
-                                  border: '1px solid #4A5058'
-                                }}
-                              />
-                            </>
+                        <div className="rq-meta-grid">
+                          <div className="rq-meta-entry">
+                            <span className="rq-meta-label">Teacher:</span>
+                            <span>{request.requester_name || request.requester_email}</span>
+                          </div>
+                          {request.course_name && (
+                            <div className="rq-meta-entry" data-span="full">
+                              <span className="rq-meta-label">Course/Event:</span>
+                              <span>{request.course_name}</span>
+                            </div>
                           )}
-                          <div className="flex justify-end">
-                            <button
-                              onClick={() => handleRevertClick(request)}
-                              disabled={requestActionLoading}
-                              className="px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
-                              style={{ 
-                                border: '1px solid rgba(238,238,238,0.2)',
-                                color: '#FFFFFF',
-                                backgroundColor: '#f59e0b'
-                              }}
-                            >
-                              Revert Approval
-                            </button>
-                          </div>
+                          {request.notes && (
+                            <div className="rq-meta-entry" data-span="full">
+                              <span className="rq-meta-label">Notes:</span>
+                              <span>{request.notes}</span>
+                            </div>
+                          )}
+                          {request.reviewer_name && (
+                            <div className="rq-meta-entry" data-span="full">
+                              <span className="rq-meta-label">Reviewed by:</span>
+                              <span>
+                                {request.reviewer_name}
+                                {request.reviewed_at ? ` • ${formatDateDisplay(request.reviewed_at.slice(0, 10))}` : ''}
+                              </span>
+                            </div>
+                          )}
+                          {request.rejection_reason && (
+                            <div className="rq-meta-entry" data-span="full">
+                              <span className="rq-meta-label">Reason:</span>
+                              <span>{request.rejection_reason}</span>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  )
-                })
+
+                        {canRevert && (
+                          <div className="rq-card-actions">
+                            {showingRevertField === request.id && (
+                              <div className="rq-revert-actions">
+                                <label htmlFor={`rq-revert-reason-${request.id}`} className="rq-revert-label">
+                                  Reason for reverting (optional)
+                                </label>
+                                <textarea
+                                  id={`rq-revert-reason-${request.id}`}
+                                  rows={2}
+                                  placeholder="Explain why this approval is being reverted..."
+                                  value={getReasonValue(request.id)}
+                                  onChange={(event) => updateReason(request.id, event.target.value)}
+                                  className="rq-textarea"
+                                />
+                              </div>
+                            )}
+                            <div className="rq-button-row">
+                              <button
+                                type="button"
+                                onClick={() => handleRevertClick(request)}
+                                disabled={requestActionLoading}
+                                className="rq-button"
+                                data-variant="revert"
+                              >
+                                Revert Approval
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </article>
+                    )
+                  })}
+                </div>
               )}
             </section>
-          </>
+          </div>
         )}
       </div>
     </div>

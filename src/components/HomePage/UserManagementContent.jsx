@@ -1,338 +1,333 @@
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { USER_ROLES, USER_ROLE_LABELS } from '../../constants/roles'
 import { getAllUsers, updateUserRole, deleteUser, updateUsername } from '../../services/userManagementService'
 import { createProfile } from '../../services/profileService'
 import { useNotifications } from '../../context/NotificationContext'
-import { COLORS } from '../../constants/colors'
+import '../../styles/HomePageStyle/UserManagementStyle.css'
+
+const INITIAL_EDIT_FORM = {
+  username: '',
+  role: USER_ROLES.student
+}
+
+const formatError = (error) => {
+  if (!error) return 'An unexpected error occurred.'
+  if (typeof error === 'string') return error
+  if (typeof error === 'object') {
+    return error.description || error.message || JSON.stringify(error)
+  }
+  return String(error)
+}
+
+const resolveRoleVariant = (role) => {
+  if (!role || role === 'No role') return 'none'
+  if (role === USER_ROLES.administrator) return 'administrator'
+  if (role === USER_ROLES.buildingManager) return 'manager'
+  if (role === USER_ROLES.teacher) return 'teacher'
+  if (role === USER_ROLES.student) return 'default'
+  return 'default'
+}
+
+const resolveRoleLabel = (role) => {
+  if (!role || role === 'No role') return 'No Profile'
+  return USER_ROLE_LABELS[role] || role
+}
 
 export const UserManagementContent = ({ currentUserId }) => {
   const { notifySuccess, notifyError } = useNotifications()
-  
+
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [editingUser, setEditingUser] = useState(null)
-  const [editForm, setEditForm] = useState({ username: '', role: '' })
+  const [editForm, setEditForm] = useState(INITIAL_EDIT_FORM)
 
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     setLoading(true)
     const { data, error } = await getAllUsers()
-    
     if (error) {
       notifyError('Failed to load users', { description: error })
+      setUsers([])
     } else {
-      setUsers(data || [])
+      setUsers(Array.isArray(data) ? data : [])
     }
-    
     setLoading(false)
-  }
+  }, [notifyError])
 
   useEffect(() => {
     loadUsers()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [loadUsers])
 
   const handleEditUser = (user) => {
     setEditingUser(user)
     setEditForm({
-      username: user.username === 'No username' ? '' : user.username,
-      role: user.role === 'No role' ? USER_ROLES.student : user.role
+      username: user?.username === 'No username' ? '' : (user?.username || ''),
+      role: user?.role === 'No role' ? USER_ROLES.student : (user?.role || USER_ROLES.student)
     })
+  }
+
+  const resetEditState = () => {
+    setEditingUser(null)
+    setEditForm(INITIAL_EDIT_FORM)
   }
 
   const handleSaveEdit = async () => {
     if (!editingUser) return
 
     setLoading(true)
+    const usernameValue = editForm.username.trim()
+    const currentUsername = editingUser.username === 'No username' ? '' : editingUser.username
 
-    if (editingUser.role === 'No role') {
-      createProfile({
-        id: editingUser.id,
-        username: editForm.username || 'User',
-        role: editForm.role
-      }).then(({ error }) => {
+    try {
+      if (editingUser.role === 'No role') {
+        const { error } = await createProfile({
+          id: editingUser.id,
+          username: usernameValue || 'User',
+          role: editForm.role
+        })
+
         if (error) {
-          notifyError('Failed to create profile', { description: error })
-          setLoading(false)
-        } else {
-          notifySuccess('Profile created successfully')
-          setEditingUser(null)
-          loadUsers()
+          throw error
         }
-      })
-    } else {
-      Promise.all([
-        editForm.username !== editingUser.username ? updateUsername(editingUser.id, editForm.username) : Promise.resolve({ error: null }),
-        editForm.role !== editingUser.role ? updateUserRole(editingUser.id, editForm.role) : Promise.resolve({ error: null })
-      ]).then(([usernameResult, roleResult]) => {
-        if (usernameResult.error || roleResult.error) {
-          notifyError('Failed to update user', { 
-            description: usernameResult.error || roleResult.error 
-          })
-        } else {
-          setLoading(false)
+
+        notifySuccess('Profile created successfully')
+      } else {
+        const updateTasks = []
+
+        if (usernameValue !== currentUsername) {
+          updateTasks.push(updateUsername(editingUser.id, usernameValue))
+        }
+
+        if (editForm.role !== editingUser.role) {
+          updateTasks.push(updateUserRole(editingUser.id, editForm.role))
+        }
+
+        if (updateTasks.length > 0) {
+          const results = await Promise.all(updateTasks)
+          const failure = results.find((result) => result?.error)
+
+          if (failure?.error) {
+            throw failure.error
+          }
+
           notifySuccess('User updated successfully')
-          setEditingUser(null)
-          loadUsers()
+        } else {
+          notifySuccess('No changes to save')
         }
-      })
+      }
+
+      resetEditState()
+      await loadUsers()
+    } catch (error) {
+      notifyError('Failed to update user', { description: formatError(error) })
+    } finally {
+      setLoading(false)
     }
   }
 
-  const handleDeleteUser = (userId, username, hasRole) => {
-    const confirmMessage = hasRole 
-      ? `Are you sure you want to delete ${username || 'this user'}? This will remove their profile and they will need to be re-invited.`
-      : `Are you sure you want to delete ${username || 'this user'}? This is a permanent action.`
+  const handleDeleteUser = async (user) => {
+    if (user.id === currentUserId) {
+      notifyError('Cannot delete yourself', { description: 'You cannot delete your own account.' })
+      return
+    }
+
+    const hasProfile = user.role !== 'No role'
+    const confirmMessage = hasProfile
+      ? `Are you sure you want to delete ${user.username || 'this user'}? This will remove their profile and they will need to be re-invited.`
+      : `Are you sure you want to delete ${user.username || 'this user'}? This is a permanent action.`
 
     if (!window.confirm(confirmMessage)) {
       return
     }
 
     setLoading(true)
-    deleteUser(userId).then(({ error }) => {
+
+    try {
+      const { error } = await deleteUser(user.id)
       if (error) {
-        notifyError('Failed to delete user', { description: error })
-      } else {
-        notifySuccess('User deleted successfully')
-        loadUsers()
+        throw error
       }
+
+      notifySuccess('User deleted successfully')
+      await loadUsers()
+    } catch (error) {
+      notifyError('Failed to delete user', { description: formatError(error) })
+    } finally {
       setLoading(false)
-    })
+    }
   }
 
-  const filteredUsers = users.filter(user => {
-    const query = searchQuery.toLowerCase()
-    return (
+  const filteredUsers = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    if (!query) return users
+
+    return users.filter((user) =>
       user.username?.toLowerCase().includes(query) ||
       user.email?.toLowerCase().includes(query) ||
       user.role?.toLowerCase().includes(query)
     )
-  })
+  }, [searchQuery, users])
+
+  const busy = loading
 
   return (
-    <div className="flex h-full w-full flex-col" style={{ backgroundColor: COLORS.black }}>
-      <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid rgba(238,238,238,0.2)' }}>
-        <div>
-          <h2 className="text-xl font-bold" style={{ color: COLORS.white }}>User Management</h2>
-        </div>
+    <div className="um-panel" {...(busy ? { 'data-busy': '' } : {})}>
+      <div className="um-header">
+        <h2 className="um-title">User Management</h2>
       </div>
 
-      {/* Search Bar */}
-      <div className="px-6 py-3" style={{ borderBottom: '1px solid rgba(238,238,238,0.2)' }}>
+      <div className="um-search">
         <input
           type="text"
           placeholder="Search by username, email, or role..."
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full px-4 py-2"
-          style={{ 
-            border: '1px solid rgba(238,238,238,0.2)',
-            borderRadius: 0,
-            color: COLORS.white,
-            backgroundColor: '#4A5058'
-          }}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          className="um-control um-input"
         />
       </div>
 
-      {/* Users List */}
-      <div className="flex-1 overflow-y-auto p-6" style={{ scrollbarWidth: 'thin', scrollbarColor: '#3282B8 #222831' }}>
-        {loading && !users.length ? (
-          <div className="text-center py-12" style={{ color: COLORS.whiteTransparentMid }}>
-            Loading users...
+      <div className="um-body">
+        {busy && users.length === 0 ? (
+          <div className="um-empty" data-state="loading">
+            Loading users…
           </div>
         ) : filteredUsers.length === 0 ? (
-          <div className="text-center py-12" style={{ color: COLORS.whiteTransparentMid }}>
-            No users found
-          </div>
+          <div className="um-empty">No users found</div>
         ) : (
-          <div className="space-y-3">
-            {filteredUsers.map((user) => (
-              <div
-                key={user.id}
-                className="p-4 transition"
-                style={{ 
-                  border: '1px solid rgba(238,238,238,0.2)', 
-                  backgroundColor: COLORS.darkGray,
-                  borderRadius: 0
-                }}
-              >
-                {editingUser?.id === user.id ? (
-                  // Edit Mode
-                  <div className="space-y-3">
-                    {user.role === 'No role' && (
-                      <div className="p-3 mb-3" style={{ backgroundColor: 'rgba(50, 130, 184, 0.1)', border: '1px solid #3282B8', borderRadius: 0 }}>
-                        <div className="flex items-center gap-2" style={{ color: COLORS.blue }}>
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          <span className="text-sm font-semibold">Creating Profile</span>
+          <div className="um-list">
+            {filteredUsers.map((user) => {
+              const isEditing = editingUser?.id === user.id
+              const requiresProfile = user.role === 'No role'
+              const roleVariant = resolveRoleVariant(user.role)
+              const roleLabel = resolveRoleLabel(user.role)
+              const createdLabel = user.created_at ? new Date(user.created_at).toLocaleDateString() : '—'
+              const isCurrentUser = user.id === currentUserId
+
+              return (
+                <article
+                  key={user.id}
+                  className="um-card"
+                  data-mode={isEditing ? 'editing' : 'view'}
+                >
+                  {isEditing ? (
+                    <div className="um-edit">
+                      {requiresProfile && (
+                        <div className="um-alert" data-variant="profile">
+                          <div className="um-alert-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </div>
+                          <div className="um-alert-content">
+                            <span className="um-alert-title">Creating profile</span>
+                            <p className="um-alert-text">This user has no profile. Provide a username and select a role to create one.</p>
+                          </div>
                         </div>
-                        <p className="text-xs mt-1" style={{ color: '#4BA3D3' }}>
-                          This user has no profile. Enter username and select a role to create one.
-                        </p>
-                      </div>
-                    )}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-semibold mb-1" style={{ color: COLORS.whiteTransparentMid }}>
-                          Username {user.role === 'No role' && <span style={{ color: '#ef4444' }}>*</span>}
-                        </label>
-                        <input
-                          type="text"
-                          value={editForm.username}
-                          onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
-                          placeholder={user.role === 'No role' ? 'Enter username' : ''}
-                          className="w-full px-3 py-2 text-sm"
-                          style={{ 
-                            border: '1px solid rgba(238,238,238,0.2)',
-                            borderRadius: 0,
-                            color: COLORS.white,
-                            backgroundColor: '#4A5058'
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold mb-1" style={{ color: COLORS.whiteTransparentMid }}>
-                          Role {user.role === 'No role' && <span style={{ color: '#ef4444' }}>*</span>}
-                        </label>
-                        <select
-                          value={editForm.role}
-                          onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
-                          className="w-full px-3 py-2 text-sm"
-                          style={{ 
-                            border: '1px solid rgba(238,238,238,0.2)',
-                            borderRadius: 0,
-                            color: COLORS.white,
-                            backgroundColor: '#4A5058'
-                          }}
-                        >
-                          {Object.entries(USER_ROLES).map(([, value]) => (
-                            <option key={value} value={value} style={{ backgroundColor: '#4A5058' }}>
-                              {USER_ROLE_LABELS[value]}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => setEditingUser(null)}
-                        style={{ 
-                          border: '1px solid rgba(238,238,238,0.2)', 
-                          color: COLORS.white,
-                          backgroundColor: '#4A5058',
-                          borderRadius: 0
-                        }}
-                        className="px-4 py-2 text-sm transition"
-                        disabled={loading}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleSaveEdit}
-                        style={{ 
-                          backgroundColor: user.role === 'No role' ? '#10b981' : COLORS.blue,
-                          color: COLORS.white,
-                          border: '1px solid transparent',
-                          borderRadius: 0
-                        }}
-                        className="px-4 py-2 text-sm transition disabled:opacity-50"
-                        disabled={loading || (user.role === 'No role' && !editForm.username.trim())}
-                      >
-                        {user.role === 'No role' ? 'Create Profile' : 'Save Changes'}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  // View Mode
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3">
-                        <h3 className="font-semibold" style={{ color: COLORS.white }}>
-                          {user.username || 'No username'}
-                        </h3>
-                        {(() => {
-                          let roleStyle = {
-                            backgroundColor: '#6B7280',
-                            color: '#FFFFFF',
-                            borderColor: '#6B7280'
-                          }
-                          
-                          if (user.role === USER_ROLES.administrator) {
-                            roleStyle = {
-                              backgroundColor: '#ef4444',
-                              color: '#FFFFFF',
-                              borderColor: '#ef4444'
-                            }
-                          } else if (user.role === USER_ROLES.buildingManager) {
-                            roleStyle = {
-                              backgroundColor: COLORS.blue,
-                              color: '#FFFFFF',
-                              borderColor: COLORS.blue
-                            }
-                          } else if (user.role === USER_ROLES.teacher) {
-                            roleStyle = {
-                              backgroundColor: 'rgb(5, 150, 105)',
-                              color: '#FFFFFF',
-                              borderColor: 'rgb(5, 150, 105)'
-                            }
-                          } else if (user.role === 'No role') {
-                            roleStyle = {
-                              backgroundColor: '#ef4444',
-                              color: '#FFFFFF',
-                              borderColor: '#ef4444'
-                            }
-                          }
-                          
-                          return (
-                            <span 
-                              className="px-2 py-1 text-xs font-semibold border"
-                              style={{ backgroundColor: roleStyle.backgroundColor, color: roleStyle.color, border: `1px solid ${roleStyle.borderColor}`, borderRadius: 0 }}
-                            >
-                              {user.role === 'No role' ? 'No Profile' : USER_ROLE_LABELS[user.role]}
-                            </span>
-                          )
-                        })()}
-                        {user.id === currentUserId && (
-                          <span 
-                            className="px-2 py-1 text-xs font-semibold border"
-                            style={{ backgroundColor: '#f59e0b', color: '#FFFFFF', border: '1px solid #f59e0b', borderRadius: 0 }}
+                      )}
+
+                      <div className="um-edit-grid">
+                        <div className="um-field">
+                          <label className="um-label" htmlFor={`um-username-${user.id}`}>
+                            Username{' '}
+                            {requiresProfile && <span className="um-required">*</span>}
+                          </label>
+                          <input
+                            id={`um-username-${user.id}`}
+                            type="text"
+                            value={editForm.username}
+                            onChange={(event) => setEditForm({ ...editForm, username: event.target.value })}
+                            placeholder={requiresProfile ? 'Enter username' : 'Update username'}
+                            className="um-control um-input"
+                          />
+                        </div>
+                        <div className="um-field">
+                          <label className="um-label" htmlFor={`um-role-${user.id}`}>
+                            Role {requiresProfile && <span className="um-required">*</span>}
+                          </label>
+                          <select
+                            id={`um-role-${user.id}`}
+                            value={editForm.role}
+                            onChange={(event) => setEditForm({ ...editForm, role: event.target.value })}
+                            className="um-control um-select"
                           >
-                            You
-                          </span>
-                        )}
+                            {Object.entries(USER_ROLES).map(([, value]) => (
+                              <option key={value} value={value}>
+                                {USER_ROLE_LABELS[value]}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
-                      <div className="mt-1 space-y-0.5">
-                        {user.email && user.email !== 'No email' && (
-                          <p className="text-sm" style={{ color: COLORS.whiteTransparentMid }}>{user.email}</p>
-                        )}
-                        <p className="text-xs" style={{ color: COLORS.whiteTransparentLow }}>
-                          Created: {new Date(user.created_at).toLocaleDateString()}
-                        </p>
+
+                      <div className="um-card-actions">
+                        <button
+                          type="button"
+                          className="um-button"
+                          data-variant="secondary"
+                          onClick={resetEditState}
+                          disabled={busy}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          className="um-button"
+                          data-variant={requiresProfile ? 'success' : 'primary'}
+                          onClick={handleSaveEdit}
+                          disabled={busy || (requiresProfile && !editForm.username.trim())}
+                        >
+                          {requiresProfile ? 'Create Profile' : 'Save Changes'}
+                        </button>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEditUser(user)}
-                        className="px-3 py-1.5 text-sm border transition disabled:opacity-50"
-                        style={{ border: '1px solid rgba(238,238,238,0.2)', color: '#FFFFFF', backgroundColor: COLORS.blue, borderRadius: 0 }}
-                        disabled={loading}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteUser(user.id, user.username, user.role !== 'No role')}
-                        className="px-3 py-1.5 text-sm border transition disabled:opacity-50"
-                        style={{ border: '1px solid rgba(238,238,238,0.2)', color: '#FFFFFF', backgroundColor: '#ef4444', borderRadius: 0 }}
-                        disabled={loading || user.id === currentUserId}
-                      >
-                        Delete
-                      </button>
+                  ) : (
+                    <div className="um-view">
+                      <div className="um-user">
+                        <div className="um-user-header">
+                          <h3 className="um-user-name">{user.username || 'No username'}</h3>
+                          <div className="um-tag-group">
+                            <span className="um-tag" data-variant={roleVariant}>
+                              {roleLabel}
+                            </span>
+                            {isCurrentUser && (
+                              <span className="um-tag" data-variant="self">
+                                You
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="um-user-details">
+                          {user.email && user.email !== 'No email' && (
+                            <p className="um-user-email">{user.email}</p>
+                          )}
+                          <p className="um-user-meta">Created: {createdLabel}</p>
+                        </div>
+                      </div>
+                      <div className="um-actions">
+                        <button
+                          type="button"
+                          className="um-button"
+                          data-variant="primary"
+                          onClick={() => handleEditUser(user)}
+                          disabled={busy}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="um-button"
+                          data-variant="danger"
+                          onClick={() => handleDeleteUser(user)}
+                          disabled={busy || isCurrentUser}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            ))}
+                  )}
+                </article>
+              )
+            })}
           </div>
         )}
       </div>

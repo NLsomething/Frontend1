@@ -1,5 +1,5 @@
 import { SCHEDULE_STATUS, SCHEDULE_STATUS_LABELS } from '../../constants/schedule'
-import { COLORS } from '../../constants/colors'
+import '../../styles/HomePageStyle/ScheduleEditStyle.css'
 
 const ScheduleEditContent = ({ 
   editState, 
@@ -14,69 +14,63 @@ const ScheduleEditContent = ({
 
   if (!editState.room) return null
 
+  const busy = submitting
+  const isOccupied = editForm.status === SCHEDULE_STATUS.occupied
+
   return (
-    <div className="p-6">
-      <div className="mb-4">
-        <h3 className="text-lg font-semibold" style={{ color: COLORS.white }}>Edit Schedule</h3>
-        <p className="text-sm" style={{ color: COLORS.whiteTransparentMid }}>
-          Room {editState.room}
-        </p>
+    <div className="se-panel">
+      <div className="se-header">
+        <h3 className="se-title">Edit Schedule</h3>
+        <p className="se-subtitle">Room {editState.room}</p>
       </div>
 
-      <form 
-        className="space-y-4" 
-        onSubmit={(e) => {
-          if (submitting) {
-            e.preventDefault()
-            e.stopPropagation()
+      <form
+        className="se-form"
+        {...(busy ? { 'data-busy': '' } : {})}
+        onSubmit={(event) => {
+          if (busy) {
+            event.preventDefault()
+            event.stopPropagation()
             return false
           }
-          onSubmit(e)
+          onSubmit(event)
+          return undefined
         }}
       >
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: COLORS.whiteTransparentMid }}>Start time</label>
+        <div className="se-grid">
+          <div className="se-field">
+            <label className="se-label" htmlFor="se-start-hour">Start time</label>
             <select
+              id="se-start-hour"
               value={editState.startHour ?? ''}
               onChange={onRangeChange('startHour')}
-              className="w-full border px-3 py-2 text-sm"
-              style={{ 
-                border: '1px solid rgba(238,238,238,0.2)',
-                color: COLORS.white,
-                backgroundColor: '#4A5058',
-                borderRadius: 0 // Square corners
-              }}
+              className="se-control se-select"
             >
               {timeSlots.map((slot, index) => {
                 const value = slot.id ?? slot.slot_id ?? slot.slotId ?? slot.hour ?? slot.slot_order ?? index
                 const label = slot.slot_name || slot.label || slot.name || `Slot ${index + 1}`
                 return (
-                  <option key={`start-${value}`} value={value} style={{ backgroundColor: '#4A5058' }}>
+                  <option key={`start-${value}`} value={value}>
                     {label}
                   </option>
                 )
               })}
             </select>
           </div>
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: COLORS.whiteTransparentMid }}>End time</label>
+
+          <div className="se-field">
+            <label className="se-label" htmlFor="se-end-hour">End time</label>
             <select
+              id="se-end-hour"
               value={editState.endHour ?? ''}
               onChange={onRangeChange('endHour')}
-              className="w-full border px-3 py-2 text-sm"
-              style={{ 
-                border: '1px solid rgba(238,238,238,0.2)',
-                color: COLORS.white,
-                backgroundColor: '#4A5058',
-                borderRadius: 0 // Square corners
-              }}
+              className="se-control se-select"
             >
               {timeSlots.map((slot, index) => {
                 const value = slot.id ?? slot.slot_id ?? slot.slotId ?? slot.hour ?? slot.slot_order ?? index
                 const label = slot.slot_name || slot.label || slot.name || `Slot ${index + 1}`
                 return (
-                  <option key={`end-${value}`} value={value} style={{ backgroundColor: '#4A5058' }}>
+                  <option key={`end-${value}`} value={value}>
                     {label}
                   </option>
                 )
@@ -85,105 +79,80 @@ const ScheduleEditContent = ({
           </div>
         </div>
 
-        <div>
-          <label className="block text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: COLORS.whiteTransparentMid }}>Status</label>
+        <div className="se-field">
+          <label className="se-label" htmlFor="se-status">Status</label>
           <select
+            id="se-status"
             name="status"
             value={editForm.status}
             onChange={onFormChange}
-            className="w-full border px-3 py-2 text-sm"
-            style={{ 
-              border: '1px solid rgba(238,238,238,0.2)',
-              color: COLORS.white,
-              backgroundColor: '#4A5058',
-              borderRadius: 0 // Square corners
-            }}
+            className="se-control se-select"
           >
             {Object.values(SCHEDULE_STATUS)
-              .filter(status => status !== SCHEDULE_STATUS.pending)
+              .filter((status) => status !== SCHEDULE_STATUS.pending)
               .map((status) => (
-                <option key={status} value={status} style={{ backgroundColor: '#4A5058' }}>
+                <option key={status} value={status}>
                   {SCHEDULE_STATUS_LABELS[status]}
                 </option>
               ))}
           </select>
         </div>
 
-        {editForm.status === SCHEDULE_STATUS.occupied && (
-          <>
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: COLORS.whiteTransparentMid }}>Course / Event Name (optional)</label>
+        {isOccupied && (
+          <div className="se-occupied-fields">
+            <div className="se-field">
+              <label className="se-label" htmlFor="se-course-name">Course / Event Name (optional)</label>
               <input
+                id="se-course-name"
                 type="text"
                 name="courseName"
                 value={editForm.courseName}
                 onChange={onFormChange}
-                className="w-full border px-3 py-2 text-sm"
-                style={{ 
-                  border: '1px solid rgba(238,238,238,0.2)',
-                  color: COLORS.white,
-                  backgroundColor: '#4A5058',
-                  borderRadius: 0 // Square corners
-                }}
+                className="se-control se-input"
                 placeholder="e.g. Physics 101"
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: COLORS.whiteTransparentMid }}>Who is using it?</label>
+            <div className="se-field">
+              <label className="se-label" htmlFor="se-booked-by">Who is using it?</label>
               <input
+                id="se-booked-by"
                 type="text"
                 name="bookedBy"
                 value={editForm.bookedBy}
                 onChange={onFormChange}
-                className="w-full border px-3 py-2 text-sm"
-                style={{ 
-                  border: '1px solid rgba(238,238,238,0.2)',
-                  color: COLORS.white,
-                  backgroundColor: '#4A5058',
-                  borderRadius: 0 // Square corners
-                }}
+                className="se-control se-input"
                 placeholder="e.g. Ms. Tran"
-                required={true}
+                required
               />
             </div>
-          </>
+          </div>
         )}
 
-        <div className="flex items-center justify-end gap-3 pt-2">
+        <div className="se-actions">
           <button
             type="button"
             onClick={onClose}
-            style={{ 
-              border: '1px solid rgba(238,238,238,0.2)', 
-              color: COLORS.white,
-              backgroundColor: '#4A5058',
-              borderRadius: 0 // Square corners
-            }}
-            className="px-4 py-2 text-sm font-semibold transition-colors duration-150 hover:bg-opacity-70"
+            className="se-button"
+            data-variant="secondary"
+            disabled={busy}
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="px-4 py-2 text-sm font-semibold shadow transition-colors"
-            style={{ 
-              backgroundColor: submitting ? COLORS.darkGray : COLORS.blue, 
-              color: COLORS.white, 
-              border: '1px solid transparent',
-              borderRadius: 0, // Square corners
-              cursor: submitting ? 'not-allowed' : 'pointer',
-              opacity: submitting ? 0.6 : 1
-            }}
-            disabled={submitting}
-            onClick={(e) => {
-              if (submitting) {
-                e.preventDefault()
-                e.stopPropagation()
+            className="se-button"
+            data-variant="primary"
+            data-state={busy ? 'busy' : undefined}
+            disabled={busy}
+            onClick={(event) => {
+              if (busy) {
+                event.preventDefault()
+                event.stopPropagation()
               }
             }}
           >
-            {submitting ? 'Saving…' : 'Save Changes'}
+            {busy ? 'Saving…' : 'Save Changes'}
           </button>
         </div>
       </form>

@@ -1,0 +1,120 @@
+.sb-root {
+  position: relative;
+  height: 100%;
+  display: flex;
+  align-items: stretch;
+}
+
+.sb-button {
+  text-transform: uppercase;
+  letter-spacing: 2.688px;
+  font-size: 9.6px;
+  padding-left: 24px;
+  padding-right: 24px;
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  border-top: 0;
+  border-bottom: 0;
+  border-left: 1px solid #2f3a4a;
+  border-right: 1px solid #2f3a4a;
+  background-color: transparent;
+  color: #EEEEEE;
+  transition: all 200ms;
+  cursor: pointer;
+}
+.sb-button[hovered] { background-color: #2f3a4a; }
+
+.sb-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 50;
+  height: 100%;
+  text-transform: uppercase;
+  letter-spacing: 2.688px;
+  font-size: 9.6px;
+  border-top: 0;
+  border-bottom: 0;
+  border-left: 1px solid #2f3a4a;
+  border-right: 1px solid #2f3a4a;
+  background-color: #2f3a4a;
+  color: #EEEEEE;
+  width: 440px;
+  transition: transform 180ms ease, opacity 180ms ease;
+  transform-origin: right center;
+  transform: scaleX(0);
+  opacity: 0;
+  pointer-events: none;
+}
+.sb-panel[data-open] {
+  transform: scaleX(1);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.sb-inner {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+.sb-input-wrapper { position: relative; width: 152px; }
+
+.sb-input {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 9.6px;
+  font-family: inherit;
+  border: 1px solid rgba(238,238,238,0.2);
+  color: #EEEEEE;
+  background-color: #4A5058;
+  outline: none;
+}
+
+.sb-select {
+  width: 100%;
+  padding: 8px 28px 8px 12px;
+  font-size: 9.6px;
+  font-family: inherit;
+  border: 1px solid rgba(238,238,238,0.2);
+  color: #EEEEEE;
+  background-color: #4A5058;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  cursor: pointer;
+}
+
+.sb-arrow {
+  pointer-events: none;
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  color: #EEEEEE;
+  opacity: 0.7;
+}
+
+.sb-search-btn {
+  padding: 8px 12px;
+  font-size: 9.6px;
+  font-weight: 600;
+  transition: all 200ms;
+  font-family: inherit;
+  border: 1px solid transparent;
+  color: #EEEEEE;
+  background-color: #4A5058;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.sb-search-btn[enabled] {
+  background-color: #3282B8;
+  cursor: pointer;
+  opacity: 1;
+}

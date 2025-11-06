@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { COLORS } from '../../constants/colors'
+import '../../styles/HomePageStyle/UnifiedPanelStyle.css'
 
 // Panel width configurations for different content types
 const PANEL_WIDTHS = {
@@ -23,7 +23,6 @@ const UnifiedPanel = ({
   const [isFadingOut, setIsFadingOut] = useState(false)
   const [showContent, setShowContent] = useState(true)
   const prevContentTypeRef = useRef(contentType)
-  const panelRef = useRef(null)
   const [renderedChildren, setRenderedChildren] = useState(children)
 
   // Animation timing (ms)
@@ -102,37 +101,24 @@ const UnifiedPanel = ({
 
       {/* Unified Panel */}
       <aside
-        ref={panelRef}
-        className="unified-panel fixed right-0 z-40 overflow-hidden"
-        style={{
-          top: '56px', // Below header
-          height: 'calc(100vh - 56px)', // Full height minus header
-          width: panelWidth,
-          backgroundColor: COLORS.black,
-          borderLeft: `1px solid ${COLORS.darkGray}`,
-          boxShadow: '-2px 0 10px rgba(0, 0, 0, 0.5)',
-          transform: mounted && isOpen ? 'translateX(0)' : 'translateX(100%)',
-          opacity: mounted && isOpen ? 1 : 0,
-          borderRadius: 0, // Square corners
-          transition: `transform ${SLIDE_MS}ms cubic-bezier(0.22, 1, 0.36, 1), opacity 450ms ease-out, width ${WIDTH_MS}ms ease-out` // dynamic slide/width
-        }}
+        className="up-panel"
         aria-hidden={!isOpen}
+        data-open={mounted && isOpen ? '' : undefined}
+        style={{
+        width: panelWidth,
+        transition: `transform ${SLIDE_MS}ms cubic-bezier(0.22, 1, 0.36, 1), opacity 450ms ease-out, width ${WIDTH_MS}ms ease-out`
+        }}
       >
         <div 
-          className="h-full w-full flex flex-col"
-          style={{
-            opacity: mounted && isOpen ? 1 : 0,
-            transition: 'opacity 350ms ease-out'
-          }}
+        className="up-panel-inner"
+        data-visible={mounted && isOpen ? '' : undefined}
         >
            {/* Content with two-phase fade: out old, slide, then in new */}
           <div
-            key={contentKey}
-            className="flex-1 overflow-hidden"
-            style={{
-              opacity: showContent ? 1 : 0,
-              transition: isFadingOut ? `opacity ${FADE_OUT_MS}ms ease-out` : `opacity ${FADE_IN_MS}ms ease-out`
-            }}
+          key={contentKey}
+          className="up-content"
+          data-visible={showContent ? '' : undefined}
+          style={{ transition: `opacity ${isFadingOut ? FADE_OUT_MS : FADE_IN_MS}ms ease-out` }}
           >
              {renderedChildren}
           </div>

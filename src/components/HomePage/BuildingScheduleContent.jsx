@@ -1,7 +1,7 @@
 import { Fragment, useMemo, useState } from 'react'
-import { COLORS } from '../../constants/colors'
 import { SCHEDULE_STATUS, SCHEDULE_STATUS_LABELS } from '../../constants/schedule'
 import { getScheduleStatusColors } from '../../utils/scheduleUtils'
+import '../../styles/HomePageStyle/BuildingScheduleStyle.css'
 
 const ROOM_COLUMN_WIDTH = 90
 const CLASSROOM_COLUMN_WIDTH = 50
@@ -127,48 +127,32 @@ const BuildingScheduleContent = ({
 	}
 
 	return (
-		<div className="flex h-full w-full flex-col" style={{ backgroundColor: COLORS.panelBackground }}>
-			<div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: `1px solid ${COLORS.whiteTransparentMinimal}` }}>
-				<div>
-					<h2 className="text-xl font-semibold" style={{ color: COLORS.white }}>
+		<div className="bs-root">
+			<div className="bs-header">
+				<div className="bs-header-group">
+					<h2 className="bs-header-title">
 						{selectedBuilding ? `${selectedBuilding.building_name} Schedule` : 'Room Schedule'}
 					</h2>
-					{roomSubtitle && (
-						<p className="text-sm" style={{ color: COLORS.whiteTransparentMid }}>
-							{roomSubtitle}
-						</p>
-					)}
+					{roomSubtitle && <p className="bs-header-subtitle">{roomSubtitle}</p>}
 					{!canEdit && !canRequest && (
-						<p className="text-xs" style={{ color: COLORS.whiteTransparentLow }}>View only - No editing permissions</p>
+						<p className="bs-header-note">View only - No editing permissions</p>
 					)}
 				</div>
-				<div className="flex items-center gap-3">
-					<div className="flex items-center" style={{ gap: '6px' }}>
+				<div className="bs-controls">
+					<div className="bs-toggle-group">
 						<button
 							type="button"
 							onClick={() => setActiveSlotCategory('classroom')}
-							className="px-3 py-2 text-xs font-semibold uppercase tracking-wide"
-							style={{
-								border: '1px solid rgba(238, 238, 238, 0.2)',
-								borderRadius: 0,
-								backgroundColor: activeSlotCategory === 'classroom' ? COLORS.darkGray : 'transparent',
-								color: COLORS.white,
-								transition: 'background-color 0.15s ease-in-out'
-							}}
+							className="bs-slot-toggle"
+							{...(activeSlotCategory === 'classroom' ? { active: '' } : {})}
 						>
 							Classroom
 						</button>
 						<button
 							type="button"
 							onClick={() => setActiveSlotCategory('administrative')}
-							className="px-3 py-2 text-xs font-semibold uppercase tracking-wide"
-							style={{
-								border: '1px solid rgba(238, 238, 238, 0.2)',
-								borderRadius: 0,
-								backgroundColor: activeSlotCategory === 'administrative' ? COLORS.darkGray : 'transparent',
-								color: COLORS.white,
-								transition: 'background-color 0.15s ease-in-out'
-							}}
+							className="bs-slot-toggle"
+							{...(activeSlotCategory === 'administrative' ? { active: '' } : {})}
 						>
 							Administrative
 						</button>
@@ -177,57 +161,24 @@ const BuildingScheduleContent = ({
 						type="date"
 						value={isoDate}
 						onChange={(event) => handleDateChange(event.target.value)}
-						className="dark-date-input"
-						style={{
-							padding: '6px 8px',
-							border: '1px solid rgba(238, 238, 238, 0.2)',
-							borderRadius: 0,
-							fontSize: '12px',
-							color: 'rgb(238, 238, 238)',
-							backgroundColor: 'rgb(57, 62, 70)',
-							boxSizing: 'border-box'
-						}}
+						className="bs-date-input"
 					/>
 				</div>
 			</div>
 
-			<div className="flex-1 overflow-y-auto relative" style={{ padding: '20px', paddingTop: '20px', paddingBottom: '20px', scrollbarWidth: 'thin', scrollbarColor: `${COLORS.scrollbarThumb} ${COLORS.scrollbarTrack}` }}>
-				<style>
-					{`
-						.dark-date-input::-webkit-calendar-picker-indicator {
-							filter: invert(1);
-							cursor: pointer;
-						}
-						::-webkit-scrollbar {
-							width: 8px;
-						}
-						::-webkit-scrollbar-track {
-							background: ${COLORS.scrollbarTrack};
-						}
-						::-webkit-scrollbar-thumb {
-							background: ${COLORS.scrollbarThumb};
-							border-radius: 0px;
-						}
-						::-webkit-scrollbar-thumb:hover {
-							background: ${COLORS.scrollbarThumbHover};
-						}
-					`}
-				</style>
-
+			<div className="bs-content">
 				{shouldShowScheduleLoading && (
-					<div className="absolute inset-0 z-10 flex items-center justify-center backdrop-blur-sm" style={{ backgroundColor: `${COLORS.panelBackground}EE` }}>
-						<div className="flex flex-col items-center gap-3">
-							<div className="animate-spin rounded-full h-12 w-12 border-4 border-t-transparent" style={{ borderColor: COLORS.blue }}></div>
-							<p className="text-sm font-medium" style={{ color: COLORS.white }}>Loading schedule...</p>
+					<div className="bs-loading-overlay">
+						<div className="bs-loading-content">
+							<div className="bs-loading-spinner" />
+							<p className="bs-loading-text">Loading schedule...</p>
 						</div>
 					</div>
 				)}
 
-				<div style={{ display: 'flex', flexDirection: 'column', gap: '27px', opacity: shouldShowScheduleLoading ? 0.4 : 1, transition: 'opacity 0.2s ease-out' }}>
+				<div className="bs-section-stack" data-dimmed={shouldShowScheduleLoading ? '' : undefined}>
 					{showRoomsLoadingPlaceholder ? null : !hasRooms ? (
-						<div className="flex h-full w-full items-center justify-center text-sm" style={{ border: `1px dashed ${COLORS.whiteTransparentBorder}`, backgroundColor: COLORS.screenBackground, color: COLORS.whiteTransparentMid, borderRadius: 0 }}>
-							No classroom rooms found in this building.
-						</div>
+						<div className="bs-empty-state">No classroom rooms found in this building.</div>
 					) : (
 						<>
 							{(Array.isArray(roomsByFloor) ? roomsByFloor : []).map((floor, floorIndex) => {
@@ -245,16 +196,9 @@ const BuildingScheduleContent = ({
 								return (
 									<section
 										key={floor.id ?? floor.floor_id ?? floor.name ?? floorIndex}
-										className="shadow-sm overflow-hidden"
-										style={{
-											marginLeft: '0',
-											border: '1px solid rgba(238,238,238,0.2)',
-											backgroundColor: COLORS.screenBackground,
-											borderTop: floorIndex === 0 ? '1px solid rgba(238,238,238,0.2)' : undefined,
-											borderRadius: 0
-										}}
+										className="bs-section"
 									>
-										<header className="flex items-center justify-between font-semibold uppercase tracking-wide" style={{ padding: '10px 21px', fontSize: '12px', backgroundColor: COLORS.darkGray, color: COLORS.white }}>
+										<header className="bs-section-header">
 											<span>{floor.name ?? floor.floor_name ?? `Floor ${floorIndex + 1}`}</span>
 										</header>
 										<ScheduleGrid
@@ -302,115 +246,77 @@ const ScheduleGrid = ({
 	const interactive = !!(canEdit || canRequest)
 
 	return (
-		<div className="overflow-x-auto">
-			<div style={{ width: '100%' }}>
-				<div
-					style={{
-						display: 'grid',
-						gridTemplateColumns: `${roomColumnWidth}px repeat(${timeSlots.length}, minmax(${columnWidth}px, 1fr))`,
-						borderTop: '1px solid rgba(255,255,255,0.1)',
-						fontSize: '12px'
-					}}
-				>
-					<div className="font-semibold border-r" style={{ padding: '10px 14px', backgroundColor: COLORS.darkGray, color: COLORS.white, borderColor: 'rgba(238,238,238,0.2)' }}>
-						Room
-					</div>
+		<div className="bs-grid-wrapper">
+			<div
+				className="bs-grid"
+				style={{ gridTemplateColumns: `${roomColumnWidth}px repeat(${timeSlots.length}, minmax(${columnWidth}px, 1fr))` }}
+			>
+				<div className="bs-room-header">Room</div>
 
-					{timeSlots.map((slot) => {
-						const slotHeaderKey = resolveSlotKey(slot)
-						const headerLabel = resolveSlotLabel(slot)
-						return (
-							<div
-								key={`header-${slotHeaderKey}`}
-								className="text-center font-semibold border-l"
-								style={{ padding: '10px 7px', fontSize: '10px', backgroundColor: COLORS.darkGray, color: COLORS.white, borderColor: 'rgba(238,238,238,0.2)' }}
-							>
-								{headerLabel}
-							</div>
-						)
-					})}
+				{timeSlots.map((slot) => {
+					const slotHeaderKey = resolveSlotKey(slot)
+					const headerLabel = resolveSlotLabel(slot)
+					return (
+						<div key={`header-${slotHeaderKey}`} className="bs-slot-header">
+							{headerLabel}
+						</div>
+					)
+				})}
 
-					{rooms.map((room, roomIndex) => {
-						const roomKey = resolveRoomKey(room, roomIndex)
-						const roomCode = resolveRoomCode(room)
-						const roomLabel = resolveRoomLabel(room)
-						const roomDisplay = roomLabel || roomCode || '—'
+				{rooms.map((room, roomIndex) => {
+					const roomKey = resolveRoomKey(room, roomIndex)
+					const roomCode = resolveRoomCode(room)
+					const roomLabel = resolveRoomLabel(room)
+					const roomDisplay = roomLabel || roomCode || '—'
 
-						return (
-							<Fragment key={`room-${roomKey}`}>
-								<div className="font-medium border-t border-r" style={{ padding: '10px 14px', backgroundColor: COLORS.darkGray, color: COLORS.white, borderColor: 'rgba(238,238,238,0.2)' }}>
-									{roomDisplay}
-								</div>
+					return (
+						<Fragment key={`room-${roomKey}`}>
+							<div className="bs-room-label">{roomDisplay}</div>
 
-								{timeSlots.map((slot) => {
-									const slotKey = resolveSlotKey(slot)
-									const scheduleKey = buildKey ? buildKey(roomCode || roomKey, slotKey) : `${roomCode || roomKey}-${slotKey}`
-									const entry = scheduleMap[scheduleKey]
-									const status = entry?.status || SCHEDULE_STATUS.empty
-									const label = SCHEDULE_STATUS_LABELS[status]
-									const details = entry?.course_name || entry?.booked_by ? [entry?.course_name, entry?.booked_by].filter(Boolean) : []
-									const colors = getScheduleStatusColors(status)
-									const statusFontSize = status === SCHEDULE_STATUS.maintenance ? '7px' : '9px'
+							{timeSlots.map((slot) => {
+								const slotKey = resolveSlotKey(slot)
+								const scheduleKey = buildKey ? buildKey(roomCode || roomKey, slotKey) : `${roomCode || roomKey}-${slotKey}`
+								const entry = scheduleMap[scheduleKey]
+								const status = entry?.status || SCHEDULE_STATUS.empty
+								const label = SCHEDULE_STATUS_LABELS[status]
+								const details = entry?.course_name || entry?.booked_by ? [entry?.course_name, entry?.booked_by].filter(Boolean) : []
+								const colors = getScheduleStatusColors(status)
+								const statusFontSize = status === SCHEDULE_STATUS.maintenance ? '7px' : '9px'
 
-									const handleClick = () => {
-										if (canEdit && onAdminAction) {
-											onAdminAction(room, slotKey)
-										} else if (!canEdit && canRequest && onTeacherRequest) {
-											onTeacherRequest(room, slotKey)
-										}
+								const handleClick = () => {
+									if (canEdit && onAdminAction) {
+										onAdminAction(room, slotKey)
+									} else if (!canEdit && canRequest && onTeacherRequest) {
+										onTeacherRequest(room, slotKey)
 									}
+								}
 
-									return (
-										<button
-											key={`${roomKey}-${slotKey}`}
-											type="button"
-											className="text-left transition-colors duration-150"
-											style={{
-												padding: '10px 7px',
-												width: '100%',
-												backgroundColor: colors.bg,
-												color: colors.text,
-												border: 'none',
-												borderTop: '1px solid rgba(238,238,238,0.2)',
-												borderLeft: '1px solid rgba(238,238,238,0.2)',
-												cursor: interactive ? 'pointer' : 'default',
-												transition: 'filter 0.15s'
-											}}
-											onClick={handleClick}
-											disabled={!interactive}
-											onMouseEnter={(e) => {
-												if (interactive || status === SCHEDULE_STATUS.occupied) {
-													e.currentTarget.style.filter = 'brightness(1.1)'
-												}
-											}}
-											onMouseLeave={(e) => {
-												if (interactive || status === SCHEDULE_STATUS.occupied) {
-													e.currentTarget.style.filter = 'none'
-												}
-											}}
-										>
-											<span className="block font-semibold uppercase tracking-wide" style={{ fontSize: statusFontSize, color: colors.text }}>
-												{label}
+								return (
+									<button
+										key={`${roomKey}-${slotKey}`}
+										type="button"
+										className="bs-slot"
+										onClick={handleClick}
+										disabled={!interactive}
+										{...(interactive ? { interactive: '' } : {})}
+										style={{ backgroundColor: colors.bg, color: colors.text }}
+									>
+										<span className="bs-slot-label" style={{ fontSize: statusFontSize }}>{label}</span>
+										{details.length > 0 && (
+											<span className="bs-slot-details">
+												{details.map((line, index) => (
+													<span key={`${roomKey}-${slotKey}-detail-${index}`}>
+														{line}
+													</span>
+												))}
 											</span>
-											{details.length > 0 && (
-												<span style={{ fontSize: '8px', marginTop: '4px', color: 'rgba(238,238,238,0.7)' }}>
-													{details.map((line, index) => (
-														<span
-															key={`${roomKey}-${slotKey}-detail-${index}`}
-															style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-														>
-															{line}
-														</span>
-													))}
-												</span>
-											)}
-										</button>
-									)
-								})}
-							</Fragment>
-						)
-					})}
-				</div>
+										)}
+									</button>
+								)
+							})}
+						</Fragment>
+					)
+				})}
 			</div>
 		</div>
 	)

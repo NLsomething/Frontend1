@@ -1,6 +1,6 @@
 import { MAX_ROOM_REQUEST_WEEKS } from '../../constants/requests'
 import { formatDateDisplay } from '../../utils'
-import { COLORS } from '../../constants/colors'
+import '../../styles/HomePageStyle/ScheduleRequestStyle.css'
 
 const ScheduleRequestContent = ({ 
   requestState, 
@@ -16,69 +16,64 @@ const ScheduleRequestContent = ({
 
   if (!requestState.room) return null
 
+  const busy = submitting
+
   return (
-    <div className="p-6">
-      <div className="mb-4">
-        <h3 className="text-lg font-semibold" style={{ color: COLORS.white }}>Request Room Usage</h3>
-        <p className="text-sm" style={{ color: COLORS.whiteTransparentMid }}>
+    <div className="sr-panel">
+      <div className="sr-header">
+        <h3 className="sr-title">Request Room Usage</h3>
+        <p className="sr-subtitle">
           Room {requestState.room} • {formatDateDisplay(isoDate)}
         </p>
       </div>
 
-      <form 
-        className="space-y-4" 
-        onSubmit={(e) => {
-          if (submitting) {
-            e.preventDefault()
-            e.stopPropagation()
+      <form
+        className="sr-form"
+        {...(busy ? { 'data-busy': '' } : {})}
+        onSubmit={(event) => {
+          if (busy) {
+            event.preventDefault()
+            event.stopPropagation()
             return false
           }
-          onSubmit(e)
+          onSubmit(event)
+          return undefined
         }}
       >
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: COLORS.whiteTransparentMid }}>Start time</label>
+        <div className="sr-grid">
+          <div className="sr-field">
+            <label className="sr-label" htmlFor="sr-start-hour">Start time</label>
             <select
+              id="sr-start-hour"
               value={requestState.startHour ?? ''}
               onChange={onRangeChange('startHour')}
-              className="w-full border px-3 py-2 text-sm"
-              style={{ 
-                border: '1px solid rgba(238,238,238,0.2)',
-                color: COLORS.white,
-                backgroundColor: '#4A5058',
-                borderRadius: 0 // Square corners
-              }}
+              className="sr-control sr-select"
             >
               {timeSlots.map((slot, index) => {
                 const value = slot.id ?? slot.slot_id ?? slot.slotId ?? slot.hour ?? slot.slot_order ?? index
                 const label = slot.slot_name || slot.label || slot.name || `Slot ${index + 1}`
                 return (
-                  <option key={`request-start-${value}`} value={value} style={{ backgroundColor: '#4A5058' }}>
+                  <option key={`request-start-${value}`} value={value}>
                     {label}
                   </option>
                 )
               })}
             </select>
           </div>
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: COLORS.whiteTransparentMid }}>End time</label>
+
+          <div className="sr-field">
+            <label className="sr-label" htmlFor="sr-end-hour">End time</label>
             <select
+              id="sr-end-hour"
               value={requestState.endHour ?? ''}
               onChange={onRangeChange('endHour')}
-              className="w-full border px-3 py-2 text-sm"
-              style={{ 
-                border: '1px solid rgba(238,238,238,0.2)',
-                color: COLORS.white,
-                backgroundColor: '#4A5058',
-                borderRadius: 0 // Square corners
-              }}
+              className="sr-control sr-select"
             >
               {timeSlots.map((slot, index) => {
                 const value = slot.id ?? slot.slot_id ?? slot.slotId ?? slot.hour ?? slot.slot_order ?? index
                 const label = slot.slot_name || slot.label || slot.name || `Slot ${index + 1}`
                 return (
-                  <option key={`request-end-${value}`} value={value} style={{ backgroundColor: '#4A5058' }}>
+                  <option key={`request-end-${value}`} value={value}>
                     {label}
                   </option>
                 )
@@ -87,99 +82,73 @@ const ScheduleRequestContent = ({
           </div>
         </div>
 
-        <div>
-          <label className="block text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: COLORS.whiteTransparentMid }}>Weeks</label>
+        <div className="sr-field">
+          <label className="sr-label" htmlFor="sr-week-count">Weeks</label>
           <select
+            id="sr-week-count"
             name="weekCount"
             value={requestForm.weekCount}
             onChange={onFormChange}
-            className="w-full border px-3 py-2 text-sm"
-            style={{ 
-              border: '1px solid rgba(238,238,238,0.2)',
-              color: COLORS.white,
-              backgroundColor: '#4A5058',
-              borderRadius: 0 // Square corners
-            }}
+            className="sr-control sr-select"
           >
             {Array.from({ length: MAX_ROOM_REQUEST_WEEKS }, (_, index) => index + 1).map((week) => (
-              <option key={`weeks-${week}`} value={week} style={{ backgroundColor: '#4A5058' }}>
+              <option key={`weeks-${week}`} value={week}>
                 {week} week{week > 1 ? 's' : ''}
               </option>
             ))}
           </select>
         </div>
 
-        <div>
-          <label className="block text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: COLORS.whiteTransparentMid }}>Course / Event Name (optional)</label>
+        <div className="sr-field">
+          <label className="sr-label" htmlFor="sr-course-name">Course / Event Name (optional)</label>
           <input
+            id="sr-course-name"
             type="text"
             name="courseName"
             value={requestForm.courseName}
             onChange={onFormChange}
-            className="w-full border px-3 py-2 text-sm"
-            style={{ 
-              border: '1px solid rgba(238,238,238,0.2)',
-              color: COLORS.white,
-              backgroundColor: '#4A5058',
-              borderRadius: 0 // Square corners
-            }}
+            className="sr-control sr-input"
             placeholder="e.g. Physics Workshop"
           />
         </div>
 
-        <div>
-          <label className="block text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: COLORS.whiteTransparentMid }}>Additional notes (optional)</label>
+        <div className="sr-field">
+          <label className="sr-label" htmlFor="sr-notes">Additional notes (optional)</label>
           <textarea
+            id="sr-notes"
             name="notes"
             value={requestForm.notes}
             onChange={onFormChange}
-            className="w-full border px-3 py-2 text-sm"
+            className="sr-control sr-textarea"
             rows={3}
-            style={{ 
-              border: '1px solid rgba(238,238,238,0.2)',
-              color: COLORS.white,
-              backgroundColor: '#4A5058',
-              borderRadius: 0 // Square corners
-            }}
             placeholder="Share any extra context for the building manager."
           />
         </div>
 
-        <div className="flex items-center justify-end gap-3 pt-2">
+        <div className="sr-actions">
           <button
             type="button"
             onClick={onClose}
-            style={{ 
-              border: '1px solid rgba(238,238,238,0.2)', 
-              color: COLORS.white,
-              backgroundColor: '#4A5058',
-              borderRadius: 0 // Square corners
-            }}
-            className="px-4 py-2 text-sm font-semibold transition-colors duration-150 hover:bg-opacity-70"
-            disabled={submitting}
+            className="sr-button"
+            data-variant="secondary"
+            disabled={busy}
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="px-4 py-2 text-sm font-semibold shadow transition-colors"
-            style={{ 
-              backgroundColor: submitting ? COLORS.darkGray : COLORS.blue, 
-              color: COLORS.white, 
-              border: '1px solid transparent',
-              borderRadius: 0, // Square corners
-              cursor: submitting ? 'not-allowed' : 'pointer',
-              opacity: submitting ? 0.6 : 1
-            }}
-            disabled={submitting}
-            onClick={(e) => {
-              if (submitting) {
-                e.preventDefault()
-                e.stopPropagation()
+            className="sr-button"
+            data-variant="primary"
+            data-state={busy ? 'busy' : undefined}
+            disabled={busy}
+            onClick={(event) => {
+              if (busy) {
+                event.preventDefault()
+                event.stopPropagation()
               }
             }}
           >
-            {submitting ? 'Submitting…' : 'Submit Request'}
+            {busy ? 'Submitting…' : 'Submit Request'}
           </button>
         </div>
       </form>

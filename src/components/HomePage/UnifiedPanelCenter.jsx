@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { COLORS } from '../../constants/colors'
+import '../../styles/HomePageStyle/UnifiedPanelCenterStyle.css'
 
 const UnifiedPanelCenter = ({ 
   isOpen, 
@@ -105,37 +105,20 @@ const UnifiedPanelCenter = ({
     <>
       {/* Backdrop overlay with darkening effect */}
       <div
-        ref={backdropRef}
-        className="fixed inset-0 z-50"
-        style={{
-          backgroundColor: mounted && isOpen ? 'rgba(0, 0, 0, 0.6)' : 'rgba(0, 0, 0, 0)',
-          transition: `background-color ${BACKDROP_MS}ms ease-out`,
-          pointerEvents: mounted && isOpen ? 'auto' : 'none',
-          cursor: mounted && isOpen ? 'pointer' : 'default'
-        }}
-        aria-hidden={!isOpen}
+      ref={backdropRef}
+      className="upc-backdrop"
+      aria-hidden={!isOpen}
+      data-open={mounted && isOpen ? '' : undefined}
+      style={{ transition: `background-color ${BACKDROP_MS}ms ease-out` }}
       />
 
       {/* Center Panel */}
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
-        style={{
-          pointerEvents: mounted && isOpen ? 'none' : 'none'
-        }}
-        aria-hidden={!isOpen}
-      >
+      <div className="upc-shell" aria-hidden={!isOpen}>
         <div
           ref={panelRef}
-          className="w-full max-w-lg mx-4 pointer-events-auto"
-          style={{
-            backgroundColor: COLORS.darkGray,
-            transform: mounted && isOpen ? 'scale(1)' : 'scale(0.8)',
-            opacity: mounted && isOpen ? 1 : 0,
-            borderRadius: 0, // Square corners (brutalist style)
-            boxShadow: '0 10px 40px rgba(0, 0, 0, 0.5)',
-            transition: `transform ${SCALE_MS}ms cubic-bezier(0.22, 1, 0.36, 1), opacity ${SCALE_MS}ms ease-out`,
-            overflow: 'hidden'
-          }}
+          className="upc-panel"
+          data-open={mounted && isOpen ? '' : undefined}
+          style={{ transition: `transform ${SCALE_MS}ms cubic-bezier(0.22, 1, 0.36, 1), opacity ${SCALE_MS}ms ease-out` }}
           onClick={(e) => {
             // Prevent backdrop click when clicking inside panel
             e.stopPropagation()
@@ -143,12 +126,10 @@ const UnifiedPanelCenter = ({
         >
           {/* Content with two-phase fade: out old, scale, then in new */}
           <div
-            key={contentKey}
-            className="w-full"
-            style={{
-              opacity: showContent ? 1 : 0,
-              transition: isFadingOut ? `opacity ${FADE_OUT_MS}ms ease-out` : `opacity ${FADE_IN_MS}ms ease-out`
-            }}
+          key={contentKey}
+          className="upc-content"
+          data-visible={showContent ? '' : undefined}
+          style={{ transition: `opacity ${isFadingOut ? FADE_OUT_MS : FADE_IN_MS}ms ease-out` }}
           >
             {renderedChildren}
           </div>

@@ -1,0 +1,354 @@
+.mr-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background-color: #222831;
+  color: #eeeeee;
+}
+
+.mr-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 1px solid rgba(238, 238, 238, 0.2);
+}
+
+.mr-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #eeeeee;
+}
+
+.mr-subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: rgba(238, 238, 238, 0.7);
+}
+
+.mr-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #3282b8 #222831;
+}
+
+.mr-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.mr-content::-webkit-scrollbar-track {
+  background: #222831;
+}
+
+.mr-content::-webkit-scrollbar-thumb {
+  background-color: #3282b8;
+  border-radius: 8px;
+}
+
+.mr-content::-webkit-scrollbar-thumb:hover {
+  background-color: #0f4c75;
+}
+
+.mr-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
+  font-size: 13px;
+  color: rgba(238, 238, 238, 0.7);
+}
+
+.mr-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+}
+
+.mr-empty-card {
+  max-width: 360px;
+  padding: 32px 24px;
+  text-align: center;
+  border: 1px dashed rgba(238, 238, 238, 0.2);
+  color: rgba(238, 238, 238, 0.7);
+}
+
+.mr-empty-title {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #eeeeee;
+}
+
+.mr-empty-subtitle {
+  margin: 0;
+  font-size: 12px;
+  color: rgba(238, 238, 238, 0.7);
+}
+
+.mr-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.mr-filter-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid rgba(238, 238, 238, 0.2);
+  background-color: #393e46;
+}
+
+.mr-filter-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mr-filter-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #eeeeee;
+}
+
+.mr-filter-button {
+  border: none;
+  background: transparent;
+  color: #3282b8;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.2s ease;
+}
+
+.mr-filter-button:hover {
+  text-decoration: underline;
+}
+
+.mr-filter-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+  text-decoration: none;
+}
+
+.mr-filter-grid {
+  display: grid;
+  gap: 12px;
+}
+
+@media (min-width: 640px) {
+  .mr-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.mr-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mr-input-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #eeeeee;
+}
+
+.mr-filter-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid rgba(238, 238, 238, 0.2);
+  border-radius: 2px;
+  font-size: 12px;
+  color: #eeeeee;
+  background-color: #4a5058;
+  box-sizing: border-box;
+}
+
+.mr-filter-input:focus {
+  outline: 1px solid #3282b8;
+  outline-offset: 1px;
+}
+
+.mr-filter-input::-webkit-calendar-picker-indicator,
+.mr-filter-input::-webkit-inner-spin-button {
+  filter: invert(1);
+}
+
+.mr-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mr-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mr-section-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #3282b8;
+}
+
+.mr-section-count {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(238, 238, 238, 0.7);
+}
+
+.mr-section-header[data-status="approved"] .mr-section-title {
+  color: #10b981;
+}
+
+.mr-section-header[data-status="reverted"] .mr-section-title {
+  color: #d97706;
+}
+
+.mr-section-header[data-status="rejected"] .mr-section-title {
+  color: #ef4444;
+}
+
+.mr-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mr-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 20px;
+  border: 1px solid rgba(238, 238, 238, 0.2);
+  background-color: #393e46;
+}
+
+.mr-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mr-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mr-room {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #eeeeee;
+}
+
+.mr-meta {
+  margin: 0;
+  font-size: 12px;
+  color: rgba(238, 238, 238, 0.5);
+}
+
+.mr-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 4px 10px;
+  border-radius: 3px;
+  border: 1px solid rgba(238, 238, 238, 0.2);
+  background-color: transparent;
+  color: #eeeeee;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mr-card-details {
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+  color: rgba(238, 238, 238, 0.7);
+}
+
+.mr-detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mr-detail-label {
+  font-weight: 600;
+  color: #eeeeee;
+}
+
+.mr-submitted {
+  font-size: 11px;
+  color: rgba(238, 238, 238, 0.7);
+}
+
+.mr-reason {
+  margin-top: 4px;
+  padding: 8px 12px;
+  border-radius: 2px;
+  border: 1px solid rgba(238, 238, 238, 0.2);
+  background-color: rgba(255, 255, 255, 0.05);
+  display: grid;
+  gap: 4px;
+}
+
+.mr-reason[data-variant="reverted"] {
+  background-color: rgba(245, 158, 11, 0.12);
+  border-color: #f59e0b;
+}
+
+.mr-reason[data-variant="reverted"] .mr-reason-label {
+  color: #f59e0b;
+}
+
+.mr-reason[data-variant="reverted"] .mr-reason-text {
+  color: #fbbf24;
+}
+
+.mr-reason[data-variant="rejected"] {
+  background-color: rgba(239, 68, 68, 0.12);
+  border-color: #ef4444;
+}
+
+.mr-reason[data-variant="rejected"] .mr-reason-label {
+  color: #ef4444;
+}
+
+.mr-reason[data-variant="rejected"] .mr-reason-text {
+  color: #f87171;
+}
+
+.mr-reason-label {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.mr-reason-text {
+  font-size: 12px;
+}
