@@ -58,19 +58,19 @@
   text-transform: uppercase;
   letter-spacing: 0.12em;
   border: 1px solid rgba(238, 238, 238, 0.2);
-  background-color: transparent;
   color: #EEEEEE;
   cursor: pointer;
   transition: background-color 150ms ease-in-out, color 150ms ease-in-out;
-}
 
+  /* Dynamic varible */
+  background-color: transparent;
+}
 .bs-slot-toggle[active] {
   background-color: #393E46;
 }
 
 .bs-date-input {
   padding: 6px 8px;
-  border: 1px solid rgba(238, 238, 238, 0.2);
   border-radius: 0;
   background-color: #393E46;
   color: #EEEEEE;
@@ -78,8 +78,10 @@
   font-family: inherit;
   outline: none;
   transition: border-color 150ms ease-in-out;
-}
 
+  /* Dynamic varible */
+  border: 1px solid rgba(238, 238, 238, 0.2);
+}
 .bs-date-input:focus {
   border-color: rgba(50, 130, 184, 0.8);
 }
@@ -159,8 +161,9 @@
   flex-direction: column;
   gap: 27px;
   transition: opacity 200ms ease-out;
+  /* Dynamic varible */
+  opacity: 1;
 }
-
 .bs-section-stack[data-dimmed] {
   opacity: 0.4;
 }
@@ -244,10 +247,11 @@
   border-left: 1px solid rgba(238, 238, 238, 0.2);
   background-color: transparent;
   color: #EEEEEE;
-  cursor: default;
   transition: filter 150ms ease-in-out;
-}
 
+  /* Dynamic varible */
+  cursor: default;
+}
 .bs-slot[interactive] {
   cursor: pointer;
 }

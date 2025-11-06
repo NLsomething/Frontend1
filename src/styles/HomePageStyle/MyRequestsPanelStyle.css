@@ -38,20 +38,16 @@
   scrollbar-width: thin;
   scrollbar-color: #3282b8 #222831;
 }
-
 .mr-content::-webkit-scrollbar {
   width: 8px;
 }
-
 .mr-content::-webkit-scrollbar-track {
   background: #222831;
 }
-
 .mr-content::-webkit-scrollbar-thumb {
   background-color: #3282b8;
   border-radius: 8px;
 }
-
 .mr-content::-webkit-scrollbar-thumb:hover {
   background-color: #0f4c75;
 }
@@ -132,11 +128,9 @@
   padding: 0;
   transition: color 0.2s ease;
 }
-
 .mr-filter-button:hover {
   text-decoration: underline;
 }
-
 .mr-filter-button:disabled {
   opacity: 0.5;
   cursor: default;
@@ -176,12 +170,10 @@
   background-color: #4a5058;
   box-sizing: border-box;
 }
-
 .mr-filter-input:focus {
   outline: 1px solid #3282b8;
   outline-offset: 1px;
 }
-
 .mr-filter-input::-webkit-calendar-picker-indicator,
 .mr-filter-input::-webkit-inner-spin-button {
   filter: invert(1);
@@ -214,16 +206,13 @@
   font-weight: 500;
   color: rgba(238, 238, 238, 0.7);
 }
-
-.mr-section-header[data-status="approved"] .mr-section-title {
+.mr-section-header.pending .mr-section-title {
+  color: #3282b8;
+}
+.mr-section-header.approved .mr-section-title {
   color: #10b981;
 }
-
-.mr-section-header[data-status="reverted"] .mr-section-title {
-  color: #d97706;
-}
-
-.mr-section-header[data-status="rejected"] .mr-section-title {
+.mr-section-header.rejected .mr-section-title {
   color: #ef4444;
 }
 
@@ -318,29 +307,24 @@
   gap: 4px;
 }
 
-.mr-reason[data-variant="reverted"] {
+.mr-reason.reverted {
   background-color: rgba(245, 158, 11, 0.12);
   border-color: #f59e0b;
 }
-
-.mr-reason[data-variant="reverted"] .mr-reason-label {
+.mr-reason.reverted .mr-reason-label {
   color: #f59e0b;
 }
-
-.mr-reason[data-variant="reverted"] .mr-reason-text {
+.mr-reason.reverted .mr-reason-text {
   color: #fbbf24;
 }
-
-.mr-reason[data-variant="rejected"] {
+.mr-reason.rejected {
   background-color: rgba(239, 68, 68, 0.12);
   border-color: #ef4444;
 }
-
-.mr-reason[data-variant="rejected"] .mr-reason-label {
+.mr-reason.rejected .mr-reason-label {
   color: #ef4444;
 }
-
-.mr-reason[data-variant="rejected"] .mr-reason-text {
+.mr-reason.rejected .mr-reason-text {
   color: #f87171;
 }
 

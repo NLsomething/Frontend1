@@ -23,7 +23,9 @@
   transition: all 200ms;
   cursor: pointer;
 }
-.sb-button[hovered] { background-color: #2f3a4a; }
+.sb-button:hover { 
+  background-color: #2f3a4a; 
+}
 
 .sb-panel {
   position: absolute;
@@ -43,6 +45,8 @@
   width: 440px;
   transition: transform 180ms ease, opacity 180ms ease;
   transform-origin: right center;
+
+  /* Dynamic varible */
   transform: scaleX(0);
   opacity: 0;
   pointer-events: none;
@@ -109,12 +113,15 @@
   font-family: inherit;
   border: 1px solid transparent;
   color: #EEEEEE;
-  background-color: #4A5058;
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-.sb-search-btn[enabled] {
+  pointer-events: none;
+
+  /* Dynamic varible */
   background-color: #3282B8;
   cursor: pointer;
   opacity: 1;
+}
+.sb-search-btn:disabled {
+  background-color: #4A5058;
+  cursor: not-allowed;
+  opacity: 0.5;
 }

@@ -107,9 +107,9 @@ const MyRequestsPanelContent = ({
 
             {pendingRequests.length > 0 && (
               <section className="mr-section">
-                <header className="mr-section-header" data-status="pending">
+                <header className="mr-section-header pending">
                   <h3 className="mr-section-title">Pending</h3>
-                  <span className="mr-section-count">{pendingRequests.length} awaiting review</span>
+                  <span className="mr-section-count">{pendingRequests.length} awaiting reviews</span>
                 </header>
                 <div className="mr-card-list">
                   {pendingRequests.map((request) => {
@@ -156,7 +156,7 @@ const MyRequestsPanelContent = ({
 
             {approvedOrRevertedRequests.length > 0 && (
               <section className="mr-section">
-                <header className="mr-section-header" data-status="approved">
+                <header className="mr-section-header approved">
                   <h3 className="mr-section-title">Approved &amp; Reverted</h3>
                   <span className="mr-section-count">{approvedOrRevertedRequests.length} requests</span>
                 </header>
@@ -203,7 +203,7 @@ const MyRequestsPanelContent = ({
                             </div>
                           )}
                           {isReverted && request.rejection_reason && (
-                            <div className="mr-reason" data-variant="reverted">
+                            <div className="mr-reason reverted">
                               <span className="mr-reason-label">Reason for revert:</span>
                               <span className="mr-reason-text">{request.rejection_reason}</span>
                             </div>
@@ -218,7 +218,7 @@ const MyRequestsPanelContent = ({
 
             {rejectedRequests.length > 0 && (
               <section className="mr-section">
-                <header className="mr-section-header" data-status="rejected">
+                <header className="mr-section-header rejected">
                   <h3 className="mr-section-title">Rejected</h3>
                   <span className="mr-section-count">{rejectedRequests.length} declined</span>
                 </header>
@@ -264,7 +264,7 @@ const MyRequestsPanelContent = ({
                             </div>
                           )}
                           {request.rejection_reason && (
-                            <div className="mr-reason" data-variant="rejected">
+                            <div className="mr-reason rejected">
                               <span className="mr-reason-label">Reason for rejection:</span>
                               <span className="mr-reason-text">{request.rejection_reason}</span>
                             </div>

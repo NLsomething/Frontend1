@@ -7,13 +7,14 @@
   padding: 0;
   margin: 0 auto;
   overflow-y: auto;
-  opacity: 0;
-  transform: translateY(-20px);
   transition: opacity 300ms ease-out, transform 300ms ease-out;
   will-change: opacity, transform;
-}
 
-.bi-modal[data-open] {
+  /* Dynamic varible */
+  opacity: 0;
+  transform: translateY(-20px);
+}
+.bi-modal.open {
   opacity: 1;
   transform: translateY(0);
 }
@@ -31,10 +32,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  border: 1px solid rgba(238, 238, 238, 0.2);
   border-radius: 0;
-  background-color: #323640;
-  color: rgba(238, 238, 238, 0.8);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.19em;
@@ -42,14 +40,17 @@
   text-align: left;
   cursor: pointer;
   transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
-}
 
+  /* Dynamic varible */
+  background-color: #323640;
+  color: rgba(238, 238, 238, 0.8);
+  border: 1px solid rgba(238, 238, 238, 0.2);
+}
 .bi-floor-toggle[data-expanded] {
   background-color: #4a5568;
   color: #eeeeee;
   border-color: rgba(255, 255, 255, 0.7);
 }
-
 .bi-floor-toggle:hover {
   background-color: #4a5568;
   color: #eeeeee;
@@ -69,13 +70,14 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  overflow: hidden;
+  transition: max-height 300ms ease-out, opacity 300ms ease-out;
+
+  /* Dynamic varible */
   max-height: 0;
   opacity: 0;
-  overflow: hidden;
   pointer-events: none;
-  transition: max-height 300ms ease-out, opacity 300ms ease-out;
 }
-
 .bi-floor-content[data-expanded] {
   max-height: 1000px;
   opacity: 1;
@@ -86,10 +88,11 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-  opacity: 0;
   transition: opacity 200ms ease-out;
-}
 
+  /* Dynamic varible */
+  opacity: 0;
+}
 .bi-room-grid[data-expanded] {
   opacity: 1;
 }
@@ -105,26 +108,26 @@
   padding: 10px 12px;
   border: none;
   border-radius: 0;
-  background-color: #49505c;
-  color: rgba(238, 238, 238, 0.8);
   font-size: 9px;
   font-weight: 500;
   letter-spacing: 0.12em;
   text-align: left;
   text-transform: uppercase;
   cursor: pointer;
-  opacity: 0;
   transition:
     opacity 200ms ease-out,
     background-color 150ms ease,
     color 150ms ease;
   transition-delay: 0ms;
-}
 
+  /* Dynamic varible */
+  opacity: 0;
+  background-color: #49505c;
+  color: rgba(238, 238, 238, 0.8);
+}
 .bi-room-button[data-expanded] {
   opacity: 1;
 }
-
 .bi-room-button[data-active],
 .bi-room-button:hover {
   background-color: #4a5568;

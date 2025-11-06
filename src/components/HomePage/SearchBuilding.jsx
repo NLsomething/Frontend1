@@ -6,7 +6,6 @@ const SearchBuilding = ({ buildings, onRoomSelect, onOpen }) => {
   const [roomCode, setRoomCode] = useState('')
   const [buildingCode, setBuildingCode] = useState('')
   const [isSearching, setIsSearching] = useState(false)
-  const [isButtonHovered, setIsButtonHovered] = useState(false)
   const dropdownRef = useRef(null)
   const roomCodeInputRef = useRef(null)
   const buildingCodeInputRef = useRef(null)
@@ -92,15 +91,9 @@ const SearchBuilding = ({ buildings, onRoomSelect, onOpen }) => {
           type="button"
           onClick={() => {
             setIsOpen(true)
-            setIsButtonHovered(false)
             if (onOpen) onOpen()
           }}
           className="sb-button"
-          onMouseEnter={() => setIsButtonHovered(true)}
-          onMouseLeave={() => setIsButtonHovered(false)}
-          onFocus={() => setIsButtonHovered(true)}
-          onBlur={() => setIsButtonHovered(false)}
-          {...(isButtonHovered ? { hovered: '' } : {})}
         >
           Search Building
         </button>
@@ -152,9 +145,8 @@ const SearchBuilding = ({ buildings, onRoomSelect, onOpen }) => {
           <button
             type="button"
             onClick={handleSearch}
-            disabled={isSearchDisabled}
             className="sb-search-btn"
-            {...(!isSearchDisabled ? { enabled: '' } : {})}
+            disabled={isSearchDisabled}
           >
             {isSearching ? 'Searching...' : 'Search'}
           </button>

@@ -108,8 +108,7 @@ const BuildingInfoModal = ({
   return (
     <div
       ref={scrollContainerRef}
-      className="bi-modal no-scrollbar"
-      {...(isOpen ? { 'data-open': '' } : {})}
+      className={`bi-modal no-scrollbar ${isOpen ? 'open' : ''}`}
     >
       {normalizedRooms.map((group, idx) => {
         const floorKey = resolveFloorKey(group, idx)
