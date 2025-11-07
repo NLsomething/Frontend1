@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react'
 import { SCHEDULE_STATUS, SCHEDULE_STATUS_LABELS } from '../../constants/schedule'
 import { getScheduleStatusColors } from '../../utils/scheduleUtils'
 import '../../styles/HomePageStyle/RoomScheduleStyle.css'
+import { useHomePageStore, selectScheduleSlice } from '../../stores/useHomePageStore'
 
 const DEFAULT_SLOT_CATEGORY = 'classroom'
 
@@ -11,7 +12,6 @@ const RoomScheduleContent = ({
   roomName,
   bookable = true,
   schedule = [],
-  scheduleLoading,
   scheduleDate,
   onDateChange,
   canEdit,
@@ -23,6 +23,7 @@ const RoomScheduleContent = ({
   roomType = null
 }) => {
   const [mounted, setMounted] = useState(false)
+  const { scheduleLoading } = useHomePageStore(selectScheduleSlice)
 
   const getTodayDDMMYYYY = () => {
     const today = new Date()

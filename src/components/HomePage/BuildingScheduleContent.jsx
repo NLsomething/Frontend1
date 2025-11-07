@@ -2,6 +2,7 @@ import { Fragment, useMemo, useState } from 'react'
 import { SCHEDULE_STATUS, SCHEDULE_STATUS_LABELS } from '../../constants/schedule'
 import { getScheduleStatusColors } from '../../utils/scheduleUtils'
 import '../../styles/HomePageStyle/BuildingScheduleStyle.css'
+import { useHomePageStore, selectScheduleSlice } from '../../stores/useHomePageStore'
 
 const ROOM_COLUMN_WIDTH = 90
 const CLASSROOM_COLUMN_WIDTH = 50
@@ -46,12 +47,11 @@ const BuildingScheduleContent = ({
 	scheduleDate,
 	setScheduleDate,
 	timeSlots = [],
-	scheduleMap = {},
-	scheduleLoading,
 	onCellClick,
 	canEdit,
 	canRequest
 }) => {
+	const { scheduleMap, scheduleLoading } = useHomePageStore(selectScheduleSlice)
 	const [activeSlotCategory, setActiveSlotCategory] = useState('classroom')
 
 	const normalizedSlots = useMemo(() => {

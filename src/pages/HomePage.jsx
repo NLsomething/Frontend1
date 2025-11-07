@@ -1,12 +1,9 @@
 import { useNavigate } from 'react-router-dom'
 import { COLORS } from '../constants/colors'
-import { Canvas } from '@react-three/fiber'
-import { OrbitControls } from '@react-three/drei'
-import * as THREE from 'three'
 import { useAuth } from '../context/AuthContext'
 import { signOut } from '../services/authService'
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
-import SchoolModel from '../components/SchoolModel'
+import SchoolScene from '../components/SchoolScene'
 import { useNotifications } from '../context/NotificationContext'
 import { USER_ROLES } from '../constants/roles'
 import { SCHEDULE_STATUS, SCHEDULE_STATUS_LABELS } from '../constants/schedule'
@@ -29,9 +26,9 @@ import ScheduleRequestContent from '../components/HomePage/ScheduleRequestConten
 import ScheduleEditContent from '../components/HomePage/ScheduleEditContent'
 
 // Import custom hooks
-import { useScheduleManagement } from '../hooks/useScheduleManagement'
-import { useRoomRequests } from '../hooks/useRoomRequests'
 import { useCameraControls } from '../hooks/useCameraControls'
+import HomePageStateProvider from '../components/HomePage/HomePageStateProvider'
+import { useHomePageStore } from '../stores/useHomePageStore'
 
 // Import utilities
 import {
@@ -142,28 +139,21 @@ function HomePage() {
   // Calculate ISO date
   const isoDate = useMemo(() => toIsoDateString(scheduleDate), [scheduleDate])
 
-  const {
-    scheduleMap,
-    scheduleLoading,
-    loadSchedules,
-    buildScheduleKey,
-    saveSchedule
-  } = useScheduleManagement(
-    isoDate,
-    role === USER_ROLES.teacher ||
-      role === USER_ROLES.student ||
-      role === USER_ROLES.administrator ||
-      role === USER_ROLES.buildingManager,
-    {
-      timeSlots,
-      rooms: buildingRooms
-    }
-  )
+  const scheduleMap = useHomePageStore((state) => state.scheduleMap)
+  const loadSchedules = useHomePageStore((state) => state.loadSchedules)
+  const saveSchedule = useHomePageStore((state) => state.saveSchedule)
+  const buildScheduleKey = useHomePageStore((state) => state.buildScheduleKey)
   const [roomScheduleRoomName, setRoomScheduleRoomName] = useState('')
   const [roomScheduleBookable, setRoomScheduleBookable] = useState(true)
 
+  // Make building-derived props stable primitives so they don't cause
+  // shallow-prop changes when unrelated UI state updates.
+  const buildingModelUrl = useMemo(() => building?.model_url || null, [building?.model_url])
+  const buildingPosition = useMemo(() => [building?.pos_x ?? 0, building?.pos_y ?? 0, building?.pos_z ?? 0], [building?.pos_x, building?.pos_y, building?.pos_z])
+  const buildingId = building?.id ?? null
+
   const roomSchedule = useMemo(() => {
-    if (!roomScheduleRoomCode) return []
+    if (!roomScheduleRoomCode || typeof buildScheduleKey !== 'function') return []
     return timeSlots.map((slot) => {
       const slotId = slot.id || slot.slot_id
       const key = buildScheduleKey(roomScheduleRoomCode, slotId)
@@ -229,48 +219,44 @@ function HomePage() {
   const canManageRequests = canEditSchedule
   const canRequestRoom = role === USER_ROLES.teacher
 
-  // Use custom hooks
-  const {
-    // Request management
-    // eslint-disable-next-line no-unused-vars
-    requests,
-    requestsLoading,
-    approveRequest,
-    rejectRequest,
-    revertRequest,
-    requestsPanelOpen,
-    setRequestsPanelOpen,
-    pendingRequests,
-    historicalRequests,
-    historicalDateFilter,
-    setHistoricalDateFilter,
-    requestActionLoading,
-    rejectionReasons,
-    setRejectionReasons,
-    
-    // My requests (teacher view)
-    myRequests,
-    myRequestsLoading,
-    myRequestsPanelOpen,
-    setMyRequestsPanelOpen,
-    filteredMyRequests,
-    myRequestsDateFilter,
-    setMyRequestsDateFilter,
-    
-    // Request creation
-    requestState,
-    setRequestState,
-    requestForm,
-    setRequestForm,
-    submitRequest,
-    resetRequestModal
-  } = useRoomRequests(canManageRequests, canRequestRoom, user, profile, {
-    timeSlots,
-    rooms: buildingRooms
-  })
+  const requestsLoading = useHomePageStore((state) => state.requestsLoading)
+  const requestActionLoading = useHomePageStore((state) => state.requestActionLoading)
+  const pendingRequests = useHomePageStore((state) => state.pendingRequests)
+  const rejectionReasons = useHomePageStore((state) => state.rejectionReasons)
+  const requestsPanelOpen = useHomePageStore((state) => state.requestsPanelOpen)
+  const historicalRequests = useHomePageStore((state) => state.historicalRequests)
+  const historicalDateFilter = useHomePageStore((state) => state.historicalDateFilter)
+  const myRequests = useHomePageStore((state) => state.myRequests)
+  const myRequestsLoading = useHomePageStore((state) => state.myRequestsLoading)
+  const myRequestsPanelOpen = useHomePageStore((state) => state.myRequestsPanelOpen)
+  const filteredMyRequests = useHomePageStore((state) => state.filteredMyRequests)
+  const myRequestsDateFilter = useHomePageStore((state) => state.myRequestsDateFilter)
+  const requestState = useHomePageStore((state) => state.requestState)
+  const requestForm = useHomePageStore((state) => state.requestForm)
+
+  const setRejectionReasons = useHomePageStore((state) => state.setRejectionReasons)
+  const approveRequest = useHomePageStore((state) => state.approveRequest)
+  const rejectRequest = useHomePageStore((state) => state.rejectRequest)
+  const revertRequest = useHomePageStore((state) => state.revertRequest)
+  const setRequestsPanelOpen = useHomePageStore((state) => state.setRequestsPanelOpen)
+  const setHistoricalDateFilter = useHomePageStore((state) => state.setHistoricalDateFilter)
+  const setMyRequestsPanelOpen = useHomePageStore((state) => state.setMyRequestsPanelOpen)
+  const setMyRequestsDateFilter = useHomePageStore((state) => state.setMyRequestsDateFilter)
+  const submitRequest = useHomePageStore((state) => state.submitRequest)
+  const setRequestState = useHomePageStore((state) => state.setRequestState)
+  const setRequestForm = useHomePageStore((state) => state.setRequestForm)
+  const resetRequestModal = useHomePageStore((state) => state.resetRequestModal)
 
   // Camera drag detection to guard building select/deselect during drags
   const [/* isCameraInteracting */ , setIsCameraInteracting] = useState(false)
+
+  const handleCameraStart = useCallback(() => {
+    setIsCameraInteracting(true)
+  }, [])
+
+  const handleCameraEnd = useCallback(() => {
+    setIsCameraInteracting(false)
+  }, [])
 
   // Camera controls hook
   useCameraControls(controlsRef, heroCollapsed)
@@ -349,10 +335,8 @@ function HomePage() {
     }
   }, [user, loading, navigate])
 
-  // Do not auto-close the building dropdown on outside clicks; it closes only
-  // when the Select Building button is toggled or the building is deselected.
-
-  const handleCloseDropdown = () => {
+  // Dropdown
+  const handleCloseDropdown = useCallback(() => {
     setIsDropdownClosing(true)
     // Reset Building Info state immediately when dropdown closes
     setIsBuildingInfoOpen(false)
@@ -360,9 +344,9 @@ function HomePage() {
       setIsBuildingDropdownOpen(false)
       setIsDropdownClosing(false)
     }, 200) // Match animation duration
-  }
+  }, [])
 
-  const handleOpenDropdown = () => {
+  const handleOpenDropdown = useCallback(() => {
     setIsDropdownClosing(false)
     setIsBuildingDropdownOpen(true)
     // Ensure rooms are loaded to populate floor/room list
@@ -374,7 +358,7 @@ function HomePage() {
         } catch { /* noop */ }
       })()
     }
-  }
+  }, [selectedBuilding, buildingRooms.length, buildingRoomsLoading])
 
   // Dropdown stays open when panels open - don't auto-close it
 
@@ -436,41 +420,6 @@ function HomePage() {
             loadBuilding()
           }, [notifyError])
 
-  // Load schedules when date changes
-  useEffect(() => {
-    loadSchedules()
-  }, [loadSchedules])
-
-  // Auto-reload schedules when building schedule is open
-  useEffect(() => {
-    if (!isScheduleOpen) return
-
-    // Initial load
-    loadSchedules()
-
-    // Set up polling interval (reload every 15 seconds)
-    const interval = setInterval(() => {
-      loadSchedules()
-    }, 15000)
-
-    return () => clearInterval(interval)
-  }, [isScheduleOpen, loadSchedules])
-
-  // Auto-reload schedules when room schedule is open
-  useEffect(() => {
-    if (!isRoomScheduleOpen) return
-
-    // Initial load (with loading screen)
-    loadSchedules()
-
-    // Set up polling interval (reload every 15 seconds, silent to avoid loading screen)
-    const interval = setInterval(() => {
-      loadSchedules(true) // silent reload
-    }, 15000)
-
-    return () => clearInterval(interval)
-  }, [isRoomScheduleOpen, loadSchedules])
-
   // Initialize edit form when entering edit mode
   const [editForm, setEditForm] = useState({
     status: SCHEDULE_STATUS.occupied,
@@ -506,7 +455,9 @@ function HomePage() {
 
   // Handle center panel close
   const handleCenterPanelClose = useCallback(() => {
-    resetRequestModal()
+    if (typeof resetRequestModal === 'function') {
+      resetRequestModal()
+    }
     setCenterPanelContentType(null)
     isSubmittingRequestRef.current = false
     setIsSubmittingRequest(false)
@@ -543,6 +494,13 @@ function HomePage() {
         return
       }
 
+      if (typeof submitRequest !== 'function') {
+        notifyError('Request service unavailable', {
+          description: 'Please try again in a moment.'
+        })
+        return
+      }
+
       const success = await submitRequest({
         room_id: resolvedRoomId,
         room_code: roomCode,
@@ -557,7 +515,9 @@ function HomePage() {
 
       if (success) {
         handleCenterPanelClose()
-        loadSchedules()
+        if (typeof loadSchedules === 'function') {
+          loadSchedules()
+        }
       }
     } finally {
       isSubmittingRequestRef.current = false
@@ -583,9 +543,15 @@ function HomePage() {
     setIsSubmittingEdit(true)
 
     try {
+      if (typeof saveSchedule !== 'function') {
+        throw new Error('Schedule handlers are not ready yet.')
+      }
+
       await saveSchedule(requestState, editForm)
       handleCenterPanelClose()
-      loadSchedules()
+      if (typeof loadSchedules === 'function') {
+        loadSchedules()
+      }
       notifySuccess('Schedule updated', {
         description: `Room ${requestState.room} schedule has been updated.`
       })
@@ -604,6 +570,7 @@ function HomePage() {
     const rawValue = e.target.value
     const numericValue = Number(rawValue)
     const nextValue = Number.isNaN(numericValue) ? rawValue : numericValue
+    if (typeof setRequestState !== 'function') return
     setRequestState((prev) => ({
       ...prev,
       [field]: nextValue
@@ -613,6 +580,7 @@ function HomePage() {
   // Handle form change for request/edit
   const handleRequestFormChange = useCallback((e) => {
     const { name, value } = e.target
+    if (typeof setRequestForm !== 'function') return
     setRequestForm(prev => ({
       ...prev,
       [name]: value
@@ -657,7 +625,9 @@ function HomePage() {
         setBuildingRooms(data || [])
         setBuildingRoomsLoading(false)
         // Load schedule data
-        await loadSchedules()
+        if (typeof loadSchedules === 'function') {
+          await loadSchedules()
+        }
       } catch (err) {
         notifyError('Failed to load rooms', {
           description: err.message || 'An unexpected error occurred.'
@@ -674,8 +644,8 @@ function HomePage() {
   const closeAllPanels = () => {
     // Only close header-level panels, not modals
     // DON'T close building dropdown - it stays open when unified panel is open
-    setRequestsPanelOpen(false)
-    setMyRequestsPanelOpen(false)
+    setRequestsPanelOpen?.(false)
+    setMyRequestsPanelOpen?.(false)
     setIsBuildingInfoOpen(false)
     setScheduleOpen(false)
     setUserManagementOpen(false)
@@ -689,37 +659,46 @@ function HomePage() {
     // Don't close dropdown - allow switching content types
     if (unifiedPanelContentType === 'requests') {
       setUnifiedPanelContentType(null)
-      setRequestsPanelOpen(false)
+      setRequestsPanelOpen?.(false)
     } else {
       setUnifiedPanelContentType('requests')
-      setRequestsPanelOpen(true)
+      setRequestsPanelOpen?.(true)
       // Keep Building Info/Schedule states as-is
     }
   }
 
   // Central close for UnifiedPanel (same behavior as UnifiedPanel onClose prop)
-  const handleUnifiedPanelClose = () => {
+  const handleUnifiedPanelClose = useCallback(() => {
     const currentType = unifiedPanelContentType
     if (currentType === 'room-schedule') {
       handleCloseRoomSchedulePanel()
       return
     }
     setUnifiedPanelContentType(null)
-    if (currentType === 'requests') setRequestsPanelOpen(false)
-    if (currentType === 'my-requests') setMyRequestsPanelOpen(false)
+    if (currentType === 'requests') setRequestsPanelOpen?.(false)
+    if (currentType === 'my-requests') setMyRequestsPanelOpen?.(false)
     if (currentType === 'user-management') setUserManagementOpen(false)
     if (currentType === 'building-info') setIsBuildingInfoOpen(false)
     if (currentType === 'schedule') setScheduleOpen(false)
-  }
+  }, [
+    unifiedPanelContentType,
+    handleCloseRoomSchedulePanel,
+    setRequestsPanelOpen,
+    setMyRequestsPanelOpen,
+    setUserManagementOpen,
+    setIsBuildingInfoOpen,
+    setScheduleOpen,
+    setUnifiedPanelContentType
+  ])
 
   const handleMyRequestsClick = () => {
     // Don't close dropdown - allow switching content types
     if (unifiedPanelContentType === 'my-requests') {
       setUnifiedPanelContentType(null)
-      setMyRequestsPanelOpen(false)
+      setMyRequestsPanelOpen?.(false)
     } else {
       setUnifiedPanelContentType('my-requests')
-      setMyRequestsPanelOpen(true)
+      setMyRequestsPanelOpen?.(true)
       // Keep Building Info/Schedule states as-is
     }
   }
@@ -788,41 +767,58 @@ function HomePage() {
     }
   }
 
-  const handleBuildingClick = (clickedBuilding) => {
-    // Ignore only if a drag just ended very recently (within 120ms)
-    if (Date.now() - (lastDragEndAtRef.current || 0) < 120) {
-      return
-    }
-    lastBuildingClickAtRef.current = Date.now()
-    // If unified panel is open, only close it and don't select/deselect buildings
-    if (isUnifiedPanelOpen) {
-      handleUnifiedPanelClose()
-      return
-    }
-    if (selectedBuilding?.id === clickedBuilding?.id) {
-      // Trigger dropdown close animation only if it's currently open
-      if (isBuildingDropdownOpen) {
-        handleCloseDropdown()
+
+
+  // Create a stable onBuildingClick to pass into the memoized SchoolScene.
+  // The actual logic lives in a ref so we can update it when local state changes
+  // without recreating the function reference passed to the scene.
+  const buildingClickHandlerRef = useRef()
+  useEffect(() => {
+    buildingClickHandlerRef.current = (clickedBuilding) => {
+      // Mirror the logic of handleBuildingClick here so it has access to latest state
+      if (Date.now() - (lastDragEndAtRef.current || 0) < 120) {
+        return
       }
-      setSelectedBuilding(null)
-      setIsBuildingInfoOpen(false)
-      setScheduleOpen(false)
-      setUnifiedPanelContentType(null)
-    } else {
-      setSelectedBuilding(clickedBuilding)
-      // Auto-open dropdown to show actions immediately when a building is selected
-      handleOpenDropdown()
-      // Don't open BuildingInfo automatically - only select the building
-      // Don't auto-open dropdown - user clicks button to open it
+      lastBuildingClickAtRef.current = Date.now()
+      if (isUnifiedPanelOpen) {
+        handleUnifiedPanelClose()
+        return
+      }
+
+      const clickedId = (typeof clickedBuilding === 'object' ? clickedBuilding?.id : clickedBuilding)
+
+      if (selectedBuilding?.id === clickedId) {
+        if (isBuildingDropdownOpen) {
+          handleCloseDropdown()
+        }
+        setSelectedBuilding(null)
+        setIsBuildingInfoOpen(false)
+        setScheduleOpen(false)
+        setUnifiedPanelContentType(null)
+      } else {
+        // Resolve the clicked building object from the available lists if we were passed an id
+        let resolved = null
+        if (typeof clickedBuilding === 'object') {
+          resolved = clickedBuilding
+        } else if (clickedId !== undefined && clickedId !== null) {
+          resolved = buildings.find(b => b?.id === clickedId) || (building?.id === clickedId ? building : null)
+        }
+        setSelectedBuilding(resolved)
+        handleOpenDropdown()
+      }
     }
-  }
+  }, [isUnifiedPanelOpen, selectedBuilding, isBuildingDropdownOpen, handleUnifiedPanelClose, handleCloseDropdown, handleOpenDropdown, buildings, building])
+
+  const stableOnBuildingClick = useCallback((b) => {
+    if (buildingClickHandlerRef.current) buildingClickHandlerRef.current(b)
+  }, [])
 
 
   const handleRoomSearch = async (building, roomCode) => {
     try {
       // Don't close dropdown - only close non-building panels
-      setRequestsPanelOpen(false)
-      setMyRequestsPanelOpen(false)
+      setRequestsPanelOpen?.(false)
+      setMyRequestsPanelOpen?.(false)
       setUserManagementOpen(false)
       
       // Select the building
@@ -908,6 +904,18 @@ function HomePage() {
 
   return (
     <div className={styles.screen}>
+      <HomePageStateProvider
+        isoDate={isoDate}
+        role={role}
+        timeSlots={timeSlots}
+        buildingRooms={buildingRooms}
+        isScheduleOpen={isScheduleOpen}
+        isRoomScheduleOpen={isRoomScheduleOpen}
+        user={user}
+        profile={profile}
+        canManageRequests={canManageRequests}
+        canRequestRoom={canRequestRoom}
+      />
       {/* 3D Canvas */}
       <div
         className={`${styles.canvasContainer} canvas-container`}
@@ -957,42 +965,17 @@ function HomePage() {
           }
         }}
       >
-        <Canvas camera={{ position: [40, 25, 40], fov: 50 }} style={{ background: 'radial-gradient(circle at 32% 18%, rgba(140,160,180,0.4) 0%, rgba(90,110,130,0.6) 55%, rgba(60,80,100,0.8) 100%)' }}>
-          {!buildingLoading && (
-          <SchoolModel 
-            building={building} 
-            onBuildingClick={heroCollapsed ? handleBuildingClick : null}
-          />
-          )}
-          <OrbitControls 
-            ref={controlsRef}
-            enabled={true}
-            enableZoom={heroCollapsed}
-            enablePan={false}
-            enableRotate={heroCollapsed}
-            minDistance={10}
-            maxDistance={100}
-            maxPolarAngle={Math.PI / 2}
-            autoRotate={true}
-            autoRotateSpeed={2}
-            mouseButtons={{
-              LEFT: THREE.MOUSE.ROTATE,
-              MIDDLE: THREE.MOUSE.DOLLY,
-              RIGHT: THREE.MOUSE.PAN
-            }}
-            onStart={() => {
-              setIsCameraInteracting(true)
-              if (controlsRef.current && heroCollapsed) {
-                controlsRef.current.autoRotate = false
-              }
-            }}
-            onEnd={() => {
-              setIsCameraInteracting(false)
-              // If OrbitControls ended with an actual drag, lastDragEndAtRef will already be set by onMouseUp
-              // No need to update a separate timestamp here that could block taps
-            }}
-          />
-        </Canvas>
+        <SchoolScene
+          modelUrl={buildingModelUrl}
+          position={buildingPosition}
+          buildingId={buildingId}
+          buildingLoading={buildingLoading}
+          heroCollapsed={heroCollapsed}
+          controlsRef={controlsRef}
+          onBuildingClick={stableOnBuildingClick}
+          onCameraStart={handleCameraStart}
+          onCameraEnd={handleCameraEnd}
+        />
       </div>
 
       {/* Welcome Notice Overlay, replaces heroIntro and instructions tip */}
@@ -1044,8 +1027,8 @@ function HomePage() {
                   onOpen={() => {
                     // Don't close building dropdown - allow it to stay open
                     // Only close other panels that aren't building-related
-                    setRequestsPanelOpen(false)
-                    setMyRequestsPanelOpen(false)
+                    setRequestsPanelOpen?.(false)
+                    setMyRequestsPanelOpen?.(false)
                     setUserManagementOpen(false)
                   }}
                 />
@@ -1250,8 +1233,6 @@ function HomePage() {
          scheduleDate={scheduleDate}
          setScheduleDate={setScheduleDate}
          timeSlots={timeSlots}
-         scheduleMap={scheduleMap}
-         scheduleLoading={scheduleLoading}
          onCellClick={(roomMeta, slotHour) => {
            const roomCode = typeof roomMeta === 'string' ? roomMeta : roomMeta?.room_code || roomMeta?.roomNumber || roomMeta?.room_number || null
            const roomName = typeof roomMeta === 'string' ? null : roomMeta?.room_name || roomMeta?.name || null
@@ -1260,6 +1241,13 @@ function HomePage() {
            if (!roomCode) {
              notifyError('Missing room details', {
                description: 'Unable to determine which room was selected.'
+             })
+             return
+           }
+
+           if (typeof buildScheduleKey !== 'function') {
+             notifyError('Schedule unavailable', {
+               description: 'The schedule service is still initialising. Please try again shortly.'
              })
              return
            }
@@ -1312,7 +1300,6 @@ function HomePage() {
             roomName={roomScheduleRoomName}
             bookable={roomScheduleBookable}
             schedule={roomSchedule}
-            scheduleLoading={scheduleLoading}
             scheduleDate={isoDate}
             timeSlots={timeSlots}
             roomType={roomScheduleRoomType}
@@ -1340,6 +1327,12 @@ function HomePage() {
             canRequest={canRequestRoom}
             onAdminAction={(roomNumber, slotHour) => {
               if (!canEditSchedule) return
+              if (typeof buildScheduleKey !== 'function') {
+                notifyError('Schedule unavailable', {
+                  description: 'The schedule service is still initialising. Please try again shortly.'
+                })
+                return
+              }
               const roomMeta = roomLookupByCode.get(roomNumber)
               const key = buildScheduleKey(roomNumber, slotHour)
               const existing = scheduleMap[key]
@@ -1356,6 +1349,12 @@ function HomePage() {
             }}
             onTeacherRequest={(roomNumber, slotHour) => {
               if (!canRequestRoom) return
+              if (typeof buildScheduleKey !== 'function') {
+                notifyError('Schedule unavailable', {
+                  description: 'The schedule service is still initialising. Please try again shortly.'
+                })
+                return
+              }
               const key = buildScheduleKey(roomNumber, slotHour)
               const entry = scheduleMap[key]
               if (entry && entry.status !== SCHEDULE_STATUS.empty && entry.status !== SCHEDULE_STATUS.pending) {

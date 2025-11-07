@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react'
 import { onAuthStateChange, getCurrentUser } from '../services/authService'
 import { getProfile } from '../services/profileService'
 
@@ -37,10 +37,34 @@ export const AuthProvider = ({ children }) => {
 
     // Listen for auth state changes
     const { data: authListener } = onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event)
-      setSession(session)
-      setUser(session?.user ?? null)
-      setLoading(false)
+      try {
+        const incomingUser = session?.user ?? null
+
+        if (event === 'SIGNED_IN' && document.visibilityState === 'hidden') {
+          return
+        }
+
+        console.log('Auth state changed:', event)
+
+        setSession((prev) => {
+          // shallow compare by user id to avoid unnecessary updates
+          const prevId = prev?.user?.id ?? null
+          const nextId = incomingUser?.id ?? null
+          if (prevId === nextId) return prev
+          return session
+        })
+
+        setUser((prevUser) => {
+          const prevId = prevUser?.id ?? null
+          const nextId = incomingUser?.id ?? null
+          if (prevId === nextId) return prevUser
+          return incomingUser
+        })
+
+        setLoading((prev) => (prev ? false : prev))
+      } catch (err) {
+        console.error('Error processing auth state change:', err)
+      }
     })
 
     // Cleanup subscription on unmount
@@ -72,9 +96,8 @@ export const AuthProvider = ({ children }) => {
   }, [user])
 
   // Force refresh profile - useful after role changes
-  const refreshProfile = async () => {
+  const refreshProfileCb = useCallback(async () => {
     if (!user?.id) return
-    
     setProfileLoading(true)
     const { data, error } = await getProfile(user.id)
 
@@ -84,26 +107,28 @@ export const AuthProvider = ({ children }) => {
 
     setProfile(data || null)
     setProfileLoading(false)
-  }
+  }, [user?.id])
 
-  const value = {
+  const signOutCb = useCallback(async () => {
+    setUser(null)
+    setSession(null)
+    setProfile(null)
+    setProfileLoading(false)
+  }, [])
+
+  const memoValue = useMemo(() => ({
     user,
     session,
     loading,
     profile,
     role: profile?.role || user?.user_metadata?.role || null,
     profileLoading,
-    refreshProfile,
-    signOut: async () => {
-      setUser(null)
-      setSession(null)
-      setProfile(null)
-      setProfileLoading(false)
-    }
-  }
+    refreshProfile: refreshProfileCb,
+    signOut: signOutCb
+  }), [user, session, loading, profile, profileLoading, refreshProfileCb, signOutCb])
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={memoValue}>
       {children}
     </AuthContext.Provider>
   )

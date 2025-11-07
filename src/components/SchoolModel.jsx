@@ -20,24 +20,18 @@ function Model({ modelUrl, position, onClick }) {
   )
 }
 
-function SchoolModel({ building, onBuildingClick }) {
-  const modelUrl = building?.model_url
-  const position = [
-    building?.pos_x ?? 0,
-    building?.pos_y ?? 0,
-    building?.pos_z ?? 0
-  ]
-
+function SchoolModel({ modelUrl, position, buildingId, onBuildingClick }) {
   const handleClick = (e) => {
     e.stopPropagation()
-    if (onBuildingClick && building) {
-      onBuildingClick(building)
+    if (onBuildingClick && buildingId !== undefined && buildingId !== null) {
+      // Pass the primitive id to the handler; HomePage will resolve the object
+      onBuildingClick(buildingId)
     }
   }
 
-  // Don't render anything if no building or no model URL
-  if (!building || !modelUrl) {
-    console.log('[SchoolModel] No building or model URL:', { building: !!building, modelUrl })
+  // Don't render anything if no model URL
+  if (!modelUrl) {
+    console.log('[SchoolModel] No model URL or building id:', { buildingId: !!buildingId, modelUrl })
     return (
       <>
         <ambientLight intensity={0.5} />
