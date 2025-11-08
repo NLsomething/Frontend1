@@ -124,9 +124,11 @@
   color: #3282b8;
   font-size: 12px;
   font-weight: 600;
-  cursor: pointer;
   padding: 0;
   transition: color 0.2s ease;
+
+  /* Dynamic variables */
+  cursor: pointer;
 }
 .mr-filter-button:hover {
   text-decoration: underline;
@@ -141,7 +143,6 @@
   display: grid;
   gap: 12px;
 }
-
 @media (min-width: 640px) {
   .mr-filter-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -185,26 +186,21 @@
   gap: 16px;
 }
 
-.mr-section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
 .mr-section-title {
   margin: 0;
   font-size: 13px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  
+  /* Dynamic variables */
   color: #3282b8;
 }
-
-.mr-section-count {
-  font-size: 12px;
-  font-weight: 500;
-  color: rgba(238, 238, 238, 0.7);
+.mr-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 .mr-section-header.pending .mr-section-title {
   color: #3282b8;
@@ -214,6 +210,12 @@
 }
 .mr-section-header.rejected .mr-section-title {
   color: #ef4444;
+}
+
+.mr-section-count {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(238, 238, 238, 0.7);
 }
 
 .mr-card-list {
@@ -301,12 +303,13 @@
   margin-top: 4px;
   padding: 8px 12px;
   border-radius: 2px;
-  border: 1px solid rgba(238, 238, 238, 0.2);
-  background-color: rgba(255, 255, 255, 0.05);
   display: grid;
   gap: 4px;
+  
+  /* Dynamic variables */
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(238, 238, 238, 0.2);
 }
-
 .mr-reason.reverted {
   background-color: rgba(245, 158, 11, 0.12);
   border-color: #f59e0b;

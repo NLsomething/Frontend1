@@ -106,7 +106,7 @@ const RequestsPanelContent = ({
         ) : (
           <div className="rq-stack">
             <section className="rq-section">
-              <header className="rq-section-header" data-status="pending">
+              <header className="rq-section-header pending">
                 <h3 className="rq-section-title">Pending</h3>
                 <span className="rq-section-count">{pendingCount} awaiting decision</span>
               </header>
@@ -141,13 +141,13 @@ const RequestsPanelContent = ({
                             <span>{request.requester_name || request.requester_email}</span>
                           </div>
                           {request.course_name && (
-                            <div className="rq-meta-entry" data-span="full">
+                            <div className="rq-meta-entry full">
                               <span className="rq-meta-label">Course/Event:</span>
                               <span>{request.course_name}</span>
                             </div>
                           )}
                           {request.notes && (
-                            <div className="rq-meta-entry" data-span="full">
+                            <div className="rq-meta-entry full">
                               <span className="rq-meta-label">Notes:</span>
                               <span>{request.notes}</span>
                             </div>
@@ -168,8 +168,7 @@ const RequestsPanelContent = ({
                             <button
                               type="button"
                               onClick={() => handleRejectClick(request)}
-                              className="rq-button"
-                              data-variant="reject"
+                              className="rq-button reject"
                               disabled={requestActionLoading}
                             >
                               {requestActionLoading ? 'Working…' : 'Reject'}
@@ -181,8 +180,7 @@ const RequestsPanelContent = ({
                                   onApprove(request)
                                 }
                               }}
-                              className="rq-button"
-                              data-variant="approve"
+                              className="rq-button approve"
                               disabled={requestActionLoading}
                             >
                               {requestActionLoading ? 'Working…' : 'Approve'}
@@ -197,7 +195,7 @@ const RequestsPanelContent = ({
             </section>
 
             <section className="rq-section">
-              <header className="rq-section-header" data-status="history">
+              <header className="rq-section-header history">
                 <h3 className="rq-section-title">Recent decisions</h3>
                 <span className="rq-history-count">Showing last {historicalCount}</span>
               </header>
@@ -269,19 +267,19 @@ const RequestsPanelContent = ({
                             <span>{request.requester_name || request.requester_email}</span>
                           </div>
                           {request.course_name && (
-                            <div className="rq-meta-entry" data-span="full">
+                            <div className="rq-meta-entry full">
                               <span className="rq-meta-label">Course/Event:</span>
                               <span>{request.course_name}</span>
                             </div>
                           )}
                           {request.notes && (
-                            <div className="rq-meta-entry" data-span="full">
+                            <div className="rq-meta-entry full">
                               <span className="rq-meta-label">Notes:</span>
                               <span>{request.notes}</span>
                             </div>
                           )}
                           {request.reviewer_name && (
-                            <div className="rq-meta-entry" data-span="full">
+                            <div className="rq-meta-entry full">
                               <span className="rq-meta-label">Reviewed by:</span>
                               <span>
                                 {request.reviewer_name}
@@ -290,7 +288,7 @@ const RequestsPanelContent = ({
                             </div>
                           )}
                           {request.rejection_reason && (
-                            <div className="rq-meta-entry" data-span="full">
+                            <div className="rq-meta-entry full">
                               <span className="rq-meta-label">Reason:</span>
                               <span>{request.rejection_reason}</span>
                             </div>
@@ -319,8 +317,7 @@ const RequestsPanelContent = ({
                                 type="button"
                                 onClick={() => handleRevertClick(request)}
                                 disabled={requestActionLoading}
-                                className="rq-button"
-                                data-variant="revert"
+                                className="rq-button revert"
                               >
                                 Revert Approval
                               </button>

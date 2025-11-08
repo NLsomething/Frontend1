@@ -101,12 +101,12 @@ const RoomScheduleContent = ({
 
   return (
     <div
-      className="rs-root"
-      data-embedded={embedded ? '' : undefined}
-      data-open={!embedded && mounted && isOpen ? '' : undefined}
+      className={`rs-root
+      ${embedded ? 'embedded' : ''}
+      ${!embedded && mounted && isOpen ? 'opened' : ''}`}
     >
-      <div className="rs-header" data-embedded={embedded ? '' : undefined}>
-        <h3 className="rs-title" data-embedded={embedded ? '' : undefined}>
+      <div className={`rs-header ${embedded? 'embedded' : ''}`}>
+        <h3 className={`rs-title ${embedded ? 'embedded' : ''}`}>
           {`Room ${roomName || roomCode}`}
         </h3>
         <div className="rs-meta">Room code: {roomCode}</div>
@@ -129,12 +129,12 @@ const RoomScheduleContent = ({
       </div>
 
       <div
-        className="rs-scroll"
-        data-embedded={embedded ? '' : undefined}
-        data-unbookable={!bookable ? '' : undefined}
+        className={`rs-scroll 
+        ${embedded ? 'embedded' : ''} 
+        ${!bookable ? 'unbookable' : ''}`}
       >
         {!bookable ? (
-          <div className="rs-message" data-embedded={embedded ? '' : undefined}>
+          <div className={`rs-message ${embedded ? 'embedded' : ''}`}>
             <div className="rs-notice">This room cannot be booked.</div>
           </div>
         ) : scheduleLoading ? (
@@ -172,8 +172,8 @@ const RoomScheduleContent = ({
                       }
                     }}
                     disabled={!interactive || !hasValidSlotId}
-                    className="rs-slot"
-                    {...((interactive && hasValidSlotId) ? { interactive: '' } : {})}
+                    className={`rs-slot 
+                    ${interactive && hasValidSlotId ? 'interactive' : ''}`}
                     style={{ backgroundColor: colors.bg, color: colors.text }}
                   >
                     <span className="rs-slot-label" style={{ fontSize: statusFontSize }}>

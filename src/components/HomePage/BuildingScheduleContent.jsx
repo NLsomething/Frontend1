@@ -143,8 +143,8 @@ const BuildingScheduleContent = ({
 						<button
 							type="button"
 							onClick={() => setActiveSlotCategory('classroom')}
-							className="bs-slot-toggle"
-							{...(activeSlotCategory === 'classroom' ? { active: '' } : {})}
+							className={`bs-slot-toggle 
+							${activeSlotCategory === 'classroom' ? 'active' : ''}`}
 						>
 							Classroom
 						</button>
@@ -176,7 +176,9 @@ const BuildingScheduleContent = ({
 					</div>
 				)}
 
-				<div className="bs-section-stack" data-dimmed={shouldShowScheduleLoading ? '' : undefined}>
+				<div className={`bs-section-stack 
+					${shouldShowScheduleLoading ? 'dimmed' : ''}`}
+					>
 					{showRoomsLoadingPlaceholder ? null : !hasRooms ? (
 						<div className="bs-empty-state">No classroom rooms found in this building.</div>
 					) : (
@@ -295,10 +297,9 @@ const ScheduleGrid = ({
 									<button
 										key={`${roomKey}-${slotKey}`}
 										type="button"
-										className="bs-slot"
+										className={`bs-slot ${interactive ? 'interactive' : ''}`}
 										onClick={handleClick}
 										disabled={!interactive}
-										{...(interactive ? { interactive: '' } : {})}
 										style={{ backgroundColor: colors.bg, color: colors.text }}
 									>
 										<span className="bs-slot-label" style={{ fontSize: statusFontSize }}>{label}</span>

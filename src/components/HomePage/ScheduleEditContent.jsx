@@ -25,8 +25,8 @@ const ScheduleEditContent = ({
       </div>
 
       <form
-        className="se-form"
-        {...(busy ? { 'data-busy': '' } : {})}
+        className={`se-form 
+        ${busy ? 'busy' : ''}`}
         onSubmit={(event) => {
           if (busy) {
             event.preventDefault()
@@ -133,17 +133,14 @@ const ScheduleEditContent = ({
           <button
             type="button"
             onClick={onClose}
-            className="se-button"
-            data-variant="secondary"
+            className="se-button secondary"
             disabled={busy}
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="se-button"
-            data-variant="primary"
-            data-state={busy ? 'busy' : undefined}
+            className="se-button primary"
             disabled={busy}
             onClick={(event) => {
               if (busy) {

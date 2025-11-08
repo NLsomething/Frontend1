@@ -101,23 +101,23 @@ const UnifiedPanel = ({
 
       {/* Unified Panel */}
       <aside
-        className="up-panel"
+        className={`up-panel
+        ${mounted && isOpen ? 'opened' : ''}`}
         aria-hidden={!isOpen}
-        data-open={mounted && isOpen ? '' : undefined}
         style={{
         width: panelWidth,
         transition: `transform ${SLIDE_MS}ms cubic-bezier(0.22, 1, 0.36, 1), opacity 450ms ease-out, width ${WIDTH_MS}ms ease-out`
         }}
       >
         <div 
-        className="up-panel-inner"
-        data-visible={mounted && isOpen ? '' : undefined}
+        className={`up-panel-inner
+        ${mounted && isOpen ? 'visible' : ''}`}
         >
            {/* Content with two-phase fade: out old, slide, then in new */}
           <div
           key={contentKey}
-          className="up-content"
-          data-visible={showContent ? '' : undefined}
+          className={`up-content
+          ${showContent ? 'visible' : ''}`}
           style={{ transition: `opacity ${isFadingOut ? FADE_OUT_MS : FADE_IN_MS}ms ease-out` }}
           >
              {renderedChildren}

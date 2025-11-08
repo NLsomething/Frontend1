@@ -124,21 +124,18 @@ const BuildingInfoModal = ({
             <button
               type="button"
               onClick={() => setExpandedFloorKey((prev) => (prev === floorKey ? null : floorKey))}
-              className="bi-floor-toggle"
-              {...(expanded ? { 'data-expanded': '' } : {})}
+              className={`bi-floor-toggle ${expanded ? 'expanded' : ''}`}
             >
               <span className="bi-toggle-icon">{expanded ? '−' : '+'}</span>
               <span>{floorName}</span>
             </button>
 
             <div
-              className="bi-floor-content"
-              {...(expanded && hasRooms ? { 'data-expanded': '' } : {})}
+              className={`bi-floor-content ${expanded && hasRooms ? 'expanded' : ''}`}
             >
               {hasRooms && (
                 <div
-                  className="bi-room-grid"
-                  {...(expanded ? { 'data-expanded': '' } : {})}
+                  className={`bi-room-grid ${expanded ? 'expanded' : ''}`}
                 >
                   <div className="bi-room-column" data-variant="classroom">
                     {classroomRooms.map((room, roomIdx) => {
@@ -150,9 +147,9 @@ const BuildingInfoModal = ({
                           data-room-code={room.room_code}
                           type="button"
                           onClick={() => handleRoomAction(room)}
-                          className="bi-room-button"
-                          {...(expanded ? { 'data-expanded': '' } : {})}
-                          {...(isActive ? { 'data-active': '' } : {})}
+                          className={`bi-room-button 
+                          ${expanded ? 'expanded' : ''} 
+                          ${isActive ? 'active' : ''}`}
                           style={{ transitionDelay: `${roomIdx * 15}ms` }}
                         >
                           {`Room ${label}`}

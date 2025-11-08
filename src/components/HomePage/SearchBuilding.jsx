@@ -101,9 +101,9 @@ const SearchBuilding = ({ buildings, onRoomSelect, onOpen }) => {
 
       {/* Inline expanding panel anchored to the button, expands to the left */}
       <div
-        className="sb-panel"
+        className={`sb-panel
+        ${isOpen ? 'opened' : ''}`}
         aria-hidden={!isOpen}
-        {...(isOpen ? { 'data-open': '' } : {})}
       >
         <div className="sb-inner">
           {/* Room Code Input (Optional) */}

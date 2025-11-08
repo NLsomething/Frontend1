@@ -171,7 +171,7 @@ export const UserManagementContent = ({ currentUserId }) => {
   const busy = loading
 
   return (
-    <div className="um-panel" {...(busy ? { 'data-busy': '' } : {})}>
+    <div className={`um-panel ${busy ? 'busy' : ''}`}>
       <div className="um-header">
         <h2 className="um-title">User Management</h2>
       </div>
@@ -188,7 +188,7 @@ export const UserManagementContent = ({ currentUserId }) => {
 
       <div className="um-body">
         {busy && users.length === 0 ? (
-          <div className="um-empty" data-state="loading">
+          <div className="um-empty loading">
             Loading users…
           </div>
         ) : filteredUsers.length === 0 ? (
@@ -206,8 +206,8 @@ export const UserManagementContent = ({ currentUserId }) => {
               return (
                 <article
                   key={user.id}
-                  className="um-card"
-                  data-mode={isEditing ? 'editing' : 'view'}
+                  className={`um-card
+                  ${isEditing ? 'editing' : 'view'}`}
                 >
                   {isEditing ? (
                     <div className="um-edit">
@@ -262,8 +262,7 @@ export const UserManagementContent = ({ currentUserId }) => {
                       <div className="um-card-actions">
                         <button
                           type="button"
-                          className="um-button"
-                          data-variant="secondary"
+                          className="um-button secondary"
                           onClick={resetEditState}
                           disabled={busy}
                         >
@@ -271,8 +270,8 @@ export const UserManagementContent = ({ currentUserId }) => {
                         </button>
                         <button
                           type="button"
-                          className="um-button"
-                          data-variant={requiresProfile ? 'success' : 'primary'}
+                          className={`um-button
+                          ${requiresProfile ? 'success': 'primary'}`}
                           onClick={handleSaveEdit}
                           disabled={busy || (requiresProfile && !editForm.username.trim())}
                         >
@@ -286,7 +285,7 @@ export const UserManagementContent = ({ currentUserId }) => {
                         <div className="um-user-header">
                           <h3 className="um-user-name">{user.username || 'No username'}</h3>
                           <div className="um-tag-group">
-                            <span className="um-tag" data-variant={roleVariant}>
+                            <span className={`um-tag ${roleVariant}`}>
                               {roleLabel}
                             </span>
                             {isCurrentUser && (
@@ -306,8 +305,7 @@ export const UserManagementContent = ({ currentUserId }) => {
                       <div className="um-actions">
                         <button
                           type="button"
-                          className="um-button"
-                          data-variant="primary"
+                          className="um-button primary"
                           onClick={() => handleEditUser(user)}
                           disabled={busy}
                         >
@@ -315,8 +313,7 @@ export const UserManagementContent = ({ currentUserId }) => {
                         </button>
                         <button
                           type="button"
-                          className="um-button"
-                          data-variant="danger"
+                          className="um-button danger"
                           onClick={() => handleDeleteUser(user)}
                           disabled={busy || isCurrentUser}
                         >

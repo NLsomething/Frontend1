@@ -132,130 +132,92 @@ export const useHomePageStore = create((set) => ({
   resetHomePageState: () => set(() => ({ ...defaultState }))
 }))
 
-// Cached selectors: return the same object reference when underlying values
-// haven't changed. This prevents external store snapshots from returning
-// fresh objects each call which can trigger React's "getSnapshot should
-// be cached" warning and infinite update loops.
-export const selectScheduleSlice = (() => {
+// Shallow equality check for selector optimization
+const shallowEqual = (objA, objB) => {
+  if (Object.is(objA, objB)) return true
+  
+  if (typeof objA !== 'object' || objA === null || typeof objB !== 'object' || objB === null) {
+    return false
+  }
+
+  const keysA = Object.keys(objA)
+  const keysB = Object.keys(objB)
+
+  if (keysA.length !== keysB.length) return false
+
+  for (let i = 0; i < keysA.length; i++) {
+    if (!Object.prototype.hasOwnProperty.call(objB, keysA[i]) || !Object.is(objA[keysA[i]], objB[keysA[i]])) {
+      return false
+    }
+  }
+
+  return true
+}
+
+// Create a memoized selector factory
+const createMemoizedSelector = (selector) => {
   let lastState = null
   let lastResult = null
+
   return (state) => {
-    if (
-      lastState &&
-      lastState.scheduleMap === state.scheduleMap &&
-      lastState.scheduleLoading === state.scheduleLoading
-    ) {
+    const newResult = selector(state)
+    
+    if (lastState === state && lastResult !== null) {
       return lastResult
     }
-    lastState = {
-      scheduleMap: state.scheduleMap,
-      scheduleLoading: state.scheduleLoading
-    }
-    lastResult = { ...lastState }
-    return lastResult
-  }
-})()
-
-export const selectScheduleHandlers = (() => {
-  let lastState = null
-  let lastResult = null
-  return (state) => {
-    if (
-      lastState &&
-      lastState.loadSchedules === state.loadSchedules &&
-      lastState.saveSchedule === state.saveSchedule &&
-      lastState.buildScheduleKey === state.buildScheduleKey
-    ) {
+    
+    if (lastResult !== null && shallowEqual(lastResult, newResult)) {
       return lastResult
     }
-    lastState = {
-      loadSchedules: state.loadSchedules,
-      saveSchedule: state.saveSchedule,
-      buildScheduleKey: state.buildScheduleKey
-    }
-    lastResult = { ...lastState }
-    return lastResult
+    
+    lastState = state
+    lastResult = newResult
+    return newResult
   }
-})()
+}
 
-export const selectRequestsSlice = (() => {
-  let lastState = null
-  let lastResult = null
-  return (state) => {
-    // Compare shallowly by reference for each key we care about
-    const keys = [
-      'requests',
-      'requestsLoading',
-      'requestActionLoading',
-      'pendingRequests',
-      'rejectionReasons',
-      'requestsPanelOpen',
-      'historicalRequests',
-      'historicalDateFilter',
-      'myRequests',
-      'myRequestsLoading',
-      'myRequestsPanelOpen',
-      'filteredMyRequests',
-      'myRequestsDateFilter',
-      'requestState',
-      'requestForm'
-    ]
+export const selectScheduleSlice = createMemoizedSelector((state) => ({
+  scheduleMap: state.scheduleMap,
+  scheduleLoading: state.scheduleLoading
+}))
 
-    if (lastState) {
-      let same = true
-      for (let i = 0; i < keys.length; i++) {
-        const k = keys[i]
-        if (lastState[k] !== state[k]) {
-          same = false
-          break
-        }
-      }
-      if (same) return lastResult
-    }
+export const selectScheduleHandlers = createMemoizedSelector((state) => ({
+  loadSchedules: state.loadSchedules,
+  saveSchedule: state.saveSchedule,
+  buildScheduleKey: state.buildScheduleKey
+}))
 
-    lastState = {}
-    keys.forEach((k) => (lastState[k] = state[k]))
-    lastResult = { ...lastState }
-    return lastResult
-  }
-})()
+export const selectRequestsSlice = createMemoizedSelector((state) => ({
+  requests: state.requests,
+  requestsLoading: state.requestsLoading,
+  requestActionLoading: state.requestActionLoading,
+  pendingRequests: state.pendingRequests,
+  rejectionReasons: state.rejectionReasons,
+  requestsPanelOpen: state.requestsPanelOpen,
+  historicalRequests: state.historicalRequests,
+  historicalDateFilter: state.historicalDateFilter,
+  myRequests: state.myRequests,
+  myRequestsLoading: state.myRequestsLoading,
+  myRequestsPanelOpen: state.myRequestsPanelOpen,
+  filteredMyRequests: state.filteredMyRequests,
+  myRequestsDateFilter: state.myRequestsDateFilter,
+  requestState: state.requestState,
+  requestForm: state.requestForm
+}))
 
-export const selectRequestsHandlers = (() => {
-  let lastState = null
-  let lastResult = null
-  return (state) => {
-    const keys = [
-      'setRejectionReasons',
-      'loadRequests',
-      'approveRequest',
-      'rejectRequest',
-      'revertRequest',
-      'setRequestsPanelOpen',
-      'setHistoricalDateFilter',
-      'loadMyRequests',
-      'setMyRequestsPanelOpen',
-      'setMyRequestsDateFilter',
-      'submitRequest',
-      'setRequestState',
-      'setRequestForm',
-      'resetRequestModal'
-    ]
-
-    if (lastState) {
-      let same = true
-      for (let i = 0; i < keys.length; i++) {
-        const k = keys[i]
-        if (lastState[k] !== state[k]) {
-          same = false
-          break
-        }
-      }
-      if (same) return lastResult
-    }
-
-    lastState = {}
-    keys.forEach((k) => (lastState[k] = state[k]))
-    lastResult = { ...lastState }
-    return lastResult
-  }
-})()
+export const selectRequestsHandlers = createMemoizedSelector((state) => ({
+  setRejectionReasons: state.setRejectionReasons,
+  loadRequests: state.loadRequests,
+  approveRequest: state.approveRequest,
+  rejectRequest: state.rejectRequest,
+  revertRequest: state.revertRequest,
+  setRequestsPanelOpen: state.setRequestsPanelOpen,
+  setHistoricalDateFilter: state.setHistoricalDateFilter,
+  loadMyRequests: state.loadMyRequests,
+  setMyRequestsPanelOpen: state.setMyRequestsPanelOpen,
+  setMyRequestsDateFilter: state.setMyRequestsDateFilter,
+  submitRequest: state.submitRequest,
+  setRequestState: state.setRequestState,
+  setRequestForm: state.setRequestForm,
+  resetRequestModal: state.resetRequestModal
+}))

@@ -106,9 +106,9 @@ const UnifiedPanelCenter = ({
       {/* Backdrop overlay with darkening effect */}
       <div
       ref={backdropRef}
-      className="upc-backdrop"
+      className={`upc-backdrop
+      ${mounted && isOpen ? 'opened' : ''}`}
       aria-hidden={!isOpen}
-      data-open={mounted && isOpen ? '' : undefined}
       style={{ transition: `background-color ${BACKDROP_MS}ms ease-out` }}
       />
 
@@ -116,8 +116,8 @@ const UnifiedPanelCenter = ({
       <div className="upc-shell" aria-hidden={!isOpen}>
         <div
           ref={panelRef}
-          className="upc-panel"
-          data-open={mounted && isOpen ? '' : undefined}
+          className={`upc-panel
+          ${mounted && isOpen ? 'opened' : ''}`}
           style={{ transition: `transform ${SCALE_MS}ms cubic-bezier(0.22, 1, 0.36, 1), opacity ${SCALE_MS}ms ease-out` }}
           onClick={(e) => {
             // Prevent backdrop click when clicking inside panel
@@ -127,8 +127,8 @@ const UnifiedPanelCenter = ({
           {/* Content with two-phase fade: out old, scale, then in new */}
           <div
           key={contentKey}
-          className="upc-content"
-          data-visible={showContent ? '' : undefined}
+          className={`upc-content
+            ${showContent ? ' visible' : ''}`}
           style={{ transition: `opacity ${isFadingOut ? FADE_OUT_MS : FADE_IN_MS}ms ease-out` }}
           >
             {renderedChildren}

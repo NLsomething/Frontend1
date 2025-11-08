@@ -65,7 +65,7 @@
   /* Dynamic varible */
   background-color: transparent;
 }
-.bs-slot-toggle[active] {
+.bs-slot-toggle.active {
   background-color: #393E46;
 }
 
@@ -85,7 +85,6 @@
 .bs-date-input:focus {
   border-color: rgba(50, 130, 184, 0.8);
 }
-
 .bs-date-input::-webkit-calendar-picker-indicator {
   filter: invert(1);
   cursor: pointer;
@@ -99,20 +98,16 @@
   scrollbar-width: thin;
   scrollbar-color: #3282B8 #393E46;
 }
-
 .bs-content::-webkit-scrollbar {
   width: 8px;
 }
-
 .bs-content::-webkit-scrollbar-track {
   background: #393E46;
 }
-
 .bs-content::-webkit-scrollbar-thumb {
   background: #3282B8;
   border-radius: 0;
 }
-
 .bs-content::-webkit-scrollbar-thumb:hover {
   background: #0F4C75;
 }
@@ -143,7 +138,6 @@
   border-top-color: transparent;
   animation: bs-spin 1s linear infinite;
 }
-
 @keyframes bs-spin {
   to {
     transform: rotate(360deg);
@@ -161,10 +155,11 @@
   flex-direction: column;
   gap: 27px;
   transition: opacity 200ms ease-out;
+
   /* Dynamic varible */
   opacity: 1;
 }
-.bs-section-stack[data-dimmed] {
+.bs-section-stack.dimmed {
   opacity: 0.4;
 }
 
@@ -252,11 +247,10 @@
   /* Dynamic varible */
   cursor: default;
 }
-.bs-slot[interactive] {
+.bs-slot.interactive {
   cursor: pointer;
 }
-
-.bs-slot[interactive]:hover {
+.bs-slot.interactive:hover {
   filter: brightness(1.05);
 }
 

@@ -46,7 +46,7 @@
   color: rgba(238, 238, 238, 0.8);
   border: 1px solid rgba(238, 238, 238, 0.2);
 }
-.bi-floor-toggle[data-expanded] {
+.bi-floor-toggle.expanded {
   background-color: #4a5568;
   color: #eeeeee;
   border-color: rgba(255, 255, 255, 0.7);
@@ -78,7 +78,7 @@
   opacity: 0;
   pointer-events: none;
 }
-.bi-floor-content[data-expanded] {
+.bi-floor-content.expanded {
   max-height: 1000px;
   opacity: 1;
   pointer-events: auto;
@@ -93,7 +93,7 @@
   /* Dynamic varible */
   opacity: 0;
 }
-.bi-room-grid[data-expanded] {
+.bi-room-grid.expanded {
   opacity: 1;
 }
 
@@ -125,10 +125,10 @@
   background-color: #49505c;
   color: rgba(238, 238, 238, 0.8);
 }
-.bi-room-button[data-expanded] {
+.bi-room-button.expanded {
   opacity: 1;
 }
-.bi-room-button[data-active],
+.bi-room-button.active,
 .bi-room-button:hover {
   background-color: #4a5568;
   color: #eeeeee;
