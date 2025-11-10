@@ -4,36 +4,28 @@ import { signUp } from '../services/authService'
 import { useAuth } from '../context/AuthContext'
 import loginbg from '../assets/images/loginbg.jpg'
 import { useNotifications } from '../context/NotificationContext'
-import { 
-  createButton, 
-  cn,
-  labels,
-  typography,
-  containers,
-  authPages,
-  buttons
-} from '../styles/shared'
+import '../styles/RegisterPageStyle.css'
 
 const styles = {
-  screen: authPages.screenWithScroll,
-  container: authPages.containerCompact,
-  card: cn(containers.card, 'p-6'),
-  header: authPages.headerCompact,
-  form: authPages.formCompact,
-  buttonGroup: authPages.buttonGroupCompact,
-  titleLarge: cn(typography.h1, authPages.titleCompact),
-  subtitle: cn(typography.body, typography.subtitle, authPages.subtitleCompact),
-  label: cn(labels.base, authPages.labelCompact),
-  input: authPages.inputCompact,
-  btnPrimary: createButton('primary', 'sm', true),
-  btnText: createButton('text', 'sm', true),
-  icon: authPages.iconCompact,
-  iconBg: cn(authPages.iconBg, 'hover:bg-[#d0e8ff]'),
-  errorAlert: authPages.errorAlert,
+  screen: 'reg-screen',
+  container: 'reg-container',
+  card: 'reg-card',
+  header: 'reg-header',
+  form: 'reg-form',
+  buttonGroup: 'reg-buttonGroup',
+  titleLarge: 'reg-titleLarge',
+  subtitle: 'reg-subtitle',
+  label: 'reg-label',
+  input: 'reg-input',
+  btnPrimary: 'reg-btnPrimary',
+  btnText: 'reg-btnText',
+  icon: 'reg-icon',
+  iconBg: 'reg-iconBg',
+  errorAlert: 'reg-errorAlert',
   bgWhite: 'bg-white',
-  textPrimary: typography.primary,
-  textSecondaryHover: cn(typography.secondary, 'hover:text-[#1f5ca9]'),
-  colorLightBlue: buttons.secondary,
+  textPrimary: 'text-primary',
+  textSecondaryHover: 'text-secondary',
+  colorLightBlue: 'reg-btnPrimary',
 }
 
 function RegisterPage() {

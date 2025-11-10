@@ -10,7 +10,6 @@ const SearchBuilding = ({ buildings, onRoomSelect, onOpen }) => {
   const roomCodeInputRef = useRef(null)
   const buildingCodeInputRef = useRef(null)
 
-  // Handle click outside (closes the inline panel)
   const isSearchDisabled = isSearching || !buildingCode.trim()
 
   useEffect(() => {
@@ -37,7 +36,7 @@ const SearchBuilding = ({ buildings, onRoomSelect, onOpen }) => {
     setIsSearching(true)
 
     try {
-      // Find building by code
+      // Find buildind
       const building = buildings.find(b => b.building_code.toLowerCase() === buildingCode.trim().toLowerCase())
       
       if (!building) {
@@ -46,12 +45,10 @@ const SearchBuilding = ({ buildings, onRoomSelect, onOpen }) => {
         return
       }
 
-      // If room code is provided, search for specific room
+      // Find room too if have room code
       if (roomCode.trim()) {
-        // Call the parent handler to search for the room
         await onRoomSelect(building, roomCode.trim())
       } else {
-        // Just open building info without navigating to a specific room
         await onRoomSelect(building, null)
       }
       
@@ -69,7 +66,7 @@ const SearchBuilding = ({ buildings, onRoomSelect, onOpen }) => {
   const handleRoomCodeKeyPress = (e) => {
     if (e.key === 'Enter') {
       e.preventDefault()
-      // Move focus to building code input
+      // Focus to the building
       if (buildingCodeInputRef.current) {
         buildingCodeInputRef.current.focus()
       }
@@ -77,7 +74,6 @@ const SearchBuilding = ({ buildings, onRoomSelect, onOpen }) => {
   }
 
 
-  // Get unique building codes
   const buildingCodes = buildings
     .map(b => b.building_code)
     .filter((code, index, self) => self.indexOf(code) === index)
@@ -85,7 +81,6 @@ const SearchBuilding = ({ buildings, onRoomSelect, onOpen }) => {
 
   return (
     <div className="sb-root" ref={dropdownRef}>
-      {/* Base button (hidden when open) */}
       {!isOpen && (
         <button
           type="button"
@@ -99,14 +94,12 @@ const SearchBuilding = ({ buildings, onRoomSelect, onOpen }) => {
         </button>
       )}
 
-      {/* Inline expanding panel anchored to the button, expands to the left */}
       <div
         className={`sb-panel
         ${isOpen ? 'opened' : ''}`}
         aria-hidden={!isOpen}
       >
         <div className="sb-inner">
-          {/* Room Code Input (Optional) */}
           <div className="sb-input-wrapper">
             <input
               ref={roomCodeInputRef}
@@ -120,7 +113,6 @@ const SearchBuilding = ({ buildings, onRoomSelect, onOpen }) => {
             />
           </div>
 
-          {/* Building Code Dropdown */}
           <div className="sb-input-wrapper">
             <select
               ref={buildingCodeInputRef}
@@ -133,7 +125,6 @@ const SearchBuilding = ({ buildings, onRoomSelect, onOpen }) => {
                 <option key={code} value={code}>{code}</option>
               ))}
             </select>
-            {/* Custom dropdown arrow (single) */}
             <span className="sb-arrow" aria-hidden="true">
               <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.06l3.71-2.83a.75.75 0 1 1 .92 1.18l-4.17 3.18a.75.75 0 0 1-.92 0L5.25 8.41a.75.75 0 0 1-.02-1.2z"/>
@@ -141,7 +132,6 @@ const SearchBuilding = ({ buildings, onRoomSelect, onOpen }) => {
             </span>
           </div>
 
-          {/* Search Button */}
           <button
             type="button"
             onClick={handleSearch}

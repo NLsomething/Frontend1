@@ -3,41 +3,30 @@ import { useNavigate } from 'react-router-dom'
 import { signIn } from '../services/authService'
 import { useAuth } from '../context/AuthContext'
 import loginbg from '../assets/images/loginbg.jpg'
-import { 
-  createButton, 
-  createInput,
-  cn,
-  labels,
-  spacing,
-  headers,
-  typography,
-  containers,
-  authPages,
-  buttons
-} from '../styles/shared'
+import '../styles/LoginPageStyle.css'
 
 const styles = {
-  screen: authPages.screen,
-  container: authPages.container,
-  card: cn(containers.card, containers.cardDefault),
-  header: cn(headers.container, headers.containerDefault),
-  form: spacing.form,
-  buttonGroup: authPages.buttonGroup,
-  titleLarge: cn(typography.h1, 'mb-2'),
-  subtitle: cn(typography.body, typography.subtitle),
-  label: cn(labels.base, labels.default),
-  input: createInput(false),
-  btnPrimary: createButton('primary', 'md', true),
-  btnSecondary: createButton('secondary', 'md', true),
-  btnText: createButton('text', 'sm', true),
-  icon: authPages.icon,
-  iconBg: cn(authPages.iconBg, 'hover:bg-[#d0e8ff]'),
-  errorAlert: authPages.errorAlert,
+  screen: 'auth-screen',
+  container: 'auth-container',
+  card: 'auth-card',
+  header: 'auth-header',
+  form: 'auth-form',
+  buttonGroup: 'auth-buttonGroup',
+  titleLarge: 'auth-titleLarge',
+  subtitle: 'auth-subtitle',
+  label: 'auth-label',
+  input: 'auth-input',
+  btnPrimary: 'auth-btnPrimary',
+  btnSecondary: 'auth-btnPrimary',
+  btnText: 'auth-btnText',
+  icon: 'auth-icon',
+  iconBg: 'auth-iconBg',
+  errorAlert: 'auth-errorAlert',
   bgWhite: 'bg-white',
-  textPrimary: typography.primary,
-  textSecondaryHover: cn(typography.secondary, 'hover:text-[#1f5ca9]'),
-  colorDarkBlue: buttons.primary,
-  colorLightBlue: buttons.secondary,
+  textPrimary: 'text-primary',
+  textSecondaryHover: 'text-secondary',
+  colorDarkBlue: 'auth-btnPrimary',
+  colorLightBlue: 'auth-btnPrimary',
 }
 
 function LoginPage() {

@@ -1,12 +1,7 @@
 import { Fragment, useMemo, useState } from 'react'
 import { SCHEDULE_STATUS, SCHEDULE_STATUS_LABELS } from '../../constants/schedule'
-import { getScheduleStatusColors } from '../../utils/scheduleUtils'
 import '../../styles/HomePageStyle/BuildingScheduleStyle.css'
 import { useHomePageStore, selectScheduleSlice } from '../../stores/useHomePageStore'
-
-const ROOM_COLUMN_WIDTH = 90
-const CLASSROOM_COLUMN_WIDTH = 50
-const DEFAULT_COLUMN_WIDTH = 50
 
 const resolveRoomCode = (room) => {
 	if (!room || typeof room === 'string') {
@@ -243,15 +238,15 @@ const ScheduleGrid = ({
 	canRequest
 }) => {
 	const activeSlotType = resolveSlotType(timeSlots?.[0] || {})
-	const columnWidth = activeSlotType === 'classroom' ? CLASSROOM_COLUMN_WIDTH : DEFAULT_COLUMN_WIDTH
-	const roomColumnWidth = ROOM_COLUMN_WIDTH
+	const columnWidthVar = activeSlotType === 'classroom' ? 'var(--classroom-column-width)' : 'var(--default-column-width)'
+	const roomColumnWidthVar = 'var(--room-column-width)'
 	const interactive = !!(canEdit || canRequest)
 
 	return (
 		<div className="bs-grid-wrapper">
 			<div
 				className="bs-grid"
-				style={{ gridTemplateColumns: `${roomColumnWidth}px repeat(${timeSlots.length}, minmax(${columnWidth}px, 1fr))` }}
+				style={{ gridTemplateColumns: `${roomColumnWidthVar} repeat(${timeSlots.length}, minmax(${columnWidthVar}, 1fr))` }}
 			>
 				<div className="bs-room-header">Room</div>
 
@@ -282,8 +277,6 @@ const ScheduleGrid = ({
 								const status = entry?.status || SCHEDULE_STATUS.empty
 								const label = SCHEDULE_STATUS_LABELS[status]
 								const details = entry?.course_name || entry?.booked_by ? [entry?.course_name, entry?.booked_by].filter(Boolean) : []
-								const colors = getScheduleStatusColors(status)
-								const statusFontSize = status === SCHEDULE_STATUS.maintenance ? '7px' : '9px'
 
 								const handleClick = () => {
 									if (canEdit && onAdminAction) {
@@ -297,12 +290,11 @@ const ScheduleGrid = ({
 									<button
 										key={`${roomKey}-${slotKey}`}
 										type="button"
-										className={`bs-slot ${interactive ? 'interactive' : ''}`}
+										className={`bs-slot ${interactive ? 'interactive' : ''} status-${status}`}
 										onClick={handleClick}
 										disabled={!interactive}
-										style={{ backgroundColor: colors.bg, color: colors.text }}
 									>
-										<span className="bs-slot-label" style={{ fontSize: statusFontSize }}>{label}</span>
+										<span className="bs-slot-label">{label}</span>
 										{details.length > 0 && (
 											<span className="bs-slot-details">
 												{details.map((line, index) => (

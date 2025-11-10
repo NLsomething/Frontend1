@@ -2,17 +2,6 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
-/**
- * ProtectedRoute component wrapper
- * Automatically redirects unauthenticated users to the login page
- * 
- * Usage:
- * <Route path="/protected" element={
- *   <ProtectedRoute>
- *     <YourProtectedComponent />
- *   </ProtectedRoute>
- * } />
- */
 function ProtectedRoute({ children, allowedRoles }) {
   const { user, role, loading, profileLoading } = useAuth()
   const navigate = useNavigate()

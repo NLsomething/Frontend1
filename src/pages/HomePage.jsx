@@ -10,7 +10,7 @@ import { SCHEDULE_STATUS, SCHEDULE_STATUS_LABELS } from '../constants/schedule'
 import { fetchBuildings } from '../services/buildingService'
 import { fetchRoomsByBuildingId } from '../services/roomService'
 import { fetchTimeslots } from '../services/timeslotService'
-import { cn } from '../styles/shared'
+import { cn } from '../utils/classnames'
 
 // Import extracted components
 import BuildingInfoModal from '../components/HomePage/BuildingInfoModal'
@@ -25,12 +25,12 @@ import { UserManagementContent } from '../components/HomePage/UserManagementCont
 import ScheduleRequestContent from '../components/HomePage/ScheduleRequestContent'
 import ScheduleEditContent from '../components/HomePage/ScheduleEditContent'
 
-// Import custom hooks
+// Custom hooks
 import { useCameraControls } from '../hooks/useCameraControls'
 import HomePageStateProvider from '../components/HomePage/HomePageStateProvider'
 import { useHomePageStore } from '../stores/useHomePageStore'
 
-// Import utilities
+// Utilities
 import {
   toIsoDateString,
   parseDateString,
@@ -38,55 +38,8 @@ import {
   getSlotLabel as resolveSlotLabel
 } from '../utils'
 
-// Styles
-const styles = {
-  screen: "relative min-h-screen overflow-hidden bg-gradient-to-br from-[#e6f1ff] via-[#f7fbff] to-white text-[#EEEEEE]",
-  canvasContainer: "absolute inset-0 z-0",
-  logoutBtn: "uppercase tracking-[0.28em] text-[0.6rem] px-6 h-[60%] inline-flex items-center border border-[#EEEEEE]/20 bg-transparent text-[#EEEEEE] shadow-sm transition-all duration-200 hover:bg-[#2f3a4a] hover:border-[#EEEEEE]/40",
-  headerRequestsButton: (isOpen, loading) => cn(
-    "uppercase tracking-[0.28em] text-[0.6rem] px-6 h-full inline-flex items-center border-y-0 border-l border-r border-[#2f3a4a] bg-transparent text-[#EEEEEE] transition-all duration-200",
-    loading ? "opacity-50 cursor-not-allowed" : "hover:bg-[#2f3a4a]",
-    isOpen ? "bg-[#2f3a4a]" : ""
-  ),
-  headerUserManagementButton: "uppercase tracking-[0.28em] text-[0.6rem] px-6 h-full inline-flex items-center border-y-0 border-l border-r border-[#2f3a4a] bg-transparent text-[#EEEEEE] transition-all duration-200 hover:bg-[#2f3a4a]",
-  canvasInstructions: "absolute bottom-2 left-1/2 -translate-x-1/2 z-10 text-[0.6rem] uppercase tracking-[0.3em] text-[#EEEEEE] bg-[#393E46]/80 border border-[#EEEEEE]/20 px-5 py-2 rounded-full pointer-events-none select-none transition-all duration-500 ease-in-out transform",
-  canvasInstructionsVisible: "translate-y-0 opacity-100",
-  canvasInstructionsHidden: "translate-y-full opacity-0",
-  myRequestsButton: (isOpen) => cn(
-    "uppercase tracking-[0.28em] text-[0.6rem] px-5 py-2.5 border border-[#EEEEEE]/30 bg-[#393E46]/40 text-[#EEEEEE] shadow-lg backdrop-blur-sm transition-colors duration-200",
-    isOpen ? "border-yellow-500 text-yellow-500" : "hover:text-yellow-500 hover:border-yellow-500"
-  ),
-  buildingInfoButton: (isOpen, hasBuilding) => cn(
-    "uppercase tracking-[0.28em] text-[0.6rem] px-6 h-full inline-flex items-center border border-[#EEEEEE]/20 bg-transparent text-[#EEEEEE] shadow-sm transition-all duration-200",
-    hasBuilding 
-      ? isOpen ? "bg-[#2f3a4a] border-[#EEEEEE]/40" : "hover:bg-[#2f3a4a] hover:border-[#EEEEEE]/40"
-      : "border-[#EEEEEE]/10 text-[#EEEEEE]/30 cursor-not-allowed"
-  ),
-  scheduleButton: (isOpen, hasBuilding) => cn(
-    "uppercase tracking-[0.28em] text-[0.6rem] px-6 h-full inline-flex items-center border border-[#EEEEEE]/20 bg-transparent text-[#EEEEEE] shadow-sm transition-all duration-200",
-    hasBuilding 
-      ? isOpen ? "bg-[#2f3a4a] border-[#EEEEEE]/40" : "hover:bg-[#2f3a4a] hover:border-[#EEEEEE]/40"
-      : "border-[#EEEEEE]/10 text-[#EEEEEE]/30 cursor-not-allowed"
-  ),
-  heroOverlay: "absolute inset-0 z-20 pointer-events-none flex flex-col items-stretch justify-start gap-6 px-0 pt-0 pb-12",
-  heroHeader: "relative z-10 pointer-events-auto w-full px-6 md:px-10 bg-[#222831] text-[#EEEEEE] border-b border-[#EEEEEE]/15 shadow-lg",
-  heroHeaderTop: "flex w-full flex-nowrap items-stretch justify-between gap-3 h-14 overflow-hidden",
-  heroHeaderTitle: "flex flex-col gap-0.5 text-[0.6rem] uppercase tracking-[0.35em] justify-center",
-  heroHeaderActions: "flex flex-wrap items-stretch justify-end gap-0 h-full",
-  heroContent: "relative z-10 flex w-full flex-col justify-center pl-8 md:pl-12",
-  heroIntro: "flex flex-col gap-6 text-[#EEEEEE] transition-all duration-500 ease-in-out transform",
-  heroIntroVisible: "translate-x-0 opacity-100 pointer-events-auto",
-  heroIntroHidden: "-translate-x-full opacity-0 pointer-events-none",
-  heroActions: "flex flex-wrap items-center gap-4",
-  heroControlsWrapper: "relative flex flex-col gap-3 transition-all duration-500 ease-in-out transform",
-  heroControlsVisible: "translate-x-0 opacity-100 pointer-events-auto",
-  heroControlsHidden: "-translate-x-full opacity-0 pointer-events-none",
-  heroControls: "flex flex-col gap-2.5",
-  heroControlRow: "flex flex-wrap items-center justify-start gap-2.5",
-  buildingControlsWrapper: "absolute top-[5.1rem] left-5 md:left-8 z-30 pointer-events-auto flex flex-col gap-2.5 transition-opacity duration-200",
-  buildingControlsVisible: "opacity-100",
-  buildingControlsHidden: "opacity-0 pointer-events-none"
-}
+//Styles
+import '../styles/HomePageStyle.css'
 
 function HomePage() {
   console.log('[HomePage] Component rendering...')
@@ -903,7 +856,7 @@ function HomePage() {
   console.log('[HomePage] Rendering main content')
 
   return (
-    <div className={styles.screen}>
+    <div className="hp-screen">
       <HomePageStateProvider
         isoDate={isoDate}
         role={role}
@@ -918,7 +871,7 @@ function HomePage() {
       />
       {/* 3D Canvas */}
       <div
-        className={`${styles.canvasContainer} canvas-container`}
+        className={`hp-canvasContainer canvas-container`}
         onMouseDown={(e) => {
           pointerRef.current.downX = e.clientX
           pointerRef.current.downY = e.clientY
@@ -1005,19 +958,19 @@ function HomePage() {
       )}
 
       {/* Main Overlay */}
-      <div className={styles.heroOverlay}>
+  <div className="hp-heroOverlay">
         <div
           className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_left,_rgba(198,222,255,0.6)_0%,_rgba(166,206,255,0.35)_55%,_rgba(216,236,255,0.2)_100%)]"
           aria-hidden="true"
         />
                 {/* Header */}
-                <header className={styles.heroHeader}>
-                  <div className={styles.heroHeaderTop}>
-                    <div className={styles.heroHeaderTitle}>
+                <header className="hp-heroHeader">
+                  <div className="hp-heroHeaderTop">
+                    <div className="hp-heroHeaderTitle">
                       <span className="text-[0.85rem] tracking-[0.8em] text-[#3282B8] font-bold">Classroom</span>
                       <span className="text-[0.85rem] tracking-[0.8em] text-[#EEEEEE]/90 font-medium">Insight</span>
                     </div>
-            <div className={styles.heroHeaderActions}>
+            <div className="hp-heroHeaderActions">
               <div 
                 className={`transition-opacity duration-500 h-full flex items-stretch ${heroCollapsed ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
               >
@@ -1037,7 +990,7 @@ function HomePage() {
                 <button
                   type="button"
                   onClick={handleMyRequestsClick}
-                  className={styles.headerRequestsButton(myRequestsPanelOpen, false)}
+                  className={cn('hp-headerRequestsButton', myRequestsPanelOpen ? 'hp-headerRequestsButton--active' : '')}
                 >
                   {myRequestsPanelOpen ? 'Hide My Requests' : `My Requests`}
                 </button>
@@ -1046,7 +999,7 @@ function HomePage() {
                 <button
                   type="button"
                   onClick={handleRequestsButtonClick}
-                  className={styles.headerRequestsButton(requestsPanelOpen, false)}
+                  className={cn('hp-headerRequestsButton', requestsPanelOpen ? 'hp-headerRequestsButton--active' : '')}
                 >
                   Manage Requests
                 </button>
@@ -1055,7 +1008,7 @@ function HomePage() {
                 <button
                   type="button"
                   onClick={handleUserManagementClick}
-                  className={styles.headerUserManagementButton}
+                  className="hp-headerUserManagementButton"
                 >
                   User Management
                 </button>
@@ -1064,7 +1017,7 @@ function HomePage() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className={styles.logoutBtn}
+                className="hp-logoutBtn"
               >
                 Logout
               </button>
@@ -1076,9 +1029,7 @@ function HomePage() {
                 {/* Building-specific Controls */}
                 {/* Building Controls - Always visible when hero is collapsed, no sliding */}
                   <div 
-                  className={`${styles.buildingControlsWrapper} ${
-                    heroCollapsed ? styles.buildingControlsVisible : styles.buildingControlsHidden
-                      }`}
+                  className={`hp-buildingControlsWrapper ${heroCollapsed ? 'hp-buildingControlsVisible' : 'hp-buildingControlsHidden'}`}
                     >
                   <div className="relative -ml-2" ref={dropdownRef}>
                     <div

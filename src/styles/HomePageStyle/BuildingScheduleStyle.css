@@ -1,3 +1,9 @@
+:root {
+  --room-column-width: 90px;
+  --classroom-column-width: 50px;
+  --default-column-width: 50px;
+}
+
 .bs-root {
   display: flex;
   flex-direction: column;
@@ -23,7 +29,7 @@
 .bs-header-title {
   margin: 0;
   font-size: 20px;
-  font-weight: 600;
+  letter-spacing: 1.44px;
   color: #EEEEEE;
 }
 
@@ -190,7 +196,7 @@
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: 1.44px;
   background-color: #393E46;
   color: #EEEEEE;
 }
@@ -258,7 +264,7 @@
   display: block;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: 1.08px;
   font-size: 9px;
   color: inherit;
 }
@@ -278,4 +284,35 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+
+
+.bs-slot.status-empty {
+  background-color: var(--status-empty-bg, #393E46);
+  color: var(--status-empty-text, rgba(238,238,238,0.44));
+  border-left-color: var(--status-empty-border, rgba(238,238,238,0.08));
+}
+.bs-slot.status-occupied {
+  background-color: var(--status-occupied-bg, rgba(16,185,129,0.5));
+  color: var(--status-occupied-text, #059669);
+  border-left-color: var(--status-occupied-border, var(--status-divider, rgba(255,255,255,0.03)));
+}
+.bs-slot.status-maintenance {
+  background-color: var(--status-maintenance-bg, rgba(245,158,11,0.5));
+  color: var(--status-maintenance-text, #f59e0b);
+  border-left-color: var(--status-maintenance-border, var(--status-divider, rgba(255,255,255,0.03)));
+}
+.bs-slot.status-pending {
+  background-color: var(--status-pending-bg, rgba(96,165,250,0.5));
+  color: var(--status-pending-text, #93c5fd);
+  border-left-color: var(--status-pending-border, var(--status-divider, rgba(255,255,255,0.03)));
+}
+
+.bs-slot.status-maintenance .bs-slot-label {
+  font-size: var(--slot-label-fontsize-maintenance, 7px);
+}
+
+.bs-slot .bs-slot-label {
+  font-size: var(--slot-label-fontsize-default, 9px);
 }

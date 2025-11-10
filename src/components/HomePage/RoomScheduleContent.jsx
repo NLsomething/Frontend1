@@ -1,6 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { SCHEDULE_STATUS, SCHEDULE_STATUS_LABELS } from '../../constants/schedule'
-import { getScheduleStatusColors } from '../../utils/scheduleUtils'
 import '../../styles/HomePageStyle/RoomScheduleStyle.css'
 import { useHomePageStore, selectScheduleSlice } from '../../stores/useHomePageStore'
 
@@ -150,11 +149,9 @@ const RoomScheduleContent = ({
               const statusLabel = SCHEDULE_STATUS_LABELS[status]
               const courseName = scheduleEntry?.course_name || ''
               const bookedBy = scheduleEntry?.booked_by || ''
-              const colors = getScheduleStatusColors(status)
               const interactive = bookable && (canEdit || canRequest)
               const hasValidSlotId = slot.id !== null && slot.id !== undefined
               const details = status === SCHEDULE_STATUS.pending ? [] : [courseName, bookedBy].filter(Boolean)
-              const statusFontSize = status === SCHEDULE_STATUS.maintenance ? '7px' : '9px'
 
               return (
                 <Fragment key={slot.mapKey}>
@@ -172,11 +169,9 @@ const RoomScheduleContent = ({
                       }
                     }}
                     disabled={!interactive || !hasValidSlotId}
-                    className={`rs-slot 
-                    ${interactive && hasValidSlotId ? 'interactive' : ''}`}
-                    style={{ backgroundColor: colors.bg, color: colors.text }}
+                    className={`rs-slot ${interactive && hasValidSlotId ? 'interactive' : ''} status-${status}`}
                   >
-                    <span className="rs-slot-label" style={{ fontSize: statusFontSize }}>
+                    <span className="rs-slot-label">
                       {bookable ? statusLabel : 'Unavailable'}
                     </span>
                     {details.length > 0 && (

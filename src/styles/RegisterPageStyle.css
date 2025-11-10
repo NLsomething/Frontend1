@@ -1,0 +1,82 @@
+:root {
+  --reg-card-padding: 24px;
+  --reg-max-width: 400px;
+  --reg-radius: 10px;
+  --reg-gap: 10px;
+  --reg-accent: #096ecc;
+}
+
+.reg-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #2b6cb0 0%, #6b46c1 100%);
+}
+
+.reg-container {
+  width: 100%;
+  max-width: var(--reg-max-width);
+  margin: 0 16px;
+}
+
+.reg-card {
+  background: #ffffff;
+  border-radius: var(--reg-radius);
+  padding: var(--reg-card-padding);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+}
+
+.reg-header {
+  margin-bottom: 8px;
+}
+
+.reg-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--reg-gap);
+}
+
+.reg-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.reg-input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  font-size: 14px;
+}
+
+.reg-btnPrimary {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--reg-accent);
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+}
+
+.reg-btnText {
+  background: transparent;
+  border: none;
+  color: var(--reg-accent);
+  cursor: pointer;
+}
+
+.reg-buttonGroup {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.reg-errorAlert {
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 10px 12px;
+  border-radius: 8px;
+}

@@ -4,40 +4,29 @@ import { updatePassword } from '../services/authService'
 import { supabase } from '../lib/supabaseClient'
 import loginbg from '../assets/images/loginbg.jpg'
 import { useNotifications } from '../context/NotificationContext'
-import { 
-  createButton, 
-  createInput,
-  cn,
-  labels,
-  spacing,
-  headers,
-  typography,
-  containers,
-  authPages,
-  buttons
-} from '../styles/shared'
+import '../styles/ResetPasswordPageStyle.css'
 
 const styles = {
-  screen: authPages.screen,
-  container: authPages.container,
-  card: cn(containers.card, containers.cardDefault),
-  header: cn(headers.container, headers.containerDefault),
-  form: spacing.form,
-  buttonGroup: authPages.buttonGroup,
-  titleLarge: cn(typography.h1, 'mb-2'),
-  subtitle: cn(typography.body, typography.subtitle),
-  label: cn(labels.base, labels.default),
-  input: createInput(false),
-  btnPrimary: createButton('primary', 'md', true),
-  btnText: createButton('text', 'sm', true),
-  icon: authPages.icon,
-  iconBg: cn(authPages.iconBg, 'hover:bg-[#d0e8ff]'),
-  errorAlert: authPages.errorAlert,
-  successAlert: 'mb-4 p-3 bg-green-50 text-green-800 rounded-lg text-sm border border-green-200',
+  screen: 'reset-screen',
+  container: 'reset-container',
+  card: 'reset-card',
+  header: 'reset-header',
+  form: 'reset-form',
+  buttonGroup: 'reset-buttonGroup',
+  titleLarge: 'reset-titleLarge',
+  subtitle: 'reset-subtitle',
+  label: 'reset-label',
+  input: 'reset-input',
+  btnPrimary: 'reset-btnPrimary',
+  btnText: 'reset-btnText',
+  icon: 'reset-icon',
+  iconBg: 'reset-iconBg',
+  errorAlert: 'reset-errorAlert',
+  successAlert: 'reset-successAlert',
   bgWhite: 'bg-white',
-  textPrimary: typography.primary,
-  textSecondaryHover: cn(typography.secondary, 'hover:text-[#1f5ca9]'),
-  colorDarkBlue: buttons.primary,
+  textPrimary: 'text-primary',
+  textSecondaryHover: 'text-secondary',
+  colorDarkBlue: 'reset-btnPrimary',
 }
 
 function ResetPasswordPage() {

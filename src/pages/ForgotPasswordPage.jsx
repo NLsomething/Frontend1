@@ -4,39 +4,28 @@ import { resetPassword } from '../services/authService'
 import { useAuth } from '../context/AuthContext'
 import loginbg from '../assets/images/loginbg.jpg'
 import { useNotifications } from '../context/NotificationContext'
-import { 
-  createButton, 
-  createInput,
-  cn,
-  labels,
-  spacing,
-  headers,
-  typography,
-  containers,
-  authPages,
-  buttons
-} from '../styles/shared'
+import '../styles/ForgotPasswordPageStyle.css'
 
 const styles = {
-  screen: authPages.screen,
-  container: authPages.container,
-  card: cn(containers.card, containers.cardDefault),
-  header: cn(headers.container, headers.containerDefault),
-  form: spacing.form,
-  buttonGroup: authPages.buttonGroup,
-  titleLarge: cn(typography.h1, 'mb-2'),
-  subtitle: cn(typography.body, typography.subtitle),
-  label: cn(labels.base, labels.default),
-  input: createInput(false),
-  btnPrimary: createButton('primary', 'md', true),
-  btnText: createButton('text', 'sm', true),
-  icon: authPages.icon,
-  iconBg: cn(authPages.iconBg, 'hover:bg-[#d0e8ff]'),
-  errorAlert: authPages.errorAlert,
+  screen: 'fp-screen',
+  container: 'fp-container',
+  card: 'fp-card',
+  header: 'fp-header',
+  form: 'fp-form',
+  buttonGroup: 'fp-buttonGroup',
+  titleLarge: 'fp-titleLarge',
+  subtitle: 'fp-subtitle',
+  label: 'fp-label',
+  input: 'fp-input',
+  btnPrimary: 'fp-btnPrimary',
+  btnText: 'fp-btnText',
+  icon: 'fp-icon',
+  iconBg: 'fp-iconBg',
+  errorAlert: 'fp-errorAlert',
   bgWhite: 'bg-white',
-  textPrimary: typography.primary,
-  textSecondaryHover: cn(typography.secondary, 'hover:text-[#1f5ca9]'),
-  colorDarkBlue: buttons.primary,
+  textPrimary: 'text-primary',
+  textSecondaryHover: 'text-secondary',
+  colorDarkBlue: 'fp-btnPrimary',
 }
 
 function ForgotPasswordPage() {

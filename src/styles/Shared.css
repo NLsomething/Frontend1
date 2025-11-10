@@ -1,0 +1,38 @@
+:root {
+	/* Schedule status color palette */
+	--status-empty-bg: #393E46;
+	--status-empty-text: rgba(238, 238, 238, 0.44);
+	--status-empty-border: rgba(238, 238, 238, 0.08);
+
+	--status-occupied-bg: rgba(16, 185, 129, 0.5);
+	--status-occupied-text: #059669;
+	--status-occupied-border: rgba(16, 185, 129, 0.25);
+
+	--status-maintenance-bg: rgba(245, 158, 11, 0.5);
+	--status-maintenance-text: #f59e0b;
+	--status-maintenance-border: rgba(245, 158, 11, 0.25);
+
+	--status-pending-bg: rgba(96, 165, 250, 0.5);
+	--status-pending-text: #93c5fd;
+	--status-pending-border: rgba(96, 165, 250, 0.25);
+
+	/* Thin divider */
+	--status-divider: rgba(255,255,255,0.03);
+
+	/* Schedule grid layout */
+	--room-column-width: 90px;
+	--classroom-column-width: 50px;
+	--default-column-width: 50px;
+
+	/* Status font size */
+	--slot-label-fontsize-default: 9px;
+	--slot-label-fontsize-maintenance: 7px;
+
+
+
+
+
+
+
+    
+}
