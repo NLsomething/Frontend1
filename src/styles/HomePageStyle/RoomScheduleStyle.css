@@ -107,7 +107,7 @@
   scrollbar-color: #3282B8 #393E46;
 }
 .rs-scroll.embedded {
-  background-color: #222831;
+  background-color: #393E46;
 }
 .rs-scroll.embedded.unbookable {
   background-color: transparent;
@@ -220,8 +220,8 @@
   border-left-color: var(--status-empty-border, rgba(238,238,238,0.08));
 }
 .rs-slot.status-occupied {
-  background-color: var(--status-occupied-bg, rgba(16,185,129,0.5));
-  color: var(--status-occupied-text, #059669);
+  background-color:  rgba(16,185,129,0.5);
+  color: #17e5a4;
   border-left-color: var(--status-occupied-border, var(--status-divider, rgba(255,255,255,0.03)));
 }
 .rs-slot.status-maintenance {

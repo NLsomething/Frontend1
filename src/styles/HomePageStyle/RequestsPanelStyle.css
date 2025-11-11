@@ -160,6 +160,7 @@
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  border-radius: 0;
 }
 
 .rq-meta-grid {
@@ -305,12 +306,8 @@
 
 .rq-filter-grid {
   display: grid;
-  gap: 12px;
-}
-@media (min-width: 640px) {
-  .rq-filter-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+  gap: 1%;
+  grid-template-columns: 30% 30% 18.5% 18.5%;
 }
 
 .rq-filter-field {
@@ -342,6 +339,31 @@
 .rq-filter-input::-webkit-calendar-picker-indicator,
 .rq-filter-input::-webkit-inner-spin-button {
   filter: invert(1);
+}
+
+.rq-filter-select {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid rgba(238, 238, 238, 0.2);
+  border-radius: 2px;
+  font-size: 12px;
+  color: #eeeeee;
+  background-color: #4a5058;
+  box-sizing: border-box;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='rgb(238,238,238)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  background-size: 16px;
+  padding-right: 28px;
+}
+
+.rq-filter-select:focus {
+  outline: 1px solid #3282b8;
+  outline-offset: 1px;
 }
 
 .rq-revert-actions {

@@ -6,30 +6,30 @@
   --panel-width-schedule: 1024px;
   --panel-width-room-schedule: 180px;
 
-  /* Fade durations*/
-  --up-fade-out-ms: 120ms;
-  --up-fade-in-ms: 240ms;
+  /* Content fade durations*/
+  --up-content-fade-out-ms: 120ms;
+  --up-content-fade-in-ms: 240ms;
+  /* Panel width slide duration (happens during fade out) */
+  --up-panel-width-ms: 300ms;
   /* Slow transitions */
   --up-slow-slide-ms: 900ms;
-  --up-slow-width-ms: 900ms;
 }
 
 .up-panel {
   position: fixed;
   right: 0;
-  top: 56px;
+  top: 60px;
   z-index: 40;
   height: calc(100vh - 56px);
   width: 768px;
   background-color: #222831;
   border-left: 1px solid #393E46;
-  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.5);
   border-radius: 0;
   overflow: hidden;
   transition:
-    transform var(--up-slide-ms, 600ms) cubic-bezier(0.22, 1, 0.36, 1),
-    opacity var(--up-opacity-ms, 450ms) ease-out,
-    width var(--up-width-ms, 450ms) ease-out;
+    transform 600ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 450ms ease-in-out,
+    width var(--up-panel-width-ms) ease-in-out;
 
   /* Dynamic variables*/
   transform: translateX(100%);
@@ -47,8 +47,7 @@
 .up-panel--schedule { --up-panel-width: var(--panel-width-schedule); }
 .up-panel--room-schedule { --up-panel-width: var(--panel-width-room-schedule); }
 .up-panel--slow {
-  --up-slide-ms: var(--up-slow-slide-ms);
-  --up-width-ms: var(--up-slow-width-ms);
+  --up-panel-width-ms: var(--up-slow-slide-ms);
 }
 
 .up-panel-inner {
@@ -56,7 +55,7 @@
   width: 100%;
   display: flex;
   flex-direction: column;
-  transition: opacity var(--up-inner-opacity-ms, 350ms) ease-out;
+  transition: opacity var(--up-inner-opacity-ms, 350ms) ease-in-out;
 
   /* Dynamic varible */
   opacity: 0;
@@ -71,17 +70,19 @@
   overflow: hidden;
 
   /* Dynamic varible */
-  opacity: 0;
-  transition: opacity var(--up-fade-ms, 240ms) ease-out;
+  opacity: 1;
+  transition: opacity var(--up-content-fade-ms, 240ms) ease-in-out;
 }
 .up-content.visible {
   opacity: 1;
 }
 .up-content.fading-out {
-   --up-fade-ms: var(--up-fade-out-ms); 
+  opacity: 0;
+  --up-content-fade-ms: var(--up-content-fade-out-ms);
 }
 .up-content.fading-in {
-   --up-fade-ms: var(--up-fade-in-ms); 
+  opacity: 1;
+  --up-content-fade-ms: var(--up-content-fade-in-ms);
 }
 @media (prefers-reduced-motion: reduce) {
   .up-panel, .up-panel-inner, .up-content {

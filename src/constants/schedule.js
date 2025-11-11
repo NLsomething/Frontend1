@@ -9,7 +9,7 @@ export const SCHEDULE_STATUS_LABELS = {
   [SCHEDULE_STATUS.empty]: 'Empty',
   [SCHEDULE_STATUS.occupied]: 'Occupied',
   [SCHEDULE_STATUS.maintenance]: 'Maintenance',
-  [SCHEDULE_STATUS.pending]: 'Pending Request'
+  [SCHEDULE_STATUS.pending]: 'Pending'
 }
 
 export const SCHEDULE_STATUS_STYLES = {

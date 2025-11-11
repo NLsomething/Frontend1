@@ -20,6 +20,8 @@ const normalizeRequest = (request) => {
   const room = request.room || request.rooms
   const startSlot = request.start_timeslot || request.start_timeslot_id || request.start_timeslotRef
   const endSlot = request.end_timeslot || request.end_timeslot_id || request.end_timeslotRef
+  const floor = room?.floor
+  const building = floor?.building
 
   return {
     ...request,
@@ -28,6 +30,7 @@ const normalizeRequest = (request) => {
     room_number: room?.room_code || null,
     room_name: room?.room_name || null,
     room_type: room?.room_type || null,
+    building_code: building?.building_code || null,
     start_timeslot_id: request.start_timeslot_id,
     end_timeslot_id: request.end_timeslot_id,
     start_timeslot: normalizeTimeslot(startSlot),
@@ -56,7 +59,7 @@ export const createRoomRequest = async (request) => {
     .insert(payload)
     .select(`
       *,
-      room:room_id ( id, room_code, room_name, room_type ),
+      room:room_id ( id, room_code, room_name, room_type, floor:floor_id ( id, building:building_id ( id, building_code ) ) ),
       start_timeslot:start_timeslot_id ( id, slot_name, slot_type, slot_order, start_time, end_time ),
       end_timeslot:end_timeslot_id ( id, slot_name, slot_type, slot_order, start_time, end_time )
     `)
@@ -70,7 +73,7 @@ export const fetchRoomRequests = async ({ status, limit = 50 } = {}) => {
     .from(TABLE)
     .select(`
       *,
-      room:room_id ( id, room_code, room_name, room_type ),
+      room:room_id ( id, room_code, room_name, room_type, floor:floor_id ( id, building:building_id ( id, building_code ) ) ),
       start_timeslot:start_timeslot_id ( id, slot_name, slot_type, slot_order, start_time, end_time ),
       end_timeslot:end_timeslot_id ( id, slot_name, slot_type, slot_order, start_time, end_time )
     `)
@@ -108,7 +111,7 @@ export const updateRoomRequestStatus = async ({
     .eq('id', id)
     .select(`
       *,
-      room:room_id ( id, room_code, room_name, room_type ),
+      room:room_id ( id, room_code, room_name, room_type, floor:floor_id ( id, building:building_id ( id, building_code ) ) ),
       start_timeslot:start_timeslot_id ( id, slot_name, slot_type, slot_order, start_time, end_time ),
       end_timeslot:end_timeslot_id ( id, slot_name, slot_type, slot_order, start_time, end_time )
     `)

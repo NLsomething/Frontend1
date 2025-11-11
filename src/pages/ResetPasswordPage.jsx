@@ -2,32 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { updatePassword } from '../services/authService'
 import { supabase } from '../lib/supabaseClient'
-import loginbg from '../assets/images/loginbg.jpg'
 import { useNotifications } from '../context/NotificationContext'
 import '../styles/ResetPasswordPageStyle.css'
-
-const styles = {
-  screen: 'reset-screen',
-  container: 'reset-container',
-  card: 'reset-card',
-  header: 'reset-header',
-  form: 'reset-form',
-  buttonGroup: 'reset-buttonGroup',
-  titleLarge: 'reset-titleLarge',
-  subtitle: 'reset-subtitle',
-  label: 'reset-label',
-  input: 'reset-input',
-  btnPrimary: 'reset-btnPrimary',
-  btnText: 'reset-btnText',
-  icon: 'reset-icon',
-  iconBg: 'reset-iconBg',
-  errorAlert: 'reset-errorAlert',
-  successAlert: 'reset-successAlert',
-  bgWhite: 'bg-white',
-  textPrimary: 'text-primary',
-  textSecondaryHover: 'text-secondary',
-  colorDarkBlue: 'reset-btnPrimary',
-}
 
 function ResetPasswordPage() {
   const navigate = useNavigate()
@@ -117,20 +93,12 @@ function ResetPasswordPage() {
 
   if (checkingToken) {
     return (
-      <div 
-        className={styles.screen}
-        style={{
-          backgroundImage: `url(${loginbg})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat'
-        }}
-      >
-        <div className={styles.container}>
-          <div className={`${styles.card} ${styles.bgWhite}`}>
-            <div className="text-center py-8 text-slate-600">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-              Verifying reset link...
+      <div className="rp-screen">
+        <div className="rp-container">
+          <div className="rp-card">
+            <div className="rp-loading">
+              <div className="rp-spinner"></div>
+              <p>Verifying reset link...</p>
             </div>
           </div>
         </div>
@@ -139,58 +107,45 @@ function ResetPasswordPage() {
   }
 
   return (
-    <div 
-      className={styles.screen}
-      style={{
-        backgroundImage: `url(${loginbg})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat'
-      }}
-    >
-      <div className={styles.container}>
-        <div className={`${styles.card} ${styles.bgWhite}`}>
-          <div className={styles.header}>
-            <div className={`${styles.icon} ${styles.iconBg}`}>
-              <span className="text-xl">🔑</span>
-            </div>
-            <h1 className={`${styles.titleLarge} ${styles.textPrimary}`}>
-              Reset Password
-            </h1>
-            <p className={styles.subtitle}>
+    <div className="rp-screen">
+      <div className="rp-container">
+        <div className="rp-card">
+          <div className="rp-header">
+            <h1 className="rp-title">Reset Password</h1>
+            <p className="rp-subtitle">
               {isValidToken ? 'Enter your new password' : 'Invalid reset link'}
             </p>
           </div>
 
           {isValidToken ? (
-            <form onSubmit={handleResetPassword} className={styles.form}>
+            <form onSubmit={handleResetPassword} className="rp-form">
               {error && (
-                <div className={styles.errorAlert}>
+                <div className="rp-error-alert">
                   {error}
                 </div>
               )}
               
-              <div>
-                <label className={styles.label}>New Password</label>
+              <div className="rp-form-group">
+                <label className="rp-form-label">New Password</label>
                 <input
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Enter new password"
-                  className={styles.input}
+                  className="rp-form-input"
                   disabled={loading}
                   minLength={6}
                 />
               </div>
 
-              <div>
-                <label className={styles.label}>Confirm Password</label>
+              <div className="rp-form-group">
+                <label className="rp-form-label">Confirm Password</label>
                 <input
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Confirm new password"
-                  className={styles.input}
+                  className="rp-form-input"
                   disabled={loading}
                   minLength={6}
                 />
@@ -198,31 +153,31 @@ function ResetPasswordPage() {
               
               <button 
                 type="submit"
-                className={`${styles.btnPrimary} ${styles.colorDarkBlue}`}
+                className="rp-btn-primary"
                 disabled={loading}
               >
                 {loading ? 'Updating Password...' : 'Reset Password'}
               </button>
             </form>
           ) : (
-            <div className={styles.form}>
-              <div className={styles.errorAlert}>
+            <div className="rp-form">
+              <div className="rp-error-alert">
                 {error}
               </div>
               
               <button 
                 onClick={() => navigate('/forgot-password')} 
-                className={`${styles.btnPrimary} ${styles.colorDarkBlue}`}
+                className="rp-btn-primary"
               >
                 Request New Reset Link
               </button>
             </div>
           )}
 
-          <div className={styles.buttonGroup}>
+          <div className="rp-footer">
             <button 
               onClick={() => navigate('/')} 
-              className={`${styles.btnText} ${styles.textSecondaryHover}`}
+              className="rp-link-back"
             >
               Back to Sign In
             </button>

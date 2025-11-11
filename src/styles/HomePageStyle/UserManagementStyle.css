@@ -30,6 +30,30 @@
   border-bottom: 1px solid rgba(238, 238, 238, 0.2);
 }
 
+.um-search-container {
+  display: grid;
+  gap: 1%;
+  grid-template-columns: 79% 20%;
+  align-items: center;
+}
+
+.um-search-input {
+  width: 100%;
+}
+
+.um-role-filter {
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='rgb(238,238,238)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 14px;
+  padding-right: 28px;
+  cursor: pointer;
+}
+
 .um-body {
   flex: 1;
   display: flex;
@@ -170,6 +194,7 @@
   background-color: #4a5058;
   color: #eeeeee;
   font-size: 13px;
+  height: 100%;
   transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
 
   /* Dynamic varible */
@@ -256,6 +281,7 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #ffffff;
+  border-radius: 0;
 
   /* Dynamic varible */
   border: 1px solid transparent;
@@ -318,6 +344,7 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   cursor: pointer;
+  border-radius: 0;
   transition: transform 150ms ease, opacity 150ms ease, background-color 150ms ease, border-color 150ms ease;
 
   /* Dynamic varible */

@@ -39,6 +39,7 @@ export const UserManagementContent = ({ currentUserId }) => {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [roleFilter, setRoleFilter] = useState('all')
   const [editingUser, setEditingUser] = useState(null)
   const [editForm, setEditForm] = useState(INITIAL_EDIT_FORM)
 
@@ -159,31 +160,49 @@ export const UserManagementContent = ({ currentUserId }) => {
 
   const filteredUsers = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
-    if (!query) return users
-
-    return users.filter((user) =>
-      user.username?.toLowerCase().includes(query) ||
-      user.email?.toLowerCase().includes(query) ||
-      user.role?.toLowerCase().includes(query)
-    )
-  }, [searchQuery, users])
+    
+    let filtered = users
+    
+    if (query) {
+      filtered = filtered.filter((user) =>
+        user.username?.toLowerCase().includes(query) ||
+        user.email?.toLowerCase().includes(query)
+      )
+    }
+    
+    if (roleFilter !== 'all') {
+      filtered = filtered.filter((user) => user.role === roleFilter)
+    }
+    
+    return filtered
+  }, [searchQuery, roleFilter, users])
 
   const busy = loading
 
   return (
     <div className={`um-panel ${busy ? 'busy' : ''}`}>
-      <div className="um-header">
-        <h2 className="um-title">User Management</h2>
-      </div>
-
       <div className="um-search">
-        <input
-          type="text"
-          placeholder="Search by username, email, or role..."
-          value={searchQuery}
-          onChange={(event) => setSearchQuery(event.target.value)}
-          className="um-control um-input"
-        />
+        <div className="um-search-container">
+          <input
+            type="text"
+            placeholder="Search by username or email..."
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            className="um-control um-input um-search-input"
+          />
+          <select
+            value={roleFilter}
+            onChange={(event) => setRoleFilter(event.target.value)}
+            className="um-control um-select um-role-filter"
+          >
+            <option value="all">All Roles</option>
+            {Object.entries(USER_ROLES).map(([, value]) => (
+              <option key={value} value={value}>
+                {USER_ROLE_LABELS[value]}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="um-body">
@@ -289,7 +308,7 @@ export const UserManagementContent = ({ currentUserId }) => {
                               {roleLabel}
                             </span>
                             {isCurrentUser && (
-                              <span className="um-tag" data-variant="self">
+                              <span className="um-tag self">
                                 You
                               </span>
                             )}

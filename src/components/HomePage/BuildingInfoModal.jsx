@@ -20,6 +20,7 @@ const BuildingInfoModal = ({
 }) => {
   const scrollContainerRef = useRef(null)
   const [expandedFloorKey, setExpandedFloorKey] = useState(null)
+  const prevIsOpenRef = useRef(isOpen)
 
   const normalizedRooms = useMemo(() => Array.isArray(roomsByFloor) ? roomsByFloor : [], [roomsByFloor])
 
@@ -49,6 +50,13 @@ const BuildingInfoModal = ({
   }, [isRoomScheduleOpen, activeRoomCode, onOpenRoomSchedule, onCloseRoomSchedule])
 
   useEffect(() => {
+    if (!isOpen && prevIsOpenRef.current) {
+      setExpandedFloorKey(null)
+    }
+    prevIsOpenRef.current = isOpen
+  }, [isOpen])
+
+  useEffect(() => {
     if (!isOpen || !activeRoomCode) return
 
     let targetFloorKey = null
@@ -64,13 +72,13 @@ const BuildingInfoModal = ({
       return found
     })
 
-    if (targetFloorKey) {
+    if (targetFloorKey && expandedFloorKey === null) {
       ensureFloorExpanded(targetFloorKey)
       const timeout = setTimeout(() => focusRoomButton(activeRoomCode), 120)
       return () => clearTimeout(timeout)
     }
     return undefined
-  }, [isOpen, activeRoomCode, normalizedRooms, ensureFloorExpanded, focusRoomButton])
+  }, [isOpen, activeRoomCode, normalizedRooms, ensureFloorExpanded, focusRoomButton, expandedFloorKey])
 
   useEffect(() => {
     const handleSearchRoom = (event) => {
@@ -169,9 +177,9 @@ const BuildingInfoModal = ({
                           data-room-code={room.room_code}
                           type="button"
                           onClick={() => handleRoomAction(room)}
-                          className="bi-room-button"
-                          {...(expanded ? { 'data-expanded': '' } : {})}
-                          {...(isActive ? { 'data-active': '' } : {})}
+                          className={`bi-room-button 
+                          ${expanded ? 'expanded' : ''} 
+                          ${isActive ? 'active' : ''}`}
                           style={{ transitionDelay: `${order * 15}ms` }}
                         >
                           {label}

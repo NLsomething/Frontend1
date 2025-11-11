@@ -35,10 +35,23 @@ const RequestsPanelContent = ({
 }) => {
   const [showingRejectField, setShowingRejectField] = useState(null)
   const [showingRevertField, setShowingRevertField] = useState(null)
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [buildingFilter, setBuildingFilter] = useState('all')
 
   const activeHistoricalFilter = historicalDateFilter || getDefaultDateFilter()
   const pendingCount = pendingRequests.length
-  const historicalCount = historicalRequests.length
+  
+  const buildingCodes = [...new Set(historicalRequests
+    .map(req => req.building_code)
+    .filter(code => code)
+  )].sort()
+  
+  const filteredHistoricalRequests = historicalRequests.filter(req => {
+    const statusMatch = statusFilter === 'all' || req.status === statusFilter
+    const buildingMatch = buildingFilter === 'all' || req.building_code === buildingFilter
+    return statusMatch && buildingMatch
+  })
+  const historicalCount = filteredHistoricalRequests.length
 
   const updateReason = (id, value) => {
     if (typeof setRejectionReasons !== 'function') return
@@ -96,10 +109,6 @@ const RequestsPanelContent = ({
 
   return (
     <div className="rq-panel">
-      <div className="rq-header">
-        <h2 className="rq-title">Room Requests</h2>
-      </div>
-
       <div className="rq-content">
         {requestsLoading ? (
           <div className="rq-loading">Loading requests…</div>
@@ -124,7 +133,7 @@ const RequestsPanelContent = ({
                       <article key={request.id} className="rq-card">
                         <div className="rq-card-header">
                           <div className="rq-card-meta">
-                            <p className="rq-card-title">{request.building_code} {roomLabel}</p>
+                            <p className="rq-card-title">{roomLabel} - {request.building_code}</p>
                             <p className="rq-card-subtitle">
                               {formatDateDisplay(request.base_date)} • {formatRequestRange(request, timeSlots)} • {request.week_count} week
                               {request.week_count > 1 ? 's' : ''}
@@ -202,7 +211,7 @@ const RequestsPanelContent = ({
 
               <div className="rq-filter-card">
                 <div className="rq-filter-header">
-                  <span className="rq-filter-label">Filter by Date</span>
+                  <span className="rq-filter-label">Filter</span>
                   <button
                     type="button"
                     onClick={handleHistoryReset}
@@ -233,6 +242,34 @@ const RequestsPanelContent = ({
                       className="rq-filter-input"
                     />
                   </div>
+                  <div className="rq-filter-field">
+                    <label className="rq-input-label" htmlFor="rq-building-filter">Building</label>
+                    <select
+                      id="rq-building-filter"
+                      value={buildingFilter}
+                      onChange={(e) => setBuildingFilter(e.target.value)}
+                      className="rq-filter-select"
+                    >
+                      <option value="all">All</option>
+                      {buildingCodes.map(code => (
+                        <option key={code} value={code}>{code}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="rq-filter-field">
+                    <label className="rq-input-label" htmlFor="rq-status-filter">Status</label>
+                    <select
+                      id="rq-status-filter"
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className="rq-filter-select"
+                    >
+                      <option value="all">All</option>
+                      <option value="approved">Approved</option>
+                      <option value="rejected">Rejected</option>
+                      <option value="reverted">Reverted</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -240,7 +277,7 @@ const RequestsPanelContent = ({
                 <div className="rq-empty-card">No decisions found for the selected date range.</div>
               ) : (
                 <div className="rq-card-list">
-                  {historicalRequests.map((request) => {
+                  {filteredHistoricalRequests.map((request) => {
                     const statusStyle = ROOM_REQUEST_STATUS_STYLES[request.status] || ROOM_REQUEST_STATUS_STYLES.pending
                     const statusStyles = resolveStatusStyles(statusStyle)
                     const canRevert = request.status === 'approved'
@@ -250,7 +287,7 @@ const RequestsPanelContent = ({
                       <article key={request.id} className="rq-card">
                         <div className="rq-card-header">
                           <div className="rq-card-meta">
-                            <p className="rq-card-title">{request.building_code} {roomLabel}</p>
+                            <p className="rq-card-title">{roomLabel} - {request.building_code}</p>
                             <p className="rq-card-subtitle">
                               {formatDateDisplay(request.base_date)} • {formatRequestRange(request, timeSlots)} • {request.week_count} week
                               {request.week_count > 1 ? 's' : ''}

@@ -2,36 +2,15 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { signUp } from '../services/authService'
 import { useAuth } from '../context/AuthContext'
-import loginbg from '../assets/images/loginbg.jpg'
+import { getRandomQuote } from '../constants/quotes'
 import { useNotifications } from '../context/NotificationContext'
 import '../styles/RegisterPageStyle.css'
-
-const styles = {
-  screen: 'reg-screen',
-  container: 'reg-container',
-  card: 'reg-card',
-  header: 'reg-header',
-  form: 'reg-form',
-  buttonGroup: 'reg-buttonGroup',
-  titleLarge: 'reg-titleLarge',
-  subtitle: 'reg-subtitle',
-  label: 'reg-label',
-  input: 'reg-input',
-  btnPrimary: 'reg-btnPrimary',
-  btnText: 'reg-btnText',
-  icon: 'reg-icon',
-  iconBg: 'reg-iconBg',
-  errorAlert: 'reg-errorAlert',
-  bgWhite: 'bg-white',
-  textPrimary: 'text-primary',
-  textSecondaryHover: 'text-secondary',
-  colorLightBlue: 'reg-btnPrimary',
-}
 
 function RegisterPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { notifySuccess } = useNotifications()
+  const [quote, setQuote] = useState('')
   
   const [registerData, setRegisterData] = useState({
     username: '',
@@ -47,6 +26,11 @@ function RegisterPage() {
   const regEmailRef = useRef(null)
   const regPasswordRef = useRef(null)
   const regConfirmPasswordRef = useRef(null)
+
+  useEffect(() => {
+    // Set random quote on mount
+    setQuote(getRandomQuote())
+  }, [])
 
   useEffect(() => {
     if (user) {
@@ -107,38 +91,52 @@ function RegisterPage() {
   }
 
   return (
-    <div 
-      className={styles.screen}
-      style={{
-        backgroundImage: `url(${loginbg})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat'
-      }}
-    >
-      <div className={styles.container}>
-        <div className={`${styles.card} ${styles.bgWhite}`}>
-          <div className={styles.header}>
-            <div className={`${styles.icon} ${styles.iconBg}`}>
-              <span className="text-xl">📝</span>
+    <div className="reg-screen">
+      {/* Left side - Branding/Info */}
+      <div className="reg-sidebar">
+        <div className="reg-sidebar-content">
+          <div className="reg-logo-section">
+            <div className="reg-logo-container">
+              <svg
+                className="reg-search-logo-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.35-4.35"></path>
+              </svg>
+              <h1 className="reg-logo-title">Classroom<br />Insight</h1>
             </div>
-            <h1 className={`${styles.titleLarge} ${styles.textPrimary}`}>
-              Register
-            </h1>
-            <p className={styles.subtitle}>
-              Create a new account
+          </div>
+          <div className="reg-quote">
+            <p className="reg-quote-text">
+              "{quote}"
             </p>
           </div>
+        </div>
+      </div>
 
-          <div className={styles.form}>
+      {/* Right side - Register Form */}
+      <div className="reg-form-container">
+        <div className="reg-form-card">
+          <div className="reg-form-header">
+            <h2 className="reg-form-title">Create Account</h2>
+            <p className="reg-form-subtitle">Join ClassroomInsight today</p>
+          </div>
+
+          <form className="reg-form" onSubmit={handleRegister}>
             {registerError && (
-              <div className={styles.errorAlert}>
+              <div className="reg-error-alert">
                 {registerError}
               </div>
             )}
             
-            <div>
-              <label className={styles.label}>Username</label>
+            <div className="reg-form-group">
+              <label className="reg-form-label">Username</label>
               <input
                 ref={regUsernameRef}
                 type="text"
@@ -152,13 +150,13 @@ function RegisterPage() {
                   }
                 }}
                 placeholder="Choose a username"
-                className={styles.input}
+                className="reg-form-input"
                 disabled={loading}
               />
             </div>
             
-            <div>
-              <label className={styles.label}>Email</label>
+            <div className="reg-form-group">
+              <label className="reg-form-label">Email</label>
               <input
                 ref={regEmailRef}
                 type="email"
@@ -171,14 +169,14 @@ function RegisterPage() {
                     regPasswordRef.current?.focus()
                   }
                 }}
-                placeholder="Enter your email"
-                className={styles.input}
+                placeholder="you@example.com"
+                className="reg-form-input"
                 disabled={loading}
               />
             </div>
             
-            <div>
-              <label className={styles.label}>Password</label>
+            <div className="reg-form-group">
+              <label className="reg-form-label">Password</label>
               <input
                 ref={regPasswordRef}
                 type="password"
@@ -191,14 +189,14 @@ function RegisterPage() {
                     regConfirmPasswordRef.current?.focus()
                   }
                 }}
-                placeholder="Choose a password"
-                className={styles.input}
+                placeholder="Create a password"
+                className="reg-form-input"
                 disabled={loading}
               />
             </div>
             
-            <div>
-              <label className={styles.label}>Confirm Password</label>
+            <div className="reg-form-group">
+              <label className="reg-form-label">Confirm Password</label>
               <input
                 ref={regConfirmPasswordRef}
                 type="password"
@@ -212,27 +210,31 @@ function RegisterPage() {
                   }
                 }}
                 placeholder="Confirm your password"
-                className={styles.input}
+                className="reg-form-input"
                 disabled={loading}
               />
             </div>
             
             <button 
-              onClick={handleRegister} 
-              className={`${styles.btnPrimary} ${styles.colorLightBlue}`}
+              type="submit"
+              className="reg-btn-register"
               disabled={loading}
             >
-              {loading ? 'Registering...' : 'Register'}
+              {loading ? 'Creating account...' : 'Create Account'}
             </button>
-          </div>
+          </form>
 
-          <div className={styles.buttonGroup}>
-            <button 
-              onClick={() => navigate('/')} 
-              className={`${styles.btnText} ${styles.textSecondaryHover}`}
-            >
-              Already have an account? Sign in
-            </button>
+          <div className="reg-signin-section">
+            <p className="reg-signin-text">
+              Already have an account?{' '}
+              <button
+                type="button"
+                onClick={() => navigate('/')}
+                className="reg-signin-link"
+              >
+                Sign in here
+              </button>
+            </p>
           </div>
         </div>
       </div>

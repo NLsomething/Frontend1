@@ -71,7 +71,7 @@
   flex-direction: column;
   gap: 8px;
   overflow: hidden;
-  transition: max-height 300ms ease-out, opacity 300ms ease-out;
+  transition: max-height 200ms ease-in-out, opacity 200ms ease-in-out;
 
   /* Dynamic varible */
   max-height: 0;
@@ -88,7 +88,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-  transition: opacity 200ms ease-out;
+  transition: opacity 150ms ease-in-out;
 
   /* Dynamic varible */
   opacity: 0;
@@ -115,9 +115,9 @@
   text-transform: uppercase;
   cursor: pointer;
   transition:
-    opacity 200ms ease-out,
-    background-color 150ms ease,
-    color 150ms ease;
+    opacity 150ms ease-in-out,
+    background-color 150ms ease-in-out,
+    color 150ms ease-in-out;
   transition-delay: 0ms;
 
   /* Dynamic varible */

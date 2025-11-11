@@ -176,12 +176,10 @@ function HomePage() {
   const requestActionLoading = useHomePageStore((state) => state.requestActionLoading)
   const pendingRequests = useHomePageStore((state) => state.pendingRequests)
   const rejectionReasons = useHomePageStore((state) => state.rejectionReasons)
-  const requestsPanelOpen = useHomePageStore((state) => state.requestsPanelOpen)
   const historicalRequests = useHomePageStore((state) => state.historicalRequests)
   const historicalDateFilter = useHomePageStore((state) => state.historicalDateFilter)
   const myRequests = useHomePageStore((state) => state.myRequests)
   const myRequestsLoading = useHomePageStore((state) => state.myRequestsLoading)
-  const myRequestsPanelOpen = useHomePageStore((state) => state.myRequestsPanelOpen)
   const filteredMyRequests = useHomePageStore((state) => state.filteredMyRequests)
   const myRequestsDateFilter = useHomePageStore((state) => state.myRequestsDateFilter)
   const requestState = useHomePageStore((state) => state.requestState)
@@ -978,8 +976,6 @@ function HomePage() {
                   buildings={buildings}
                   onRoomSelect={handleRoomSearch}
                   onOpen={() => {
-                    // Don't close building dropdown - allow it to stay open
-                    // Only close other panels that aren't building-related
                     setRequestsPanelOpen?.(false)
                     setMyRequestsPanelOpen?.(false)
                     setUserManagementOpen(false)
@@ -990,16 +986,16 @@ function HomePage() {
                 <button
                   type="button"
                   onClick={handleMyRequestsClick}
-                  className={cn('hp-headerRequestsButton', myRequestsPanelOpen ? 'hp-headerRequestsButton--active' : '')}
+                  className={cn('hp-headerRequestsButton', unifiedPanelContentType === 'my-requests' ? 'hp-headerRequestsButton--active' : '')}
                 >
-                  {myRequestsPanelOpen ? 'Hide My Requests' : `My Requests`}
+                  My Requests
                 </button>
               )}
               {canManageRequests && (
                 <button
                   type="button"
                   onClick={handleRequestsButtonClick}
-                  className={cn('hp-headerRequestsButton', requestsPanelOpen ? 'hp-headerRequestsButton--active' : '')}
+                  className={cn('hp-headerRequestsButton', unifiedPanelContentType === 'requests' ? 'hp-headerRequestsButton--active' : '')}
                 >
                   Manage Requests
                 </button>
@@ -1008,7 +1004,7 @@ function HomePage() {
                 <button
                   type="button"
                   onClick={handleUserManagementClick}
-                  className="hp-headerUserManagementButton"
+                  className={cn('hp-headerUserManagementButton', unifiedPanelContentType === 'user-management' ? 'hp-headerUserManagementButton--active' : '')}
                 >
                   User Management
                 </button>
@@ -1090,8 +1086,8 @@ function HomePage() {
                       className={cn(
                               "brutal-btn w-1/2 px-2 py-2 text-[0.58rem] font-bold uppercase tracking-[0.16em] border shadow-none focus:outline-none transition-colors duration-150",
                               isBuildingInfoOpen
-                                ? "bg-transparent text-white border-white"
-                                : "bg-transparent text-[#EEEEEE]/90 border-[#EEEEEE]/60 hover:text-white hover:border-white"
+                                ? "bg-[rgba(57,62,70,0.5)] text-white border-white"
+                                : "bg-[rgba(57,62,70,0.2)] text-[#EEEEEE]/90 border-[#EEEEEE]/60 hover:text-white hover:border-white hover:bg-[rgba(57,62,70,0.35)]"
                       )}
                             style={{ borderRadius: 0 }}
                           >
@@ -1102,9 +1098,9 @@ function HomePage() {
                             onClick={handleScheduleToggle}
                             className={cn(
                               "brutal-btn w-1/2 px-2 py-2 text-[0.58rem] font-bold uppercase tracking-[0.16em] border shadow-none focus:outline-none transition-colors duration-150",
-                              (unifiedPanelContentType === 'schedule')
-                                ? "bg-transparent text-white border-white"
-                                : "bg-transparent text-[#EEEEEE]/90 border-[#EEEEEE]/60 hover:text-white hover:border-white"
+                              unifiedPanelContentType === 'schedule'
+                                ? "bg-[rgba(57,62,70,0.5)] text-white border-white"
+                                : "bg-[rgba(57,62,70,0.2)] text-[#EEEEEE]/90 border-[#EEEEEE]/60 hover:text-white hover:border-white hover:bg-[rgba(57,62,70,0.35)]"
                             )}
                             style={{ borderRadius: 0 }}
                           >
@@ -1122,7 +1118,7 @@ function HomePage() {
                         <BuildingInfoModal
                           isOpen={isBuildingInfoOpen}
                           roomsByFloor={roomsByFloor}
-                          isRoomScheduleOpen={isRoomScheduleOpen}
+                          isRoomScheduleOpen={isRoomScheduleOpen && unifiedPanelContentType === 'room-schedule'}
                           activeRoomCode={roomScheduleRoomCode}
                           onOpenRoomSchedule={handleOpenRoomSchedulePanel}
                           onCloseRoomSchedule={handleCloseRoomSchedulePanel}

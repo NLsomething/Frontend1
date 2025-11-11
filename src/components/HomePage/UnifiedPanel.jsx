@@ -11,7 +11,6 @@ const UnifiedPanel = ({
   const [mounted, setMounted] = useState(false)
   const [contentKey, setContentKey] = useState(0)
   const [isFadingOut, setIsFadingOut] = useState(false)
-  const [showContent, setShowContent] = useState(true)
   const prevContentTypeRef = useRef(contentType)
   const [renderedChildren, setRenderedChildren] = useState(children)
   const panelRef = useRef(null)
@@ -68,49 +67,54 @@ const UnifiedPanel = ({
     if (!shouldAnimate) {
       prevContentTypeRef.current = contentType;
       setRenderedChildren(children);
-      setShowContent(true);
       setIsFadingOut(false);
       return;
     }
 
+    // Phase 1: Fade out current content
     setIsFadingOut(true)
 
     const node = contentRef.current
     let cleaned = false
-    let fallback = null
+    let phase2Timeout = null
+    let phase3Timeout = null
 
-    const onContentTransitionEnd = (e) => {
+    const onContentFadeOutComplete = (e) => {
       if (cleaned) return
       if (!e || e.propertyName === 'opacity') {
         cleaned = true
-        setShowContent(false)
-        // swap content on next frame for smoother repaint
-        requestAnimationFrame(() => {
+        
+        // Phase 2: Wait a brief moment then swap content
+        phase2Timeout = setTimeout(() => {
           prevContentTypeRef.current = contentType
           setRenderedChildren(children)
           setContentKey((prev) => prev + 1)
-          setIsFadingOut(false)
-          setShowContent(true)
-        })
-        if (node) node.removeEventListener('transitionend', onContentTransitionEnd)
-        if (fallback) clearTimeout(fallback)
+          
+          // Phase 3: Fade in new content on next frame
+          requestAnimationFrame(() => {
+            setIsFadingOut(false)
+          })
+        }, 50)
+        
+        if (node) node.removeEventListener('transitionend', onContentFadeOutComplete)
       }
     }
 
     if (node) {
-      node.addEventListener('transitionend', onContentTransitionEnd)
-      fallback = setTimeout(() => onContentTransitionEnd(), 1000)
+      node.addEventListener('transitionend', onContentFadeOutComplete)
+      // Fallback timeout for fade out
+      phase3Timeout = setTimeout(() => onContentFadeOutComplete(), 250)
     } else {
       prevContentTypeRef.current = contentType
       setRenderedChildren(children)
       setContentKey((prev) => prev + 1)
       setIsFadingOut(false)
-      setShowContent(true)
     }
 
     return () => {
-      if (node) node.removeEventListener('transitionend', onContentTransitionEnd)
-      if (fallback) clearTimeout(fallback)
+      if (node) node.removeEventListener('transitionend', onContentFadeOutComplete)
+      if (phase2Timeout) clearTimeout(phase2Timeout)
+      if (phase3Timeout) clearTimeout(phase3Timeout)
     }
   }, [contentType, children, isOpen]);
 
@@ -132,7 +136,7 @@ const UnifiedPanel = ({
           <div
           ref={contentRef}
           key={contentKey}
-          className={`up-content ${showContent ? 'visible' : ''} ${isFadingOut ? 'fading-out' : 'fading-in'}`}
+          className={`up-content ${!isFadingOut ? 'fading-in' : 'fading-out'}`}
           >
              {renderedChildren}
           </div>

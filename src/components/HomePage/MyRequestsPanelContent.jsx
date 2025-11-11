@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { ROOM_REQUEST_STATUS_LABELS, ROOM_REQUEST_STATUS_STYLES } from '../../constants/requests'
 import { formatDateDisplay, formatRequestRange, getDefaultDateFilter, getRequestRoomLabel } from '../../utils'
 import '../../styles/HomePageStyle/MyRequestsPanelStyle.css'
@@ -26,11 +27,25 @@ const MyRequestsPanelContent = ({
   onDateFilterChange,
   timeSlots = []
 }) => {
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [buildingFilter, setBuildingFilter] = useState('all')
+  
   const activeDateFilter = myRequestsDateFilter || getDefaultDateFilter()
 
-  const pendingRequests = filteredMyRequests.filter((request) => request.status === 'pending')
-  const approvedOrRevertedRequests = filteredMyRequests.filter((request) => request.status === 'approved' || request.status === 'reverted')
-  const rejectedRequests = filteredMyRequests.filter((request) => request.status === 'rejected')
+  const buildingCodes = [...new Set(myRequests
+    .map(req => req.building_code)
+    .filter(code => code)
+  )].sort()
+
+  const filterByStatusBuildingAndDate = filteredMyRequests.filter(req => {
+    const statusMatch = statusFilter === 'all' || req.status === statusFilter
+    const buildingMatch = buildingFilter === 'all' || req.building_code === buildingFilter
+    return statusMatch && buildingMatch
+  })
+
+  const pendingRequests = filterByStatusBuildingAndDate.filter((request) => request.status === 'pending')
+  const approvedOrRevertedRequests = filterByStatusBuildingAndDate.filter((request) => request.status === 'approved' || request.status === 'reverted')
+  const rejectedRequests = filterByStatusBuildingAndDate.filter((request) => request.status === 'rejected')
 
   const handleFilterReset = () => {
     if (!onDateFilterChange) return
@@ -50,13 +65,6 @@ const MyRequestsPanelContent = ({
 
   return (
     <div className="mr-panel">
-      <div className="mr-header">
-        <div>
-          <h2 className="mr-title">My Requests</h2>
-          <p className="mr-subtitle">View the status of your room requests</p>
-        </div>
-      </div>
-
       <div className="mr-content">
         {myRequestsLoading ? (
           <div className="mr-loading">Loading your requests…</div>
@@ -71,7 +79,7 @@ const MyRequestsPanelContent = ({
           <div className="mr-stack">
             <section className="mr-filter-card">
               <div className="mr-filter-header">
-                <span className="mr-filter-label">Filter by Date</span>
+                <span className="mr-filter-label">Filter</span>
                 <button
                   type="button"
                   onClick={handleFilterReset}
@@ -102,6 +110,35 @@ const MyRequestsPanelContent = ({
                     className="mr-filter-input"
                   />
                 </div>
+                <div className="mr-filter-field">
+                  <label className="mr-input-label" htmlFor="mr-building-filter">Building</label>
+                  <select
+                    id="mr-building-filter"
+                    value={buildingFilter}
+                    onChange={(e) => setBuildingFilter(e.target.value)}
+                    className="mr-filter-select"
+                  >
+                    <option value="all">All</option>
+                    {buildingCodes.map(code => (
+                      <option key={code} value={code}>{code}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="mr-filter-field">
+                  <label className="mr-input-label" htmlFor="mr-status-filter">Status</label>
+                  <select
+                    id="mr-status-filter"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="mr-filter-select"
+                  >
+                    <option value="all">All</option>
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                    <option value="reverted">Reverted</option>
+                  </select>
+                </div>
               </div>
             </section>
 
@@ -120,7 +157,7 @@ const MyRequestsPanelContent = ({
                       <div key={request.id} className="mr-card">
                         <div className="mr-card-header">
                           <div className="mr-card-meta">
-                            <p className="mr-room">{request.building_code} {roomLabel}</p>
+                            <p className="mr-room">{roomLabel} - {request.building_code}</p>
                             <p className="mr-meta">
                               {formatDateDisplay(request.base_date)} • {formatRequestRange(request, timeSlots)} • {request.week_count}{' '}
                               week{request.week_count > 1 ? 's' : ''}
@@ -170,7 +207,7 @@ const MyRequestsPanelContent = ({
                       <div key={request.id} className="mr-card">
                         <div className="mr-card-header">
                           <div className="mr-card-meta">
-                            <p className="mr-room">{request.building_code} {roomLabel}</p>
+                            <p className="mr-room">{roomLabel} - {request.building_code}</p>
                             <p className="mr-meta">
                               {formatDateDisplay(request.base_date)} • {formatRequestRange(request, timeSlots)} • {request.week_count}{' '}
                               week{request.week_count > 1 ? 's' : ''}
@@ -231,7 +268,7 @@ const MyRequestsPanelContent = ({
                       <div key={request.id} className="mr-card">
                         <div className="mr-card-header">
                           <div className="mr-card-meta">
-                            <p className="mr-room">{request.building_code} {roomLabel}</p>
+                            <p className="mr-room">{roomLabel} - {request.building_code}</p>
                             <p className="mr-meta">
                               {formatDateDisplay(request.base_date)} • {formatRequestRange(request, timeSlots)} • {request.week_count}{' '}
                               week{request.week_count > 1 ? 's' : ''}

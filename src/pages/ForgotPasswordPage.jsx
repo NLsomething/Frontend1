@@ -1,42 +1,18 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { resetPassword } from '../services/authService'
 import { useAuth } from '../context/AuthContext'
-import loginbg from '../assets/images/loginbg.jpg'
 import { useNotifications } from '../context/NotificationContext'
 import '../styles/ForgotPasswordPageStyle.css'
-
-const styles = {
-  screen: 'fp-screen',
-  container: 'fp-container',
-  card: 'fp-card',
-  header: 'fp-header',
-  form: 'fp-form',
-  buttonGroup: 'fp-buttonGroup',
-  titleLarge: 'fp-titleLarge',
-  subtitle: 'fp-subtitle',
-  label: 'fp-label',
-  input: 'fp-input',
-  btnPrimary: 'fp-btnPrimary',
-  btnText: 'fp-btnText',
-  icon: 'fp-icon',
-  iconBg: 'fp-iconBg',
-  errorAlert: 'fp-errorAlert',
-  bgWhite: 'bg-white',
-  textPrimary: 'text-primary',
-  textSecondaryHover: 'text-secondary',
-  colorDarkBlue: 'fp-btnPrimary',
-}
 
 function ForgotPasswordPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { notifySuccess } = useNotifications()
   
-  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('')
+  const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
-  const [forgotPasswordError, setForgotPasswordError] = useState('')
-  const forgotEmailRef = useRef(null)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     if (user) {
@@ -46,20 +22,20 @@ function ForgotPasswordPage() {
 
   const handleForgotPassword = async (e) => {
     e.preventDefault()
-    setForgotPasswordError('')
+    setError('')
     
-    if (!forgotPasswordEmail) {
-      setForgotPasswordError('Please enter your email address.')
+    if (!email) {
+      setError('Please enter your email address.')
       return
     }
 
     setLoading(true)
 
     try {
-      const { error } = await resetPassword(forgotPasswordEmail)
+      const { error: resetError } = await resetPassword(email)
       
-      if (error) {
-        setForgotPasswordError(error)
+      if (resetError) {
+        setError(resetError)
       } else {
         notifySuccess('Password reset email sent', {
           description: 'Check your inbox for further instructions.'
@@ -68,77 +44,57 @@ function ForgotPasswordPage() {
       }
     } catch (error) {
       console.error('Forgot password error:', error)
-      setForgotPasswordError('An unexpected error occurred.')
+      setError('An unexpected error occurred.')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div 
-      className={styles.screen}
-      style={{
-        backgroundImage: `url(${loginbg})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat'
-      }}
-    >
-      <div className={styles.container}>
-        <div className={`${styles.card} ${styles.bgWhite}`}>
-          <div className={styles.header}>
-            <div className={`${styles.icon} ${styles.iconBg}`}>
-              <span className="text-xl">🔐</span>
-            </div>
-            <h1 className={`${styles.titleLarge} ${styles.textPrimary}`}>
-              Forgot Password
-            </h1>
-            <p className={styles.subtitle}>
-              Enter your email to reset password
+    <div className="fp-screen">
+      <div className="fp-container">
+        <div className="fp-card">
+          <div className="fp-header">
+            <h1 className="fp-title">Forgot your password?</h1>
+            <p className="fp-subtitle">
+              Enter your email and we'll send you a code to reset the password
             </p>
           </div>
 
-          <div className={styles.form}>
-            {forgotPasswordError && (
-              <div className={styles.errorAlert}>
-                {forgotPasswordError}
+          <form onSubmit={handleForgotPassword} className="fp-form">
+            {error && (
+              <div className="fp-error-alert">
+                {error}
               </div>
             )}
             
-            <div>
-              <label className={styles.label}>Email Address</label>
+            <div className="fp-form-group">
+              <label className="fp-form-label">Email</label>
               <input
-                ref={forgotEmailRef}
                 type="email"
-                value={forgotPasswordEmail}
-                onChange={(e) => setForgotPasswordEmail(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault()
-                    handleForgotPassword(e)
-                  }
-                }}
-                placeholder="Enter your email address"
-                className={styles.input}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="fp-form-input"
                 disabled={loading}
               />
             </div>
             
             <button 
-              onClick={handleForgotPassword} 
-              className={`${styles.btnPrimary} ${styles.colorDarkBlue}`}
+              type="submit"
+              className="fp-btn-primary"
               disabled={loading}
             >
-              {loading ? 'Sending...' : 'Send Reset Link'}
+              {loading ? 'Sending...' : 'Send reset code'}
             </button>
-          </div>
+          </form>
 
-          <div className={styles.buttonGroup}>
+          <div className="fp-footer">
             <button 
               onClick={() => navigate('/')} 
-              className={`${styles.btnText} ${styles.textSecondaryHover}`}
+              className="fp-link-back"
             >
-              Back to Sign In
+              Already have an account? Sign In
             </button>
           </div>
         </div>

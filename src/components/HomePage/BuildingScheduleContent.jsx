@@ -146,8 +146,8 @@ const BuildingScheduleContent = ({
 						<button
 							type="button"
 							onClick={() => setActiveSlotCategory('administrative')}
-							className="bs-slot-toggle"
-							{...(activeSlotCategory === 'administrative' ? { active: '' } : {})}
+							className={`bs-slot-toggle 
+							${activeSlotCategory === 'administrative' ? 'active' : ''}`}
 						>
 							Administrative
 						</button>

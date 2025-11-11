@@ -2,36 +2,13 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { signIn } from '../services/authService'
 import { useAuth } from '../context/AuthContext'
-import loginbg from '../assets/images/loginbg.jpg'
+import { getRandomQuote } from '../constants/quotes'
 import '../styles/LoginPageStyle.css'
-
-const styles = {
-  screen: 'auth-screen',
-  container: 'auth-container',
-  card: 'auth-card',
-  header: 'auth-header',
-  form: 'auth-form',
-  buttonGroup: 'auth-buttonGroup',
-  titleLarge: 'auth-titleLarge',
-  subtitle: 'auth-subtitle',
-  label: 'auth-label',
-  input: 'auth-input',
-  btnPrimary: 'auth-btnPrimary',
-  btnSecondary: 'auth-btnPrimary',
-  btnText: 'auth-btnText',
-  icon: 'auth-icon',
-  iconBg: 'auth-iconBg',
-  errorAlert: 'auth-errorAlert',
-  bgWhite: 'bg-white',
-  textPrimary: 'text-primary',
-  textSecondaryHover: 'text-secondary',
-  colorDarkBlue: 'auth-btnPrimary',
-  colorLightBlue: 'auth-btnPrimary',
-}
 
 function LoginPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const [quote, setQuote] = useState('')
   
   const [formData, setFormData] = useState({
     usernameOrEmail: '',
@@ -40,9 +17,12 @@ function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [loginError, setLoginError] = useState('')
 
-  // Refs for login form
   const emailInputRef = useRef(null)
   const passwordInputRef = useRef(null)
+
+  useEffect(() => {
+    setQuote(getRandomQuote())
+  }, [])
 
   useEffect(() => {
     if (user) {
@@ -86,40 +66,52 @@ function LoginPage() {
   }
 
   return (
-    <div 
-      className={styles.screen}
-      style={{
-        backgroundImage: `url(${loginbg})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat'
-      }}
-    >
-      <div className={styles.container}>
-        <div className={`${styles.card} ${styles.bgWhite}`}>
-          <div className={styles.header}>
-            <div className={`${styles.icon} ${styles.iconBg}`}>
-              <span className="text-xl">🏫</span>
+    <div className="lp-screen">
+      {/* Left side - Branding/Info */}
+      <div className="lp-sidebar">
+        <div className="lp-sidebar-content">
+          <div className="lp-logo-section">
+            <div className="lp-logo-container">
+              <svg
+                className="lp-search-logo-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.35-4.35"></path>
+              </svg>
+              <h1 className="lp-logo-title">Classroom<br />Insight</h1>
             </div>
-            <h1 className={`${styles.titleLarge} ${styles.textPrimary}`}>
-              Welcome
-            </h1>
-            <p className={styles.subtitle}>
-              Sign in to access ClassroomInsight
+          </div>
+          <div className="lp-quote">
+            <p className="lp-quote-text">
+              "{quote}"
             </p>
           </div>
+        </div>
+      </div>
 
-          <div className={styles.form}>
+      {/* Right side - Login Form */}
+      <div className="lp-form-container">
+        <div className="lp-form-card">
+          <div className="lp-form-header">
+            <h2 className="lp-form-title">Welcome</h2>
+            <p className="lp-form-subtitle">Sign in to access ClassroomInsight</p>
+          </div>
+
+          <form className="lp-form" onSubmit={handleLogin}>
             {loginError && (
-              <div className={styles.errorAlert}>
+              <div className="lp-error-alert">
                 {loginError}
               </div>
             )}
             
-            <div>
-              <label className={styles.label}>
-                Email
-              </label>
+            <div className="lp-form-group">
+              <label className="lp-form-label">Email</label>
               <input
                 ref={emailInputRef}
                 type="email"
@@ -132,16 +124,23 @@ function LoginPage() {
                     passwordInputRef.current?.focus()
                   }
                 }}
-                placeholder="Enter your email"
-                className={styles.input}
+                placeholder="you@example.com"
+                className="lp-form-input"
                 disabled={loading}
               />
             </div>
 
-            <div>
-              <label className={styles.label}>
-                Password
-              </label>
+            <div className="lp-form-group">
+              <div className="lp-password-header">
+                <label className="lp-form-label">Password</label>
+                <button
+                  type="button"
+                  onClick={() => navigate('/forgot-password')}
+                  className="lp-forgot-password-link"
+                >
+                  Forgot password?
+                </button>
+              </div>
               <input
                 ref={passwordInputRef}
                 type="password"
@@ -155,34 +154,31 @@ function LoginPage() {
                   }
                 }}
                 placeholder="Enter your password"
-                className={styles.input}
+                className="lp-form-input"
                 disabled={loading}
               />
             </div>
 
             <button 
-              onClick={handleLogin} 
-              className={`${styles.btnPrimary} ${styles.colorDarkBlue}`}
+              type="submit"
+              className="lp-btn-signin"
               disabled={loading}
             >
-              {loading ? 'Logging in...' : 'Login'}
+              {loading ? 'Signing in...' : 'Sign in'}
             </button>
-          </div>
+          </form>
 
-          <div className={styles.buttonGroup}>
-            <button 
-              onClick={() => navigate('/register')} 
-              className={`${styles.btnSecondary} ${styles.colorLightBlue}`}
-            >
-              Register
-            </button>
-            
-            <button 
-              onClick={() => navigate('/forgot-password')} 
-              className={`${styles.btnText} ${styles.textSecondaryHover}`}
-            >
-              Forgot Password?
-            </button>
+          <div className="lp-signup-section">
+            <p className="lp-signup-text">
+              Don't have an account?{' '}
+              <button
+                type="button"
+                onClick={() => navigate('/register')}
+                className="lp-signup-link"
+              >
+                Sign Up Now
+              </button>
+            </p>
           </div>
         </div>
       </div>

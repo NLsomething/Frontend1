@@ -9,7 +9,7 @@
   flex-direction: column;
   width: 100%;
   height: 100%;
-  background-color: #2a2a2a;
+  background-color: #222831;
 }
 
 .bs-header {
@@ -66,13 +66,21 @@
   border: 1px solid rgba(238, 238, 238, 0.2);
   color: #EEEEEE;
   cursor: pointer;
-  transition: background-color 150ms ease-in-out, color 150ms ease-in-out;
+  transition: background-color 150ms ease-out, border-color 150ms ease-out, opacity 150ms ease-out;
 
   /* Dynamic varible */
-  background-color: transparent;
+  background-color: rgba(57, 62, 70, 0.3);
+  opacity: 0.6;
+}
+.bs-slot-toggle:hover {
+  background-color: rgba(57, 62, 70, 0.6);
+  border-color: rgba(238, 238, 238, 0.4);
+  opacity: 0.9;
 }
 .bs-slot-toggle.active {
   background-color: #393E46;
+  opacity: 1;
+  border-color: rgba(238, 238, 238, 0.4);
 }
 
 .bs-date-input {
@@ -102,13 +110,13 @@
   overflow-y: auto;
   padding: 20px;
   scrollbar-width: thin;
-  scrollbar-color: #3282B8 #393E46;
+  scrollbar-color: #3282B8 #222831;
 }
 .bs-content::-webkit-scrollbar {
   width: 8px;
 }
 .bs-content::-webkit-scrollbar-track {
-  background: #393E46;
+  background: #222831;
 }
 .bs-content::-webkit-scrollbar-thumb {
   background: #3282B8;
@@ -125,7 +133,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: rgba(42, 42, 42, 0.93);
+  background-color: rgba(34, 40, 49, 0.93);
   backdrop-filter: blur(4px);
 }
 
@@ -179,13 +187,13 @@
   font-size: 14px;
   color: rgba(238, 238, 238, 0.7);
   border: 1px dashed rgba(238, 238, 238, 0.2);
-  background-color: #1a1a1a;
+  background-color: #222831;
 }
 
 .bs-section {
   overflow: hidden;
   border: 1px solid rgba(238, 238, 238, 0.2);
-  background-color: #1a1a1a;
+  background-color: #393E46;
 }
 
 .bs-section-header {
@@ -294,8 +302,8 @@
   border-left-color: var(--status-empty-border, rgba(238,238,238,0.08));
 }
 .bs-slot.status-occupied {
-  background-color: var(--status-occupied-bg, rgba(16,185,129,0.5));
-  color: var(--status-occupied-text, #059669);
+  background-color:  rgba(16,185,129,0.5);
+  color: #17e5a4;
   border-left-color: var(--status-occupied-border, var(--status-divider, rgba(255,255,255,0.03)));
 }
 .bs-slot.status-maintenance {

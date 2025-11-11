@@ -2,60 +2,73 @@ import { useState, useRef, useEffect } from 'react'
 import '../../styles/HomePageStyle/SearchBuildingStyle.css'
 
 const SearchBuilding = ({ buildings, onRoomSelect, onOpen }) => {
-  const [isOpen, setIsOpen] = useState(false)
-  const [roomCode, setRoomCode] = useState('')
-  const [buildingCode, setBuildingCode] = useState('')
+  const [searchInput, setSearchInput] = useState('')
   const [isSearching, setIsSearching] = useState(false)
-  const dropdownRef = useRef(null)
-  const roomCodeInputRef = useRef(null)
-  const buildingCodeInputRef = useRef(null)
-
-  const isSearchDisabled = isSearching || !buildingCode.trim()
+  const [isFocused, setIsFocused] = useState(false)
+  const inputRef = useRef(null)
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false)
+      if (inputRef.current && !inputRef.current.contains(event.target)) {
+        setIsFocused(false)
       }
     }
 
-    if (isOpen) {
+    if (isFocused) {
       document.addEventListener('mousedown', handleClickOutside)
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [isOpen])
+  }, [isFocused])
+
+  const parseSearchInput = (input) => {
+    const trimmed = input.trim()
+    
+    if (trimmed.includes('/')) {
+      const [roomCode, buildingCode] = trimmed.split('/').map(s => s.trim())
+      return { roomCode, buildingCode }
+    }
+    
+    return { roomCode: null, buildingCode: trimmed }
+  }
 
   const handleSearch = async () => {
-    if (!buildingCode.trim()) {
+    if (!searchInput.trim()) {
       return
     }
 
     setIsSearching(true)
 
     try {
-      // Find buildind
-      const building = buildings.find(b => b.building_code.toLowerCase() === buildingCode.trim().toLowerCase())
-      
+      const { roomCode, buildingCode } = parseSearchInput(searchInput)
+
+      if (!buildingCode) {
+        console.error('Building code not provided')
+        setIsSearching(false)
+        return
+      }
+
+      // Find building
+      const building = buildings.find(
+        b => b.building_code.toLowerCase() === buildingCode.toLowerCase()
+      )
+
       if (!building) {
         console.error('Building not found')
         setIsSearching(false)
         return
       }
 
-      // Find room too if have room code
-      if (roomCode.trim()) {
-        await onRoomSelect(building, roomCode.trim())
-      } else {
-        await onRoomSelect(building, null)
+      await onRoomSelect(building, roomCode)
+
+      // Reset and blur
+      setSearchInput('')
+      setIsFocused(false)
+      if (inputRef.current) {
+        inputRef.current.blur()
       }
-      
-      // Reset and close
-      setRoomCode('')
-      setBuildingCode('')
-      setIsOpen(false)
     } catch (error) {
       console.error('Error searching:', error)
     } finally {
@@ -63,84 +76,60 @@ const SearchBuilding = ({ buildings, onRoomSelect, onOpen }) => {
     }
   }
 
-  const handleRoomCodeKeyPress = (e) => {
+  const handleKeyPress = (e) => {
     if (e.key === 'Enter') {
       e.preventDefault()
-      // Focus to the building
-      if (buildingCodeInputRef.current) {
-        buildingCodeInputRef.current.focus()
-      }
+      handleSearch()
     }
   }
 
+  const handleInputFocus = () => {
+    setIsFocused(true)
+    if (onOpen) onOpen()
+  }
 
-  const buildingCodes = buildings
-    .map(b => b.building_code)
-    .filter((code, index, self) => self.indexOf(code) === index)
-    .sort()
+  const getPlaceholder = () => {
+    return isFocused ? 'MB or 101/MB' : 'Search building'
+  }
 
   return (
-    <div className="sb-root" ref={dropdownRef}>
-      {!isOpen && (
+    <div className="sb-root">
+      <div className={`sb-search-bar ${isFocused ? 'focused' : ''}`}>
+        <input
+          ref={inputRef}
+          type="text"
+          placeholder={getPlaceholder()}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          onKeyDown={handleKeyPress}
+          onFocus={handleInputFocus}
+          onBlur={() => {
+            setTimeout(() => setIsFocused(false), 100)
+          }}
+          className="sb-input"
+          disabled={isSearching}
+        />
         <button
           type="button"
-          onClick={() => {
-            setIsOpen(true)
-            if (onOpen) onOpen()
-          }}
-          className="sb-button"
+          onClick={handleSearch}
+          className="sb-search-icon-btn"
+          disabled={isSearching || !searchInput.trim()}
+          aria-label="Search"
         >
-          Search Building
-        </button>
-      )}
-
-      <div
-        className={`sb-panel
-        ${isOpen ? 'opened' : ''}`}
-        aria-hidden={!isOpen}
-      >
-        <div className="sb-inner">
-          <div className="sb-input-wrapper">
-            <input
-              ref={roomCodeInputRef}
-              type="text"
-              placeholder="Room Code"
-              value={roomCode}
-              onChange={(e) => setRoomCode(e.target.value)}
-              onKeyDown={handleRoomCodeKeyPress}
-              className="sb-input"
-              autoFocus
-            />
-          </div>
-
-          <div className="sb-input-wrapper">
-            <select
-              ref={buildingCodeInputRef}
-              value={buildingCode}
-              onChange={(e) => setBuildingCode(e.target.value)}
-              className="sb-select"
-            >
-              <option value="" disabled hidden>Building Code</option>
-              {buildingCodes.map(code => (
-                <option key={code} value={code}>{code}</option>
-              ))}
-            </select>
-            <span className="sb-arrow" aria-hidden="true">
-              <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.06l3.71-2.83a.75.75 0 1 1 .92 1.18l-4.17 3.18a.75.75 0 0 1-.92 0L5.25 8.41a.75.75 0 0 1-.02-1.2z"/>
-              </svg>
-            </span>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleSearch}
-            className="sb-search-btn"
-            disabled={isSearchDisabled}
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           >
-            {isSearching ? 'Searching...' : 'Search'}
-          </button>
-        </div>
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.35-4.35"></path>
+          </svg>
+        </button>
       </div>
     </div>
   )
