@@ -12,8 +12,10 @@ const SchoolScene = memo(function SchoolScene({
   heroCollapsed,
   controlsRef,
   onBuildingClick,
+  onRoomClick,
   onCameraStart,
-  onCameraEnd
+  onCameraEnd,
+  onSceneLoaded
 }) {
   const renderCounter = useRef(0)
   renderCounter.current += 1
@@ -32,7 +34,7 @@ const SchoolScene = memo(function SchoolScene({
   }
   return (
     <Canvas
-      camera={{ position: [40, 25, 40], fov: 50 }}
+      camera={{ position: [323.46, 105.84, 0.82988], fov: 50 }}
       style={{
         background: 'radial-gradient(circle at 32% 18%, rgba(140,160,180,0.4) 0%, rgba(90,110,130,0.6) 55%, rgba(60,80,100,0.8) 100%)'
       }}
@@ -43,6 +45,8 @@ const SchoolScene = memo(function SchoolScene({
           position={position}
           buildingId={buildingId}
           onBuildingClick={heroCollapsed ? onBuildingClick : null}
+          onRoomClick={heroCollapsed ? onRoomClick : null}
+          onSceneLoaded={onSceneLoaded}
         />
       )}
       <OrbitControls
@@ -51,10 +55,9 @@ const SchoolScene = memo(function SchoolScene({
         enablePan={false}
         enableRotate={heroCollapsed}
         minDistance={10}
-        maxDistance={100}
+        maxDistance={500}
         maxPolarAngle={Math.PI / 2}
-        autoRotate
-        autoRotateSpeed={2}
+        autoRotate={false}
         mouseButtons={{
           LEFT: THREE.MOUSE.ROTATE,
           MIDDLE: THREE.MOUSE.DOLLY,
@@ -63,9 +66,6 @@ const SchoolScene = memo(function SchoolScene({
         onStart={() => {
           if (typeof onCameraStart === 'function') {
             onCameraStart()
-          }
-          if (controlsRef?.current && heroCollapsed) {
-            controlsRef.current.autoRotate = false
           }
         }}
         onEnd={() => {

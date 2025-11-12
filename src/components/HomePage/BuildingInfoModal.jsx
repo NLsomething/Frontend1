@@ -16,7 +16,8 @@ const BuildingInfoModal = ({
   isRoomScheduleOpen,
   activeRoomCode,
   onOpenRoomSchedule,
-  onCloseRoomSchedule
+  onCloseRoomSchedule,
+  onFloorToggle
 }) => {
   const scrollContainerRef = useRef(null)
   const [expandedFloorKey, setExpandedFloorKey] = useState(null)
@@ -131,7 +132,14 @@ const BuildingInfoModal = ({
           <div key={`${floorKey}-${floorName}`} className="bi-floor">
             <button
               type="button"
-              onClick={() => setExpandedFloorKey((prev) => (prev === floorKey ? null : floorKey))}
+              onClick={() => {
+                const newExpanded = expandedFloorKey === floorKey ? null : floorKey
+                setExpandedFloorKey(newExpanded)
+                // Trigger floor toggle callback for Floor 2
+                if (onFloorToggle && floorName === 'Floor 2') {
+                  onFloorToggle(floorName, newExpanded !== null)
+                }
+              }}
               className={`bi-floor-toggle ${expanded ? 'expanded' : ''}`}
             >
               <span className="bi-toggle-icon">{expanded ? '−' : '+'}</span>
@@ -160,7 +168,7 @@ const BuildingInfoModal = ({
                           ${isActive ? 'active' : ''}`}
                           style={{ transitionDelay: `${roomIdx * 15}ms` }}
                         >
-                          {`Room ${label}`}
+                          {`${label}`}
                         </button>
                       )
                     })}

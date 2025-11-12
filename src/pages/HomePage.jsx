@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { signOut } from '../services/authService'
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import SchoolScene from '../components/SchoolScene'
+import { setObjectTransparency, setRoomHighlight } from '../components/SchoolModel'
 import { useNotifications } from '../context/NotificationContext'
 import { USER_ROLES } from '../constants/roles'
 import { SCHEDULE_STATUS, SCHEDULE_STATUS_LABELS } from '../constants/schedule'
@@ -26,7 +27,7 @@ import ScheduleRequestContent from '../components/HomePage/ScheduleRequestConten
 import ScheduleEditContent from '../components/HomePage/ScheduleEditContent'
 
 // Custom hooks
-import { useCameraControls } from '../hooks/useCameraControls'
+import { useCameraControls, cinematicTopDownView } from '../hooks/useCameraControls'
 import HomePageStateProvider from '../components/HomePage/HomePageStateProvider'
 import { useHomePageStore } from '../stores/useHomePageStore'
 
@@ -48,8 +49,10 @@ function HomePage() {
   console.log('[HomePage] Auth state:', { user: !!user, loading, role })
   const { notifyError, notifyInfo, notifySuccess } = useNotifications()
   const controlsRef = useRef()
+  const sceneRef = useRef(null)
   const lastDragEndAtRef = useRef(0)
   const lastBuildingClickAtRef = useRef(0)
+  const lastRoomClickAtRef = useRef(0)
   const pointerRef = useRef({ downX: 0, downY: 0, moved: false })
   
   // Building state
@@ -80,6 +83,12 @@ function HomePage() {
   // eslint-disable-next-line no-unused-vars
   const [userManagementOpen, setUserManagementOpen] = useState(false)
   const [heroCollapsed, setHeroCollapsed] = useState(false)
+  
+  // Floor transparency state
+  const [upperLayerTransparent, setUpperLayerTransparent] = useState(false)
+  
+  // Room highlight state
+  const [highlightedRoom, setHighlightedRoom] = useState(null)
   
   // Unified Panel state
   const [unifiedPanelContentType, setUnifiedPanelContentType] = useState(null) // 'requests' | 'my-requests' | 'user-management' | 'building-info' | null
@@ -140,22 +149,45 @@ function HomePage() {
     const isBookable =
       String(roomMeta.bookable).toLowerCase() === 'true' || roomMeta.bookable === true
 
+    // Unhighlight previous room
+    if (highlightedRoom && sceneRef.current) {
+      setRoomHighlight(sceneRef.current, highlightedRoom, false)
+    }
+
+    // Map room code to 3D model object name
+    // Administrative rooms use "MB-XX" format (with hyphen): WC5, PH1, PKTD, etc.
+    // Regular classroom rooms use "MB201" format (no hyphen)
+    const isAdministrativeRoom = !roomCode.match(/^\d{3}$/) // If not a 3-digit number, it's administrative
+    const modelObjectName = isAdministrativeRoom ? `MB-${roomCode}` : `MB${roomCode}`
+
+    // Highlight new room
+    if (sceneRef.current) {
+      setRoomHighlight(sceneRef.current, modelObjectName, true)
+      setHighlightedRoom(modelObjectName)
+    }
+
     setRoomScheduleRoomCode(roomCode)
     setRoomScheduleRoomName(displayName)
     setRoomScheduleBookable(isBookable)
     setRoomScheduleRoomType(roomMeta.room_type || null)
     setUnifiedPanelContentType('room-schedule')
     setIsRoomScheduleOpen(true)
-  }, [])
+  }, [highlightedRoom])
 
   const handleCloseRoomSchedulePanel = useCallback(() => {
+    // Unhighlight room when closing
+    if (highlightedRoom && sceneRef.current) {
+      setRoomHighlight(sceneRef.current, highlightedRoom, false)
+      setHighlightedRoom(null)
+    }
+
     setIsRoomScheduleOpen(false)
     setRoomScheduleRoomCode(null)
     setRoomScheduleRoomName('')
     setRoomScheduleBookable(true)
     setRoomScheduleRoomType(null)
     setUnifiedPanelContentType((prev) => (prev === 'room-schedule' ? null : prev))
-  }, [])
+  }, [highlightedRoom])
 
   // Utility functions for hooks
   const getSlotLabel = useCallback((slotId) => {
@@ -669,7 +701,21 @@ function HomePage() {
   const handleBuildingInfoToggle = () => {
     // Don't close dropdown - allow switching content types
     // Building Info no longer uses UnifiedPanel; just toggle the dropdown section
-    setIsBuildingInfoOpen((prev) => !prev)
+    const willOpen = !isBuildingInfoOpen
+    setIsBuildingInfoOpen(willOpen)
+    
+    // Trigger cinematic top-down view when opening Building Info
+    if (willOpen && selectedBuilding) {
+      cinematicTopDownView(controlsRef, {
+        centerPoint: [
+          selectedBuilding.pos_x || 0,
+          0,
+          selectedBuilding.pos_z || 0
+        ],
+        duration: 1500
+      })
+    }
+    
     // Do not touch the UnifiedPanel content; keep it open if any
     setScheduleOpen(false)
     // Ensure floors are loaded when first opening Building Info
@@ -812,13 +858,23 @@ function HomePage() {
           return
         }
 
+        // Check if room is on Floor 2 and apply transparency
+        const roomFloorId = room.floor_id
+        const floor2Id = 'c2bf5515-daa4-4078-aae9-6c019e79e4b8' // Floor 2 UUID
+        
+        if (sceneRef.current && roomFloorId === floor2Id) {
+          // Make 2nd layer transparent for Floor 2 rooms
+          setObjectTransparency(sceneRef.current, '2ndLayer', 0)
+          setUpperLayerTransparent(true)
+        }
+
         // Open Building Info and focus the floor containing this room
         setIsBuildingInfoOpen(true)
         window.dispatchEvent(new CustomEvent('search-room', {
           detail: { roomCode: room.room_code }
         }))
 
-        // Open room schedule in UnifiedPanel
+        // Open room schedule in UnifiedPanel (this will also highlight the room in 3D)
         handleOpenRoomSchedulePanel(room)
       } else {
         // Just open building dropdown - don't open unified panel
@@ -831,6 +887,96 @@ function HomePage() {
       })
     }
   }
+
+  const handleSceneLoaded = useCallback((scene) => {
+    sceneRef.current = scene
+    console.log('[HomePage] Scene loaded and stored in ref')
+  }, [])
+
+  const toggleUpperLayerTransparency = useCallback(() => {
+    if (!sceneRef.current) {
+      notifyError('Model not loaded', {
+        description: 'Please wait for the 3D model to load completely.'
+      })
+      return
+    }
+
+    const newTransparent = !upperLayerTransparent
+    setUpperLayerTransparent(newTransparent)
+    
+    // Set opacity: 0 = fully transparent, 1 = fully opaque
+    const opacity = newTransparent ? 0 : 1
+    setObjectTransparency(sceneRef.current, '2ndLayer', opacity)
+    
+    console.log(`2ndLayer transparency: ${newTransparent ? 'ON' : 'OFF'} (opacity: ${opacity})`)
+  }, [upperLayerTransparent, notifyError])
+
+  const handleFloorToggle = useCallback((floorName, isExpanded) => {
+    if (floorName === 'Floor 2' && sceneRef.current) {
+      // Make 2nd layer transparent when Floor 2 is expanded
+      const opacity = isExpanded ? 0 : 1
+      setObjectTransparency(sceneRef.current, '2ndLayer', opacity)
+      setUpperLayerTransparent(isExpanded)
+      console.log(`Floor 2 ${isExpanded ? 'expanded' : 'collapsed'} - 2ndLayer opacity: ${opacity}`)
+    }
+  }, [])
+
+  const handleRoomClick = useCallback((roomObjectName) => {
+    console.log('[HomePage] Room object clicked:', roomObjectName)
+    
+    // Only allow room clicks when building is selected and dropdown is open
+    if (!selectedBuilding || !isBuildingDropdownOpen) {
+      console.log('[HomePage] Room click ignored - building not selected or dropdown closed')
+      return
+    }
+    
+    // Track room click timestamp to prevent canvas onClick from interfering
+    lastRoomClickAtRef.current = Date.now()
+    
+    // Map 3D object name to room code
+    // MB201 -> 201, MB-WC5 -> WC5
+    let roomCode = roomObjectName
+    if (roomCode.startsWith('MB-')) {
+      roomCode = roomCode.substring(3) // Remove "MB-" prefix
+    } else if (roomCode.startsWith('MB')) {
+      roomCode = roomCode.substring(2) // Remove "MB" prefix
+    }
+    
+    console.log('[HomePage] Mapped room code:', roomCode)
+    
+    // Find the room in buildingRooms
+    const room = buildingRooms.find(r => 
+      r.room_code?.toLowerCase() === roomCode.toLowerCase()
+    )
+    
+    if (room) {
+      console.log('[HomePage] Found room:', room)
+      
+      // Check if room is on Floor 2 and apply transparency if needed
+      const roomFloorId = room.floor_id
+      const floor2Id = 'c2bf5515-daa4-4078-aae9-6c019e79e4b8' // Floor 2 UUID
+      
+      if (sceneRef.current && roomFloorId === floor2Id && !upperLayerTransparent) {
+        setObjectTransparency(sceneRef.current, '2ndLayer', 0)
+        setUpperLayerTransparent(true)
+      }
+      
+      // Open Building Info if not already open
+      if (!isBuildingInfoOpen) {
+        setIsBuildingInfoOpen(true)
+      }
+      
+      // Dispatch search-room event to expand the floor and scroll to the room
+      window.dispatchEvent(new CustomEvent('search-room', {
+        detail: { roomCode: room.room_code }
+      }))
+      
+      // Open room schedule panel (this will also highlight the room)
+      handleOpenRoomSchedulePanel(room)
+    } else {
+      console.log('[HomePage] Room not found in buildingRooms:', roomCode)
+    }
+  }, [buildingRooms, upperLayerTransparent, isBuildingInfoOpen, handleOpenRoomSchedulePanel, selectedBuilding, isBuildingDropdownOpen])
 
   const handleLogout = async () => {
     await signOut()
@@ -897,6 +1043,8 @@ function HomePage() {
           const insideBuildingDropdown = dropdownRef.current ? dropdownRef.current.contains(target) : false
           // Do not close if click was inside the unified panel or the select building dropdown/button
           if (insidePanel || insideBuildingDropdown) return
+          // If a room was just clicked, skip background handler
+          if (Date.now() - (lastRoomClickAtRef.current || 0) < 100) return
           // If a building mesh was just clicked, skip background handler
           if (Date.now() - (lastBuildingClickAtRef.current || 0) < 50) return
           if (isUnifiedPanelOpen) {
@@ -924,8 +1072,10 @@ function HomePage() {
           heroCollapsed={heroCollapsed}
           controlsRef={controlsRef}
           onBuildingClick={stableOnBuildingClick}
+          onRoomClick={handleRoomClick}
           onCameraStart={handleCameraStart}
           onCameraEnd={handleCameraEnd}
+          onSceneLoaded={handleSceneLoaded}
         />
       </div>
 
@@ -1009,7 +1159,7 @@ function HomePage() {
                   User Management
                 </button>
               )}
-              <div className="ml-3 flex items-center">
+              <div className="ml-3 flex items-center gap-2">
               <button
                 type="button"
                 onClick={handleLogout}
@@ -1122,6 +1272,7 @@ function HomePage() {
                           activeRoomCode={roomScheduleRoomCode}
                           onOpenRoomSchedule={handleOpenRoomSchedulePanel}
                           onCloseRoomSchedule={handleCloseRoomSchedulePanel}
+                          onFloorToggle={handleFloorToggle}
                         />
                           {/* Subtle divider line below (centered) with fade/slide - outside scrollable container */}
                           <div 
