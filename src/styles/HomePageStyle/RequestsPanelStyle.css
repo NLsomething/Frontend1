@@ -184,6 +184,12 @@
   grid-column: 1 / -1;
 }
 
+.rq-meta-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
 .rq-meta-label {
   font-weight: 600;
   color: #eeeeee;
@@ -269,6 +275,10 @@
   background-color: #393e46;
 }
 
+.rq-filter-card.rq-top-filter {
+  margin-bottom: 8px;
+}
+
 .rq-filter-header {
   display: flex;
   align-items: center;
@@ -307,7 +317,7 @@
 .rq-filter-grid {
   display: grid;
   gap: 1%;
-  grid-template-columns: 30% 30% 18.5% 18.5%;
+  grid-template-columns: 25.5% 25.5% 15% 15% 15%;
 }
 
 .rq-filter-field {

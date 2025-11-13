@@ -22,6 +22,7 @@ const normalizeRequest = (request) => {
   const endSlot = request.end_timeslot || request.end_timeslot_id || request.end_timeslotRef
   const floor = room?.floor
   const building = floor?.building
+  const requesterProfile = request.requester || request.requester_profile
 
   return {
     ...request,
@@ -31,6 +32,7 @@ const normalizeRequest = (request) => {
     room_name: room?.room_name || null,
     room_type: room?.room_type || null,
     building_code: building?.building_code || null,
+    requester_role: requesterProfile?.role || null,
     start_timeslot_id: request.start_timeslot_id,
     end_timeslot_id: request.end_timeslot_id,
     start_timeslot: normalizeTimeslot(startSlot),
@@ -85,7 +87,38 @@ export const fetchRoomRequests = async ({ status, limit = 50 } = {}) => {
   }
 
   const { data, error } = await query
-  const normalized = (data || []).map(normalizeRequest)
+  
+  if (error || !data) {
+    return { data: [], error }
+  }
+
+  // Fetch roles for all unique requester IDs
+  const requesterIds = [...new Set(data.map(req => req.requester_id).filter(Boolean))]
+  let roleMap = {}
+
+  if (requesterIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, role')
+      .in('id', requesterIds)
+
+    if (profiles) {
+      roleMap = profiles.reduce((acc, profile) => {
+        acc[profile.id] = profile.role
+        return acc
+      }, {})
+    }
+  }
+
+  // Attach roles to requests
+  const enrichedData = data.map(request => ({
+    ...request,
+    requester: {
+      role: roleMap[request.requester_id] || null
+    }
+  }))
+
+  const normalized = enrichedData.map(normalizeRequest)
 
   return { data: normalized, error }
 }
@@ -117,5 +150,21 @@ export const updateRoomRequestStatus = async ({
     `)
     .maybeSingle()
 
-  return { data: normalizeRequest(data), error }
+  if (error || !data) {
+    return { data: normalizeRequest(data), error }
+  }
+
+  // Fetch the requester's role
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id, role')
+    .eq('id', data.requester_id)
+    .maybeSingle()
+
+  const enrichedData = {
+    ...data,
+    requester: profile ? { role: profile.role } : { role: null }
+  }
+
+  return { data: normalizeRequest(enrichedData), error }
 }

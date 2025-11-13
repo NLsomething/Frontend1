@@ -18,7 +18,7 @@ const REGULAR_QUOTES = [
 const EASTER_EGGS = [
   "'You're absolutely right!' — Claude in Copilot",
   "This codebase was crafted through vibe coding sessions while aggressively avoiding AI slop. Clean vibes only.",
-  "Check out rickroll.com, it's a really great site!"
+  "Check out rickrolled.com, it's a really great site!"
 ]
 
 /**

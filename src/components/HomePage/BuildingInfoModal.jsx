@@ -58,28 +58,30 @@ const BuildingInfoModal = ({
   }, [isOpen])
 
   useEffect(() => {
-    if (!isOpen || !activeRoomCode) return
-
-    let targetFloorKey = null
-    normalizedRooms.some((group, index) => {
-      const floorKey = resolveFloorKey(group, index)
-      const found = (group.rooms || []).some((room) => {
-        if ((room.room_code || '').toLowerCase() === activeRoomCode.toLowerCase()) {
-          targetFloorKey = floorKey
-          return true
-        }
-        return false
+    if (!isOpen) return
+    if (activeRoomCode) {
+      let targetFloorKey = null
+      normalizedRooms.some((group, index) => {
+        const floorKey = resolveFloorKey(group, index)
+        const found = (group.rooms || []).some((room) => {
+          if ((room.room_code || '').toLowerCase() === activeRoomCode.toLowerCase()) {
+            targetFloorKey = floorKey
+            return true
+          }
+          return false
+        })
+        return found
       })
-      return found
-    })
 
-    if (targetFloorKey && expandedFloorKey === null) {
-      ensureFloorExpanded(targetFloorKey)
-      const timeout = setTimeout(() => focusRoomButton(activeRoomCode), 120)
-      return () => clearTimeout(timeout)
+      if (targetFloorKey) {
+        ensureFloorExpanded(targetFloorKey)
+        const timeout = setTimeout(() => focusRoomButton(activeRoomCode), 120)
+        return () => clearTimeout(timeout)
+      }
+    } else {
+      setExpandedFloorKey(null)
     }
-    return undefined
-  }, [isOpen, activeRoomCode, normalizedRooms, ensureFloorExpanded, focusRoomButton, expandedFloorKey])
+  }, [isOpen, activeRoomCode, normalizedRooms, ensureFloorExpanded, focusRoomButton])
 
   useEffect(() => {
     const handleSearchRoom = (event) => {
@@ -136,6 +138,7 @@ const BuildingInfoModal = ({
                 const newExpanded = expandedFloorKey === floorKey ? null : floorKey
                 setExpandedFloorKey(newExpanded)
                 // Trigger floor toggle callback for Floor 2
+                // This was hardcoded as for floor 2 because only floor 2 has removable layer
                 if (onFloorToggle && floorName === 'Floor 2') {
                   onFloorToggle(floorName, newExpanded !== null)
                 }

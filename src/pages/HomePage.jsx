@@ -22,7 +22,6 @@ import UnifiedPanel from '../components/HomePage/UnifiedPanel'
 import UnifiedPanelCenter from '../components/HomePage/UnifiedPanelCenter'
 import RequestsPanelContent from '../components/HomePage/RequestsPanelContent'
 import MyRequestsPanelContent from '../components/HomePage/MyRequestsPanelContent'
-import { UserManagementContent } from '../components/HomePage/UserManagementContent'
 import ScheduleRequestContent from '../components/HomePage/ScheduleRequestContent'
 import ScheduleEditContent from '../components/HomePage/ScheduleEditContent'
 
@@ -202,7 +201,8 @@ function HomePage() {
   const canEditSchedule = role === USER_ROLES.administrator || role === USER_ROLES.buildingManager
   const canViewSchedule = role === USER_ROLES.teacher || role === USER_ROLES.student || canEditSchedule
   const canManageRequests = canEditSchedule
-  const canRequestRoom = role === USER_ROLES.teacher
+  // Allow students the same request permissions as teachers
+  const canRequestRoom = role === USER_ROLES.teacher || role === USER_ROLES.student
 
   const requestsLoading = useHomePageStore((state) => state.requestsLoading)
   const requestActionLoading = useHomePageStore((state) => state.requestActionLoading)
@@ -427,6 +427,34 @@ function HomePage() {
     }
   }, [requestState.isEditMode, requestState.existingEntry])
 
+  // Deselect room check
+  useEffect(() => {
+    const shouldDeselect =
+      (unifiedPanelContentType && unifiedPanelContentType !== 'building-info' && unifiedPanelContentType !== 'room-schedule') ||
+      (!isBuildingInfoOpen && unifiedPanelContentType === null)
+
+    if (shouldDeselect && roomScheduleRoomCode) {
+      handleCloseRoomSchedulePanel()
+    }
+  }, [unifiedPanelContentType, isBuildingInfoOpen, roomScheduleRoomCode, handleCloseRoomSchedulePanel])
+
+  const prevBuildingIdRef = useRef(selectedBuilding?.id)
+  useEffect(() => {
+    const currentBuildingId = selectedBuilding?.id
+    const previousBuildingId = prevBuildingIdRef.current
+
+    if (
+      roomScheduleRoomCode &&
+      currentBuildingId &&
+      previousBuildingId &&
+      currentBuildingId !== previousBuildingId
+    ) {
+      handleCloseRoomSchedulePanel()
+    }
+
+    prevBuildingIdRef.current = currentBuildingId
+  }, [selectedBuilding?.id, roomScheduleRoomCode, handleCloseRoomSchedulePanel])
+
   // Sync center panel with requestState
   useEffect(() => {
     if (requestState.isOpen && requestState.room) {
@@ -623,18 +651,6 @@ function HomePage() {
     setScheduleOpen((prev) => !prev)
   }
 
-  // eslint-disable-next-line no-unused-vars
-  const closeAllPanels = () => {
-    // Only close header-level panels, not modals
-    // DON'T close building dropdown - it stays open when unified panel is open
-    setRequestsPanelOpen?.(false)
-    setMyRequestsPanelOpen?.(false)
-    setIsBuildingInfoOpen(false)
-    setScheduleOpen(false)
-    setUserManagementOpen(false)
-    // Note: isBuildingDropdownOpen is NOT closed here
-  }
-
   const handleRequestsButtonClick = () => {
     if (!canManageRequests) {
       return
@@ -687,15 +703,8 @@ function HomePage() {
   }
 
   const handleUserManagementClick = () => {
-    // Don't close dropdown - allow switching content types
-    if (unifiedPanelContentType === 'user-management') {
-      setUnifiedPanelContentType(null)
-      setUserManagementOpen(false)
-    } else {
-      setUnifiedPanelContentType('user-management')
-    setUserManagementOpen(true)
-      // Keep Building Info/Schedule states as-is
-    }
+    // Navigate to the new User Management page
+    navigate('/users')
   }
 
   const handleBuildingInfoToggle = () => {
@@ -893,23 +902,6 @@ function HomePage() {
     console.log('[HomePage] Scene loaded and stored in ref')
   }, [])
 
-  const toggleUpperLayerTransparency = useCallback(() => {
-    if (!sceneRef.current) {
-      notifyError('Model not loaded', {
-        description: 'Please wait for the 3D model to load completely.'
-      })
-      return
-    }
-
-    const newTransparent = !upperLayerTransparent
-    setUpperLayerTransparent(newTransparent)
-    
-    // Set opacity: 0 = fully transparent, 1 = fully opaque
-    const opacity = newTransparent ? 0 : 1
-    setObjectTransparency(sceneRef.current, '2ndLayer', opacity)
-    
-    console.log(`2ndLayer transparency: ${newTransparent ? 'ON' : 'OFF'} (opacity: ${opacity})`)
-  }, [upperLayerTransparent, notifyError])
 
   const handleFloorToggle = useCallback((floorName, isExpanded) => {
     if (floorName === 'Floor 2' && sceneRef.current) {
@@ -1318,9 +1310,6 @@ function HomePage() {
              onDateFilterChange={setMyRequestsDateFilter}
             timeSlots={timeSlots}
            />
-         )}
-         {unifiedPanelContentType === 'user-management' && (
-           <UserManagementContent currentUserId={user?.id} />
          )}
          {unifiedPanelContentType === 'schedule' && selectedBuilding && (
            <BuildingScheduleContent

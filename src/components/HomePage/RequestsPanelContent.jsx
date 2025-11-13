@@ -37,19 +37,30 @@ const RequestsPanelContent = ({
   const [showingRevertField, setShowingRevertField] = useState(null)
   const [statusFilter, setStatusFilter] = useState('all')
   const [buildingFilter, setBuildingFilter] = useState('all')
+  const [roleFilter, setRoleFilter] = useState('all')
 
   const activeHistoricalFilter = historicalDateFilter || getDefaultDateFilter()
-  const pendingCount = pendingRequests.length
   
-  const buildingCodes = [...new Set(historicalRequests
+  const allRequests = [...pendingRequests, ...historicalRequests]
+  
+  const buildingCodes = [...new Set(allRequests
     .map(req => req.building_code)
     .filter(code => code)
   )].sort()
   
+  const filteredPendingRequests = pendingRequests.filter(req => {
+    const statusMatch = statusFilter === 'all' || req.status === statusFilter
+    const buildingMatch = buildingFilter === 'all' || req.building_code === buildingFilter
+    const roleMatch = roleFilter === 'all' || req.requester_role === roleFilter
+    return statusMatch && buildingMatch && roleMatch
+  })
+  const pendingCount = filteredPendingRequests.length
+  
   const filteredHistoricalRequests = historicalRequests.filter(req => {
     const statusMatch = statusFilter === 'all' || req.status === statusFilter
     const buildingMatch = buildingFilter === 'all' || req.building_code === buildingFilter
-    return statusMatch && buildingMatch
+    const roleMatch = roleFilter === 'all' || req.requester_role === roleFilter
+    return statusMatch && buildingMatch && roleMatch
   })
   const historicalCount = filteredHistoricalRequests.length
 
@@ -90,12 +101,6 @@ const RequestsPanelContent = ({
     }
   }
 
-  const handleHistoryReset = () => {
-    if (typeof onDateFilterChange === 'function') {
-      onDateFilterChange(getDefaultDateFilter())
-    }
-  }
-
   const handleHistoryInputChange = (key) => (event) => {
     if (typeof onDateFilterChange !== 'function') return
     const value = event.target.value
@@ -107,6 +112,15 @@ const RequestsPanelContent = ({
     onDateFilterChange({ ...activeHistoricalFilter, [key]: value })
   }
 
+  const handleFilterReset = () => {
+    setStatusFilter('all')
+    setBuildingFilter('all')
+    setRoleFilter('all')
+    if (typeof onDateFilterChange === 'function') {
+      onDateFilterChange(getDefaultDateFilter())
+    }
+  }
+
   return (
     <div className="rq-panel">
       <div className="rq-content">
@@ -114,6 +128,83 @@ const RequestsPanelContent = ({
           <div className="rq-loading">Loading requests…</div>
         ) : (
           <div className="rq-stack">
+            <div className="rq-filter-card rq-top-filter">
+              <div className="rq-filter-header">
+                <span className="rq-filter-label">Filter</span>
+                <button
+                  type="button"
+                  onClick={handleFilterReset}
+                  className="rq-filter-button"
+                >
+                  Reset All
+                </button>
+              </div>
+              <div className="rq-filter-grid">
+                <div className="rq-filter-field">
+                  <label className="rq-input-label" htmlFor="rq-history-from">From</label>
+                  <input
+                    id="rq-history-from"
+                    type="date"
+                    value={activeHistoricalFilter.startDate || ''}
+                    onChange={handleHistoryInputChange('startDate')}
+                    className="rq-filter-input"
+                  />
+                </div>
+                <div className="rq-filter-field">
+                  <label className="rq-input-label" htmlFor="rq-history-to">To</label>
+                  <input
+                    id="rq-history-to"
+                    type="date"
+                    value={activeHistoricalFilter.endDate || ''}
+                    onChange={handleHistoryInputChange('endDate')}
+                    className="rq-filter-input"
+                  />
+                </div>
+                <div className="rq-filter-field">
+                  <label className="rq-input-label" htmlFor="rq-building-filter">Building</label>
+                  <select
+                    id="rq-building-filter"
+                    value={buildingFilter}
+                    onChange={(e) => setBuildingFilter(e.target.value)}
+                    className="rq-filter-select"
+                  >
+                    <option value="all">All</option>
+                    {buildingCodes.map(code => (
+                      <option key={code} value={code}>{code}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="rq-filter-field">
+                  <label className="rq-input-label" htmlFor="rq-role-filter">Role</label>
+                  <select
+                    id="rq-role-filter"
+                    value={roleFilter}
+                    onChange={(e) => setRoleFilter(e.target.value)}
+                    className="rq-filter-select"
+                  >
+                    <option value="all">All</option>
+                    <option value="teacher">Teacher</option>
+                    <option value="student">Student</option>
+                  </select>
+                </div>
+                <div className="rq-filter-field">
+                  <label className="rq-input-label" htmlFor="rq-status-filter">Status</label>
+                  <select
+                    id="rq-status-filter"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="rq-filter-select"
+                  >
+                    <option value="all">All</option>
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                    <option value="reverted">Reverted</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
             <section className="rq-section">
               <header className="rq-section-header pending">
                 <h3 className="rq-section-title">Pending</h3>
@@ -124,7 +215,7 @@ const RequestsPanelContent = ({
                 <div className="rq-empty-card">All caught up. No pending requests.</div>
               ) : (
                 <div className="rq-card-list">
-                  {pendingRequests.map((request) => {
+                  {filteredPendingRequests.map((request) => {
                     const statusStyle = ROOM_REQUEST_STATUS_STYLES[request.status] || ROOM_REQUEST_STATUS_STYLES.pending
                     const roomLabel = getRequestRoomLabel(request)
                     const statusStyles = resolveStatusStyles(statusStyle)
@@ -145,9 +236,19 @@ const RequestsPanelContent = ({
                         </div>
 
                         <div className="rq-meta-grid">
-                          <div className="rq-meta-entry">
-                            <span className="rq-meta-label">Teacher:</span>
-                            <span>{request.requester_name || request.requester_email}</span>
+                          <div className="rq-meta-entry full">
+                            <div className="rq-meta-column">
+                              <div>
+                                <span className="rq-meta-label">Name:</span>
+                                <span>{request.requester_name || request.requester_email}</span>
+                              </div>
+                              {request.requester_role && (
+                                <div style={{ marginTop: '4px' }}>
+                                  <span className="rq-meta-label">Role:</span>
+                                  <span> {request.requester_role}</span>
+                                </div>
+                              )}
+                            </div>
                           </div>
                           {request.course_name && (
                             <div className="rq-meta-entry full">
@@ -209,72 +310,8 @@ const RequestsPanelContent = ({
                 <span className="rq-history-count">Showing last {historicalCount}</span>
               </header>
 
-              <div className="rq-filter-card">
-                <div className="rq-filter-header">
-                  <span className="rq-filter-label">Filter</span>
-                  <button
-                    type="button"
-                    onClick={handleHistoryReset}
-                    className="rq-filter-button"
-                    disabled={typeof onDateFilterChange !== 'function'}
-                  >
-                    Reset to Last 7 Days
-                  </button>
-                </div>
-                <div className="rq-filter-grid">
-                  <div className="rq-filter-field">
-                    <label className="rq-input-label" htmlFor="rq-history-from">From</label>
-                    <input
-                      id="rq-history-from"
-                      type="date"
-                      value={activeHistoricalFilter.startDate || ''}
-                      onChange={handleHistoryInputChange('startDate')}
-                      className="rq-filter-input"
-                    />
-                  </div>
-                  <div className="rq-filter-field">
-                    <label className="rq-input-label" htmlFor="rq-history-to">To</label>
-                    <input
-                      id="rq-history-to"
-                      type="date"
-                      value={activeHistoricalFilter.endDate || ''}
-                      onChange={handleHistoryInputChange('endDate')}
-                      className="rq-filter-input"
-                    />
-                  </div>
-                  <div className="rq-filter-field">
-                    <label className="rq-input-label" htmlFor="rq-building-filter">Building</label>
-                    <select
-                      id="rq-building-filter"
-                      value={buildingFilter}
-                      onChange={(e) => setBuildingFilter(e.target.value)}
-                      className="rq-filter-select"
-                    >
-                      <option value="all">All</option>
-                      {buildingCodes.map(code => (
-                        <option key={code} value={code}>{code}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="rq-filter-field">
-                    <label className="rq-input-label" htmlFor="rq-status-filter">Status</label>
-                    <select
-                      id="rq-status-filter"
-                      value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value)}
-                      className="rq-filter-select"
-                    >
-                      <option value="all">All</option>
-                      <option value="approved">Approved</option>
-                      <option value="rejected">Rejected</option>
-                      <option value="reverted">Reverted</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
               {historicalCount === 0 ? (
-                <div className="rq-empty-card">No decisions found for the selected date range.</div>
+                <div className="rq-empty-card">No decisions found for the selected filters.</div>
               ) : (
                 <div className="rq-card-list">
                   {filteredHistoricalRequests.map((request) => {
@@ -299,9 +336,19 @@ const RequestsPanelContent = ({
                         </div>
 
                         <div className="rq-meta-grid">
-                          <div className="rq-meta-entry">
-                            <span className="rq-meta-label">Teacher:</span>
-                            <span>{request.requester_name || request.requester_email}</span>
+                          <div className="rq-meta-entry full">
+                            <div className="rq-meta-column">
+                              <div>
+                                <span className="rq-meta-label">Name:</span>
+                                <span>{request.requester_name || request.requester_email}</span>
+                              </div>
+                              {request.requester_role && (
+                                <div style={{ marginTop: '4px' }}>
+                                  <span className="rq-meta-label">Role:</span>
+                                  <span> {request.requester_role}</span>
+                                </div>
+                              )}
+                            </div>
                           </div>
                           {request.course_name && (
                             <div className="rq-meta-entry full">
