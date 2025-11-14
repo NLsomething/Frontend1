@@ -1,11 +1,24 @@
 import { useState, useEffect, useRef } from 'react'
+import { useHomePageStore } from '../../stores/useHomePageStore'
+import ScheduleRequestContent from './ScheduleRequestContent'
+import ScheduleEditContent from './ScheduleEditContent'
 import '../../styles/HomePageStyle/UnifiedPanelCenterStyle.css'
 
-const UnifiedPanelCenter = ({ 
-  isOpen, 
+const UnifiedPanelCenter = ({
+  isOpen,
   contentType,
-  children,
-  onClose
+  onClose,
+  filteredRequestTimeSlots,
+  isSubmittingRequest,
+  isSubmittingEdit,
+  onRequestSubmit,
+  onEditSubmit,
+  onRequestFormChange,
+  onEditFormChange,
+  onRangeChange,
+  isoDate,
+  requestForm,
+  editForm,
 }) => {
   const [mounted, setMounted] = useState(false)
   const [contentKey, setContentKey] = useState(0)
@@ -14,10 +27,43 @@ const UnifiedPanelCenter = ({
   const panelRef = useRef(null)
   const backdropRef = useRef(null)
   const contentRef = useRef(null)
-  const [renderedChildren, setRenderedChildren] = useState(children)
 
+  // Get request state from Zustand store
+  const requestState = useHomePageStore((state) => state.requestState)
 
-  
+  // Generate the children internally based on contentType
+  let internalChildren = null
+  if (contentType === 'schedule-request' && requestState.room) {
+    internalChildren = (
+      <ScheduleRequestContent
+        requestState={requestState}
+        requestForm={requestForm}
+        timeSlots={filteredRequestTimeSlots}
+        isoDate={isoDate}
+        submitting={isSubmittingRequest}
+        onSubmit={onRequestSubmit}
+        onFormChange={onRequestFormChange}
+        onRangeChange={onRangeChange}
+        onClose={onClose}
+      />
+    )
+  } else if (contentType === 'schedule-edit' && requestState.room) {
+    internalChildren = (
+      <ScheduleEditContent
+        editState={requestState}
+        editForm={editForm}
+        timeSlots={filteredRequestTimeSlots}
+        submitting={isSubmittingEdit}
+        onSubmit={onEditSubmit}
+        onFormChange={onEditFormChange}
+        onRangeChange={onRangeChange}
+        onClose={onClose}
+      />
+    )
+  }
+
+  const [renderedChildren, setRenderedChildren] = useState(internalChildren)
+
   useEffect(() => {
     if (isOpen) {
       setMounted(true)
@@ -48,22 +94,20 @@ const UnifiedPanelCenter = ({
     }
   }, [isOpen])
 
-
   useEffect(() => {
     if (!isOpen) {
-      prevContentTypeRef.current = contentType;
-      setRenderedChildren(children);
-      return;
+      prevContentTypeRef.current = contentType
+      setRenderedChildren(internalChildren)
+      return
     }
-    
 
-    const shouldAnimate = 
+    const shouldAnimate =
       prevContentTypeRef.current !== contentType &&
-      prevContentTypeRef.current !== null;
-    
+      prevContentTypeRef.current !== null
+
     if (!shouldAnimate) {
       prevContentTypeRef.current = contentType
-      setRenderedChildren(children)
+      setRenderedChildren(internalChildren)
       setShowContent(true)
       return
     }
@@ -80,7 +124,7 @@ const UnifiedPanelCenter = ({
         // swap content on next frame for smoother repaint
         requestAnimationFrame(() => {
           prevContentTypeRef.current = contentType
-          setRenderedChildren(children)
+          setRenderedChildren(internalChildren)
           setContentKey((prev) => prev + 1)
           setShowContent(true)
         })
@@ -94,7 +138,7 @@ const UnifiedPanelCenter = ({
       fallback = setTimeout(() => onContentTransitionEnd(), 1000)
     } else {
       prevContentTypeRef.current = contentType
-      setRenderedChildren(children)
+      setRenderedChildren(internalChildren)
       setContentKey((prev) => prev + 1)
       setShowContent(true)
     }
@@ -103,8 +147,7 @@ const UnifiedPanelCenter = ({
       if (node) node.removeEventListener('transitionend', onContentTransitionEnd)
       if (fallback) clearTimeout(fallback)
     }
-  }, [contentType, children, isOpen]);
-
+  }, [contentType, internalChildren, isOpen])
 
   useEffect(() => {
     if (!isOpen || !mounted) return
@@ -118,7 +161,6 @@ const UnifiedPanelCenter = ({
         onClose()
       }
     }
-
 
     const backdrop = backdropRef.current
     if (backdrop) {
@@ -138,10 +180,10 @@ const UnifiedPanelCenter = ({
     <>
       {/* Backdrop */}
       <div
-      ref={backdropRef}
-      className={`upc-backdrop
-      ${mounted && isOpen ? 'opened' : ''}`}
-  aria-hidden={!isOpen}
+        ref={backdropRef}
+        className={`upc-backdrop
+        ${mounted && isOpen ? 'opened' : ''}`}
+        aria-hidden={!isOpen}
       />
 
       {/* Center Panel */}
@@ -156,10 +198,10 @@ const UnifiedPanelCenter = ({
         >
           {/* Content loader */}
           <div
-          key={contentKey}
-          className={`upc-content
-            ${showContent ? ' visible' : ''}`}
-          ref={contentRef}
+            key={contentKey}
+            className={`upc-content
+              ${showContent ? ' visible' : ''}`}
+            ref={contentRef}
           >
             {renderedChildren}
           </div>

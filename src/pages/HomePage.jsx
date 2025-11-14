@@ -1,270 +1,102 @@
 import { useNavigate } from 'react-router-dom'
-import { COLORS } from '../constants/colors'
-import { useAuth } from '../context/AuthContext'
-import { signOut } from '../services/authService'
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
-import SchoolScene from '../components/SchoolScene'
-import { setObjectTransparency, setRoomHighlight } from '../components/SchoolModel'
+import { useAuth } from '../context/AuthContext'
 import { useNotifications } from '../context/NotificationContext'
 import { USER_ROLES } from '../constants/roles'
-import { SCHEDULE_STATUS, SCHEDULE_STATUS_LABELS } from '../constants/schedule'
-import { fetchBuildings } from '../services/buildingService'
-import { fetchRoomsByBuildingId } from '../services/roomService'
-import { fetchTimeslots } from '../services/timeslotService'
+import { SCHEDULE_STATUS } from '../constants/schedule'
 import { cn } from '../utils/classnames'
+import { toIsoDateString } from '../utils'
 
-// Import extracted components
-import BuildingInfoModal from '../components/HomePage/BuildingInfoModal'
-import BuildingScheduleContent from '../components/HomePage/BuildingScheduleContent'
-import RoomScheduleContent from '../components/HomePage/RoomScheduleContent'
-import SearchBuilding from '../components/HomePage/SearchBuilding'
-import UnifiedPanel from '../components/HomePage/UnifiedPanel'
-import UnifiedPanelCenter from '../components/HomePage/UnifiedPanelCenter'
-import RequestsPanelContent from '../components/HomePage/RequestsPanelContent'
-import MyRequestsPanelContent from '../components/HomePage/MyRequestsPanelContent'
-import ScheduleRequestContent from '../components/HomePage/ScheduleRequestContent'
-import ScheduleEditContent from '../components/HomePage/ScheduleEditContent'
+// Import New Hooks
+import { usePanelManager } from '../hooks/usePanelManager'
+import { useCoreData } from '../hooks/useCoreData'
+import { useBuildingManager } from '../hooks/useBuildingManager'
+import { useSceneManager } from '../hooks/useSceneManager'
+import { useCameraControls } from '../hooks/useCameraControls'
 
-// Custom hooks
-import { useCameraControls, cinematicTopDownView } from '../hooks/useCameraControls'
-import HomePageStateProvider from '../components/HomePage/HomePageStateProvider'
+// Import Store
 import { useHomePageStore } from '../stores/useHomePageStore'
 
-// Utilities
-import {
-  toIsoDateString,
-  parseDateString,
-  groupRoomsByFloor,
-  getSlotLabel as resolveSlotLabel
-} from '../utils'
+// Import Components
+import SchoolScene from '../components/SchoolScene'
+import HomePageStateProvider from '../components/HomePage/HomePageStateProvider'
+import BuildingInfoModal from '../components/HomePage/BuildingInfoModal'
+import SearchBuilding from '../components/HomePage/SearchBuilding'
 
-//Styles
+// Import Layout Components
+import UnifiedPanel from '../components/HomePage/UnifiedPanel'
+import UnifiedPanelCenter from '../components/HomePage/UnifiedPanelCenter'
+
+// Import Services
+import { signOut } from '../services/authService'
+
+// Import Styles
 import '../styles/HomePageStyle.css'
 
 function HomePage() {
   console.log('[HomePage] Component rendering...')
   const navigate = useNavigate()
-  const { user, loading, role, profile } = useAuth()
-  console.log('[HomePage] Auth state:', { user: !!user, loading, role })
-  const { notifyError, notifyInfo, notifySuccess } = useNotifications()
-  const controlsRef = useRef()
-  const sceneRef = useRef(null)
-  const lastDragEndAtRef = useRef(0)
-  const lastBuildingClickAtRef = useRef(0)
-  const lastRoomClickAtRef = useRef(0)
-  const pointerRef = useRef({ downX: 0, downY: 0, moved: false })
-  
-  // Building state
-  const [buildings, setBuildings] = useState([])
-  const [building, setBuilding] = useState(null)
-  const [buildingLoading, setBuildingLoading] = useState(true)
-  const [selectedBuilding, setSelectedBuilding] = useState(null)
-  const [isBuildingInfoOpen, setIsBuildingInfoOpen] = useState(false)
-  
-  // Schedule panel state
-  const [isScheduleOpen, setScheduleOpen] = useState(false)
-  const [isRoomScheduleOpen, setIsRoomScheduleOpen] = useState(false)
-  const [roomScheduleRoomCode, setRoomScheduleRoomCode] = useState(null)
-  const [roomScheduleRoomType, setRoomScheduleRoomType] = useState(null)
-  
-  // Building dropdown state
-  const [isBuildingDropdownOpen, setIsBuildingDropdownOpen] = useState(false)
-  const [isDropdownClosing, setIsDropdownClosing] = useState(false)
-  const dropdownRef = useRef(null)
-  
-  const [buildingRooms, setBuildingRooms] = useState([])
-  const [buildingRoomsLoading, setBuildingRoomsLoading] = useState(false)
-  const [scheduleDate, setScheduleDate] = useState(() => new Date())
-  const [timeSlots, setTimeSlots] = useState([])
-  const [timeSlotsLoading, setTimeSlotsLoading] = useState(true)
-  
-  // UI state (kept for backward compatibility with existing button states)
-  // eslint-disable-next-line no-unused-vars
-  const [userManagementOpen, setUserManagementOpen] = useState(false)
-  const [heroCollapsed, setHeroCollapsed] = useState(false)
-  
-  // Floor transparency state
-  const [upperLayerTransparent, setUpperLayerTransparent] = useState(false)
-  
-  // Room highlight state
-  const [highlightedRoom, setHighlightedRoom] = useState(null)
-  
-  // Unified Panel state
-  const [unifiedPanelContentType, setUnifiedPanelContentType] = useState(null) // 'requests' | 'my-requests' | 'user-management' | 'building-info' | null
-  const isUnifiedPanelOpen = unifiedPanelContentType !== null
+  const { user, loading: authLoading, role, profile } = useAuth()
+  console.log('[HomePage] Auth state:', { user: !!user, loading: authLoading, role })
+  const { notifyError, notifySuccess } = useNotifications()
 
-  // Unified Panel Center state (for schedule request/edit)
-  const [centerPanelContentType, setCenterPanelContentType] = useState(null) // 'schedule-request' | 'schedule-edit' | null
-  const isCenterPanelOpen = centerPanelContentType !== null
-  
-  // Calculate ISO date
+  // ===== HOOKS =====
+
+  // 1. Core Data
+  const { buildings, timeSlots, loading: coreDataLoading } = useCoreData()
+
+  // 2. Panel/UI State
+  const { state: panelState, actions: panelActions } = usePanelManager()
+
+  // 3. Building State
+  const {
+    selectedBuilding,
+    buildingRooms,
+    buildingRoomsLoading,
+    roomsByFloor,
+    roomLookupByCode,
+    actions: buildingActions,
+  } = useBuildingManager()
+
+  // 4. Schedule State
+  const [scheduleDate, setScheduleDate] = useState(() => new Date())
   const isoDate = useMemo(() => toIsoDateString(scheduleDate), [scheduleDate])
 
-  const scheduleMap = useHomePageStore((state) => state.scheduleMap)
+  // 5. Request/Edit Form State
+  const [editForm, setEditForm] = useState({
+    status: SCHEDULE_STATUS.occupied,
+    courseName: '',
+    bookedBy: ''
+  })
+  const [isSubmittingRequest, setIsSubmittingRequest] = useState(false)
+  const isSubmittingRequestRef = useRef(false)
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false)
+  const isSubmittingEditRef = useRef(false)
+
+  // Refs
+  const dropdownRef = useRef(null)
+  const sceneManagerRef = useRef(null)
+  const sceneStateRef = useRef({ panelState, selectedBuilding, buildings, buildingActions, panelActions })
+
+  // ===== STORE =====
   const loadSchedules = useHomePageStore((state) => state.loadSchedules)
   const saveSchedule = useHomePageStore((state) => state.saveSchedule)
-  const buildScheduleKey = useHomePageStore((state) => state.buildScheduleKey)
-  const [roomScheduleRoomName, setRoomScheduleRoomName] = useState('')
-  const [roomScheduleBookable, setRoomScheduleBookable] = useState(true)
-
-  // Make building-derived props stable primitives so they don't cause
-  // shallow-prop changes when unrelated UI state updates.
-  const buildingModelUrl = useMemo(() => building?.model_url || null, [building?.model_url])
-  const buildingPosition = useMemo(() => [building?.pos_x ?? 0, building?.pos_y ?? 0, building?.pos_z ?? 0], [building?.pos_x, building?.pos_y, building?.pos_z])
-  const buildingId = building?.id ?? null
-
-  const roomSchedule = useMemo(() => {
-    if (!roomScheduleRoomCode || typeof buildScheduleKey !== 'function') return []
-    return timeSlots.map((slot) => {
-      const slotId = slot.id || slot.slot_id
-      const key = buildScheduleKey(roomScheduleRoomCode, slotId)
-      const entry = scheduleMap[key]
-      if (entry) {
-        return entry
-      }
-
-      return {
-        room_number: roomScheduleRoomCode,
-        slot_hour: slotId,
-        status: SCHEDULE_STATUS.empty,
-        timeslot_id: slotId,
-        slot_id: slotId,
-        slot_order: slot.slotOrder ?? slot.slot_order ?? null,
-        slot_type: slot.slotType || slot.slot_type || null,
-        slot_name: slot.slotName || slot.slot_name || null,
-        start_time: slot.start_time || slot.startTime || null,
-        end_time: slot.end_time || slot.endTime || null
-      }
-    })
-  }, [roomScheduleRoomCode, scheduleMap, buildScheduleKey, timeSlots])
-
-  const handleOpenRoomSchedulePanel = useCallback((roomMeta) => {
-    if (!roomMeta) return
-    const roomCode =
-      roomMeta.room_code || roomMeta.roomNumber || roomMeta.room_number || roomMeta.code || null
-    if (!roomCode) return
-
-    const displayName = roomMeta.room_name || roomMeta.roomNumber || roomMeta.room_number || roomCode
-    const isBookable =
-      String(roomMeta.bookable).toLowerCase() === 'true' || roomMeta.bookable === true
-
-    // Unhighlight previous room
-    if (highlightedRoom && sceneRef.current) {
-      setRoomHighlight(sceneRef.current, highlightedRoom, false)
-    }
-
-    // Map room code to 3D model object name
-    // Administrative rooms use "MB-XX" format (with hyphen): WC5, PH1, PKTD, etc.
-    // Regular classroom rooms use "MB201" format (no hyphen)
-    const isAdministrativeRoom = !roomCode.match(/^\d{3}$/) // If not a 3-digit number, it's administrative
-    const modelObjectName = isAdministrativeRoom ? `MB-${roomCode}` : `MB${roomCode}`
-
-    // Highlight new room
-    if (sceneRef.current) {
-      setRoomHighlight(sceneRef.current, modelObjectName, true)
-      setHighlightedRoom(modelObjectName)
-    }
-
-    setRoomScheduleRoomCode(roomCode)
-    setRoomScheduleRoomName(displayName)
-    setRoomScheduleBookable(isBookable)
-    setRoomScheduleRoomType(roomMeta.room_type || null)
-    setUnifiedPanelContentType('room-schedule')
-    setIsRoomScheduleOpen(true)
-  }, [highlightedRoom])
-
-  const handleCloseRoomSchedulePanel = useCallback(() => {
-    // Unhighlight room when closing
-    if (highlightedRoom && sceneRef.current) {
-      setRoomHighlight(sceneRef.current, highlightedRoom, false)
-      setHighlightedRoom(null)
-    }
-
-    setIsRoomScheduleOpen(false)
-    setRoomScheduleRoomCode(null)
-    setRoomScheduleRoomName('')
-    setRoomScheduleBookable(true)
-    setRoomScheduleRoomType(null)
-    setUnifiedPanelContentType((prev) => (prev === 'room-schedule' ? null : prev))
-  }, [highlightedRoom])
-
-  // Utility functions for hooks
-  const getSlotLabel = useCallback((slotId) => {
-    return resolveSlotLabel(slotId, timeSlots)
-  }, [timeSlots])
-
-  const parseDateStringWrapper = useCallback((dateString) => {
-    return parseDateString(dateString)
-  }, [])
-
-  // Role permissions
-  const canEditSchedule = role === USER_ROLES.administrator || role === USER_ROLES.buildingManager
-  const canViewSchedule = role === USER_ROLES.teacher || role === USER_ROLES.student || canEditSchedule
-  const canManageRequests = canEditSchedule
-  // Allow students the same request permissions as teachers
-  const canRequestRoom = role === USER_ROLES.teacher || role === USER_ROLES.student
-
-  const requestsLoading = useHomePageStore((state) => state.requestsLoading)
-  const requestActionLoading = useHomePageStore((state) => state.requestActionLoading)
-  const pendingRequests = useHomePageStore((state) => state.pendingRequests)
-  const rejectionReasons = useHomePageStore((state) => state.rejectionReasons)
-  const historicalRequests = useHomePageStore((state) => state.historicalRequests)
-  const historicalDateFilter = useHomePageStore((state) => state.historicalDateFilter)
-  const myRequests = useHomePageStore((state) => state.myRequests)
-  const myRequestsLoading = useHomePageStore((state) => state.myRequestsLoading)
-  const filteredMyRequests = useHomePageStore((state) => state.filteredMyRequests)
-  const myRequestsDateFilter = useHomePageStore((state) => state.myRequestsDateFilter)
+  const resetRequestModal = useHomePageStore((state) => state.resetRequestModal)
+  const setRequestState = useHomePageStore((state) => state.setRequestState)
   const requestState = useHomePageStore((state) => state.requestState)
   const requestForm = useHomePageStore((state) => state.requestForm)
-
-  const setRejectionReasons = useHomePageStore((state) => state.setRejectionReasons)
-  const approveRequest = useHomePageStore((state) => state.approveRequest)
-  const rejectRequest = useHomePageStore((state) => state.rejectRequest)
-  const revertRequest = useHomePageStore((state) => state.revertRequest)
-  const setRequestsPanelOpen = useHomePageStore((state) => state.setRequestsPanelOpen)
-  const setHistoricalDateFilter = useHomePageStore((state) => state.setHistoricalDateFilter)
-  const setMyRequestsPanelOpen = useHomePageStore((state) => state.setMyRequestsPanelOpen)
-  const setMyRequestsDateFilter = useHomePageStore((state) => state.setMyRequestsDateFilter)
-  const submitRequest = useHomePageStore((state) => state.submitRequest)
-  const setRequestState = useHomePageStore((state) => state.setRequestState)
   const setRequestForm = useHomePageStore((state) => state.setRequestForm)
-  const resetRequestModal = useHomePageStore((state) => state.resetRequestModal)
+  const submitRequest = useHomePageStore((state) => state.submitRequest)
 
-  // Camera drag detection to guard building select/deselect during drags
-  const [/* isCameraInteracting */ , setIsCameraInteracting] = useState(false)
+  // ===== COMPUTED =====
 
-  const handleCameraStart = useCallback(() => {
-    setIsCameraInteracting(true)
-  }, [])
+  // Memoize buildings array to prevent unnecessary SchoolScene re-renders
+  const buildingsList = useMemo(() => buildings, [buildings])
 
-  const handleCameraEnd = useCallback(() => {
-    setIsCameraInteracting(false)
-  }, [])
-
-  // Camera controls hook
-  useCameraControls(controlsRef, heroCollapsed)
-
-  // Group rooms by floor
-  const roomsByFloor = useMemo(() => 
-    groupRoomsByFloor(buildingRooms), 
-    [buildingRooms]
-  )
-
-  const roomLookupByCode = useMemo(() => {
-    const map = new Map()
-    buildingRooms.forEach((room) => {
-      const code = room?.room_code || room?.roomNumber || room?.room_number || room?.code
-      if (code) {
-        map.set(code, room)
-      }
-    })
-    return map
-  }, [buildingRooms])
-
-  const normalizeSlotTypeValue = useCallback((value) => {
-    if (!value) return ''
-    return value.toString().toLowerCase().replace(/[^a-z0-9]/g, '')
-  }, [])
+  // Permissions
+  const canEditSchedule = role === USER_ROLES.administrator || role === USER_ROLES.buildingManager
+  const canManageRequests = canEditSchedule
+  const canRequestRoom = role === USER_ROLES.teacher || role === USER_ROLES.student
 
   const requestRoomType = useMemo(() => {
     const roomCode = requestState?.room
@@ -289,6 +121,11 @@ function HomePage() {
     return null
   }, [requestState, roomLookupByCode])
 
+  const normalizeSlotTypeValue = useCallback((value) => {
+    if (!value) return ''
+    return value.toString().toLowerCase().replace(/[^a-z0-9]/g, '')
+  }, [])
+
   const filteredRequestTimeSlots = useMemo(() => {
     if (!Array.isArray(timeSlots) || timeSlots.length === 0) {
       return []
@@ -311,105 +148,125 @@ function HomePage() {
     return subset.length > 0 ? subset : timeSlots
   }, [timeSlots, requestRoomType, normalizeSlotTypeValue])
 
-  // Redirect if not logged in
-  useEffect(() => {
-    if (!loading && !user) {
-      navigate('/')
+  const getSlotLabel = useCallback((slotId) => {
+    const slot = timeSlots.find(s => (s.id || s.slot_id) === slotId)
+    if (slot) {
+      return slot.slot_name || slot.slotName || `Slot ${slotId}`
     }
-  }, [user, loading, navigate])
+    return `Slot ${slotId}`
+  }, [timeSlots])
 
-  // Dropdown
-  const handleCloseDropdown = useCallback(() => {
-    setIsDropdownClosing(true)
-    // Reset Building Info state immediately when dropdown closes
-    setIsBuildingInfoOpen(false)
-    setTimeout(() => {
-      setIsBuildingDropdownOpen(false)
-      setIsDropdownClosing(false)
-    }, 200) // Match animation duration
+  // ===== HANDLERS =====
+
+  // Handler when building is clicked on the 3D scene
+  const handleSceneBuildingClick = useCallback((clickedBuilding) => {
+    const { panelState: ps, selectedBuilding: sb, buildings: bs, buildingActions: ba, panelActions: pa } = sceneStateRef.current
+
+    if (ps.isUnifiedPanelOpen) {
+      pa.handleUnifiedPanelClose()
+      return
+    }
+
+    const clickedId = (typeof clickedBuilding === 'object' ? clickedBuilding?.id : clickedBuilding)
+    let resolved = null
+
+    if (typeof clickedBuilding === 'object') {
+      resolved = clickedBuilding
+    } else if (clickedId !== undefined && clickedId !== null) {
+      resolved = bs.find(b => b?.id === clickedId) || null
+    }
+
+    if (resolved?.id === sb?.id) {
+      ba.selectBuilding(null)
+      pa.handleCloseDropdown()
+    } else {
+      ba.selectBuilding(resolved)
+      pa.handleOpenDropdown()
+    }
   }, [])
 
-  const handleOpenDropdown = useCallback(() => {
-    setIsDropdownClosing(false)
-    setIsBuildingDropdownOpen(true)
-    // Ensure rooms are loaded to populate floor/room list
-    if (selectedBuilding && buildingRooms.length === 0 && !buildingRoomsLoading) {
-      (async () => {
-        try {
-          const { data } = await fetchRoomsByBuildingId(selectedBuilding.id)
-          if (data) setBuildingRooms(data)
-        } catch { /* noop */ }
-      })()
-    }
-  }, [selectedBuilding, buildingRooms.length, buildingRoomsLoading])
+  // Handler when room is clicked on the 3D scene
+  const handleSceneRoomClick = useCallback((roomObjectName) => {
+    // Read all dependencies from the ref
+    const {
+      selectedBuilding,
+      panelState,
+      roomLookupByCode,
+      panelActions,
+      sceneManagerRef: smRef
+    } = sceneStateRef.current
 
-  // Dropdown stays open when panels open - don't auto-close it
-
-  useEffect(() => {
-    const loadTimeSlots = async () => {
-      setTimeSlotsLoading(true)
-      try {
-        const { data, error } = await fetchTimeslots()
-
-        if (error) {
-          console.error('Error loading time slots:', error)
-          setTimeSlots([])
-          notifyError('Failed to load time slots', {
-            description: 'Schedule views may be incomplete until the issue is resolved.'
-          })
-        } else {
-          setTimeSlots(data || [])
-        }
-      } catch (err) {
-        console.error('Unexpected error loading time slots:', err)
-        setTimeSlots([])
-        notifyError('Failed to load time slots', {
-          description: 'Schedule views may be incomplete until the issue is resolved.'
-        })
-      } finally {
-        setTimeSlotsLoading(false)
-      }
+    if (!selectedBuilding || !panelState.isBuildingDropdownOpen) {
+      console.log('[HomePage] Room click ignored - building not selected or dropdown closed')
+      return
     }
 
-    loadTimeSlots()
-  }, [notifyError])
+    let roomCode = roomObjectName
+    if (roomCode.startsWith('MB-')) {
+      roomCode = roomCode.substring(3)
+    } else if (roomCode.startsWith('MB')) {
+      roomCode = roomCode.substring(2)
+    }
 
-          // Load building on mount
-          useEffect(() => {
-            const loadBuilding = async () => {
-              setBuildingLoading(true)
-              try {
-                const { data, error } = await fetchBuildings()
-                
-                if (error) {
-                  console.error('Error loading building:', error)
-                  notifyError('Failed to load building model', {
-                    description: 'Using default model instead.'
-                  })
-                } else if (data && data.length > 0) {
-                  console.log('[HomePage] Building loaded:', data[0])
-                  setBuildings(data)
-                  setBuilding(data[0])
-                } else {
-                  console.log('[HomePage] No buildings found in data:', data)
-                }
-              } catch (err) {
-                console.error('Unexpected error loading building:', err)
-              } finally {
-                setBuildingLoading(false)
-              }
-            }
+    console.log('[HomePage] Mapped room code:', roomCode)
 
-            loadBuilding()
-          }, [notifyError])
+    const room = roomLookupByCode.get(roomCode)
+    if (!room) {
+      console.log('[HomePage] Room not found in lookup:', roomCode)
+      return
+    }
 
-  // Initialize edit form when entering edit mode
-  const [editForm, setEditForm] = useState({
-    status: SCHEDULE_STATUS.occupied,
-    courseName: '',
-    bookedBy: ''
+    console.log('[HomePage] Found room:', room)
+
+    const roomFloorId = room.floor_id
+    const floor2Id = 'c2bf5515-daa4-4078-aae9-6c019e79e4b8'
+
+    if (smRef.current && roomFloorId === floor2Id && !smRef.current.state.upperLayerTransparent) {
+      smRef.current.actions.setFloorTransparency('Floor 2', true)
+    }
+
+    if (!panelState.isBuildingInfoOpen) {
+      panelActions.setIsBuildingInfoOpen(true)
+    }
+
+    window.dispatchEvent(new CustomEvent('search-room', {
+      detail: { roomCode: room.room_code }
+    }))
+
+    panelActions.handleOpenRoomSchedulePanel(room)
+
+    if (smRef.current) {
+      const isAdministrativeRoom = !roomCode.match(/^\d{3}$/)
+      const modelObjectName = isAdministrativeRoom ? `MB-${roomCode}` : `MB${roomCode}`
+      smRef.current.actions.highlightRoomInScene(modelObjectName, true)
+    }
+  }, [])
+
+  // Initialize scene manager with handlers
+  const sceneManager = useSceneManager({
+    onBuildingClick: handleSceneBuildingClick,
+    onRoomClick: handleSceneRoomClick,
   })
 
+  // Sync sceneManager to ref for use in effects
+  useEffect(() => {
+    sceneManagerRef.current = sceneManager
+  }, [sceneManager])
+
+  // Sync scene state to ref so handleSceneBuildingClick and handleSceneRoomClick always access latest values
+  useEffect(() => {
+    sceneStateRef.current = {
+      panelState,
+      selectedBuilding,
+      buildings,
+      buildingActions,
+      panelActions,
+      roomLookupByCode,
+      sceneManagerRef
+    }
+  }, [panelState, selectedBuilding, buildings, buildingActions, panelActions, roomLookupByCode])
+
+  // Initialize edit form when entering edit mode
   useEffect(() => {
     if (requestState.isEditMode && requestState.existingEntry) {
       const entry = requestState.existingEntry
@@ -427,72 +284,113 @@ function HomePage() {
     }
   }, [requestState.isEditMode, requestState.existingEntry])
 
-  // Deselect room check
+  // Sync center panel with requestState
+  useEffect(() => {
+    if (requestState.isOpen && requestState.room) {
+      panelActions.setCenterPanelContentType(requestState.isEditMode ? 'schedule-edit' : 'schedule-request')
+    } else {
+      panelActions.setCenterPanelContentType(null)
+    }
+  }, [requestState.isOpen, requestState.room, requestState.isEditMode, panelActions])
+
+  // Handle room highlighting and floor transparency when room schedule changes
+  useEffect(() => {
+    if (!sceneManagerRef.current) return
+
+    if (panelState.isRoomScheduleOpen && panelState.roomScheduleRoomCode) {
+      // Opening a room: highlight it and handle floor 2 transparency
+      const roomCode = panelState.roomScheduleRoomCode
+      const roomMeta = roomLookupByCode.get(roomCode)
+      
+      if (roomMeta) {
+        // Highlight the room
+        const isAdministrativeRoom = !roomCode.match(/^\d{3}$/)
+        const modelObjectName = isAdministrativeRoom ? `MB-${roomCode}` : `MB${roomCode}`
+        sceneManagerRef.current.actions.highlightRoomInScene(modelObjectName, true)
+        
+        // Check if room is on Floor 2 and apply transparency if needed
+        const roomFloorId = roomMeta.floor_id
+        const floor2Id = 'c2bf5515-daa4-4078-aae9-6c019e79e4b8'
+        
+        if (roomFloorId === floor2Id && !sceneManagerRef.current.state.upperLayerTransparent) {
+          sceneManagerRef.current.actions.setFloorTransparency('Floor 2', true)
+        }
+      }
+    } else {
+      // Closing room: unhighlight and revert floor 2 transparency
+      sceneManagerRef.current.actions.highlightRoomInScene(null, false)
+      // Always revert Floor 2 transparency when closing room
+      if (sceneManagerRef.current.state.upperLayerTransparent) {
+        sceneManagerRef.current.actions.setFloorTransparency('Floor 2', false)
+      }
+    }
+  }, [panelState.isRoomScheduleOpen, panelState.roomScheduleRoomCode, roomLookupByCode])
+
+  // Handle room schedule deselection
   useEffect(() => {
     const shouldDeselect =
-      (unifiedPanelContentType && unifiedPanelContentType !== 'building-info' && unifiedPanelContentType !== 'room-schedule') ||
-      (!isBuildingInfoOpen && unifiedPanelContentType === null)
+      (panelState.unifiedPanelContentType && panelState.unifiedPanelContentType !== 'building-info' && panelState.unifiedPanelContentType !== 'room-schedule') ||
+      (!panelState.isBuildingInfoOpen && panelState.unifiedPanelContentType === null)
 
-    if (shouldDeselect && roomScheduleRoomCode) {
-      handleCloseRoomSchedulePanel()
+    if (shouldDeselect && panelState.roomScheduleRoomCode) {
+      if (sceneManagerRef.current) {
+        sceneManagerRef.current.actions.highlightRoomInScene(null, false)
+      }
+      panelActions.handleCloseRoomSchedulePanel()
     }
-  }, [unifiedPanelContentType, isBuildingInfoOpen, roomScheduleRoomCode, handleCloseRoomSchedulePanel])
+  }, [panelState.unifiedPanelContentType, panelState.isBuildingInfoOpen, panelState.roomScheduleRoomCode, panelActions])
 
+  // Track previous building
   const prevBuildingIdRef = useRef(selectedBuilding?.id)
   useEffect(() => {
     const currentBuildingId = selectedBuilding?.id
     const previousBuildingId = prevBuildingIdRef.current
 
     if (
-      roomScheduleRoomCode &&
+      panelState.roomScheduleRoomCode &&
       currentBuildingId &&
       previousBuildingId &&
       currentBuildingId !== previousBuildingId
     ) {
-      handleCloseRoomSchedulePanel()
+      if (sceneManagerRef.current) {
+        sceneManagerRef.current.actions.highlightRoomInScene(null, false)
+      }
+      panelActions.handleCloseRoomSchedulePanel()
     }
 
     prevBuildingIdRef.current = currentBuildingId
-  }, [selectedBuilding?.id, roomScheduleRoomCode, handleCloseRoomSchedulePanel])
+  }, [selectedBuilding?.id, panelState.roomScheduleRoomCode, panelActions])
 
-  // Sync center panel with requestState
+  // Redirect if not logged in
   useEffect(() => {
-    if (requestState.isOpen && requestState.room) {
-      setCenterPanelContentType(requestState.isEditMode ? 'schedule-edit' : 'schedule-request')
-    } else {
-      setCenterPanelContentType(null)
+    if (!authLoading && !user) {
+      navigate('/')
     }
-  }, [requestState.isOpen, requestState.room, requestState.isEditMode])
+  }, [user, authLoading, navigate])
 
   // Handle center panel close
   const handleCenterPanelClose = useCallback(() => {
     if (typeof resetRequestModal === 'function') {
       resetRequestModal()
     }
-    setCenterPanelContentType(null)
+    panelActions.setCenterPanelContentType(null)
     isSubmittingRequestRef.current = false
     setIsSubmittingRequest(false)
     isSubmittingEditRef.current = false
     setIsSubmittingEdit(false)
-  }, [resetRequestModal])
+  }, [resetRequestModal, panelActions])
 
-  // Request submission loading state (using ref for reliable double-submission prevention)
-  const [isSubmittingRequest, setIsSubmittingRequest] = useState(false)
-  const isSubmittingRequestRef = useRef(false)
-
-  // Handle schedule request submit
+  // Handle request submit
   const handleRequestSubmit = useCallback(async (e) => {
     e.preventDefault()
     e.stopPropagation()
-    
-    // Prevent double submission using ref (more reliable than state)
+
     if (isSubmittingRequestRef.current) return
     if (!requestState.room || !requestState.startHour || !requestState.endHour) return
 
-    // Set both ref and state
     isSubmittingRequestRef.current = true
     setIsSubmittingRequest(true)
-    
+
     try {
       const roomCode = requestState.room
       const roomMeta = roomCode ? roomLookupByCode.get(roomCode) : null
@@ -527,7 +425,7 @@ function HomePage() {
       if (success) {
         handleCenterPanelClose()
         if (typeof loadSchedules === 'function') {
-          loadSchedules()
+          await loadSchedules()
         }
       }
     } finally {
@@ -536,20 +434,14 @@ function HomePage() {
     }
   }, [requestState, requestForm, isoDate, submitRequest, handleCenterPanelClose, loadSchedules, roomLookupByCode, notifyError])
 
-  // Edit submission loading state (using ref for reliable double-submission prevention)
-  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false)
-  const isSubmittingEditRef = useRef(false)
-
-  // Handle schedule edit submit
+  // Handle edit submit
   const handleEditSubmit = useCallback(async (e) => {
     e.preventDefault()
     e.stopPropagation()
-    
-    // Prevent double submission using ref (more reliable than state)
+
     if (isSubmittingEditRef.current) return
     if (!requestState.room || !requestState.startHour || !requestState.endHour) return
 
-    // Set both ref and state
     isSubmittingEditRef.current = true
     setIsSubmittingEdit(true)
 
@@ -561,7 +453,7 @@ function HomePage() {
       await saveSchedule(requestState, editForm)
       handleCenterPanelClose()
       if (typeof loadSchedules === 'function') {
-        loadSchedules()
+        await loadSchedules()
       }
       notifySuccess('Schedule updated', {
         description: `Room ${requestState.room} schedule has been updated.`
@@ -576,7 +468,7 @@ function HomePage() {
     }
   }, [requestState, editForm, saveSchedule, handleCenterPanelClose, loadSchedules, notifySuccess, notifyError])
 
-  // Handle range change for request/edit
+  // Handle range change
   const handleRangeChange = useCallback((field) => (e) => {
     const rawValue = e.target.value
     const numericValue = Number(rawValue)
@@ -588,7 +480,7 @@ function HomePage() {
     }))
   }, [setRequestState])
 
-  // Handle form change for request/edit
+  // Handle request form change
   const handleRequestFormChange = useCallback((e) => {
     const { name, value } = e.target
     if (typeof setRequestForm !== 'function') return
@@ -598,6 +490,7 @@ function HomePage() {
     }))
   }, [setRequestForm])
 
+  // Handle edit form change
   const handleEditFormChange = useCallback((e) => {
     const { name, value } = e.target
     setEditForm(prev => ({
@@ -606,260 +499,65 @@ function HomePage() {
     }))
   }, [])
 
-  // Handle schedule button click (internal function)
-  const handleScheduleButtonClickInternal = async () => {
-    if (!canViewSchedule) {
-      notifyInfo('Access required', {
-        description: 'Your role does not allow viewing the room schedule.'
-      })
-      return
-    }
-    if (!selectedBuilding) {
-      notifyInfo('Building Required', {
-        description: 'Please select a building to view its schedule.'
-      })
-      return
-    }
-    
-    // If opening the panel, load the rooms and schedules
-    if (!isScheduleOpen) {
-      setBuildingRoomsLoading(true)
-      try {
-        const { data, error } = await fetchRoomsByBuildingId(selectedBuilding.id)
-        if (error) {
-          notifyError('Failed to load rooms', {
-            description: error.message || 'Could not fetch classroom rooms for this building.'
-          })
-          setBuildingRoomsLoading(false)
-          return
-        }
-        setBuildingRooms(data || [])
-        setBuildingRoomsLoading(false)
-        // Load schedule data
-        if (typeof loadSchedules === 'function') {
-          await loadSchedules()
-        }
-      } catch (err) {
-        notifyError('Failed to load rooms', {
-          description: err.message || 'An unexpected error occurred.'
-        })
-        setBuildingRoomsLoading(false)
-        return
-      }
-    }
-    
-    setScheduleOpen((prev) => !prev)
-  }
+  // Handle building info toggle
+  const handleBuildingInfoToggle = useCallback(() => {
+    const willOpen = !panelState.isBuildingInfoOpen
+    panelActions.setIsBuildingInfoOpen(willOpen)
 
-  const handleRequestsButtonClick = () => {
-    if (!canManageRequests) {
-      return
+    if (willOpen && selectedBuilding && sceneManagerRef.current) {
+      sceneManagerRef.current.actions.focusOnBuilding(selectedBuilding)
     }
-    // Don't close dropdown - allow switching content types
-    if (unifiedPanelContentType === 'requests') {
-      setUnifiedPanelContentType(null)
-      setRequestsPanelOpen?.(false)
+
+    panelActions.setIsScheduleOpen(false)
+
+    if (!panelState.isBuildingInfoOpen && selectedBuilding && buildingRooms.length === 0 && !buildingRoomsLoading) {
+      buildingActions.fetchRoomsForBuilding(selectedBuilding)
+    }
+  }, [panelState.isBuildingInfoOpen, selectedBuilding, buildingRooms.length, buildingRoomsLoading, panelActions, buildingActions])
+
+  // Handle schedule toggle
+  const handleScheduleToggle = useCallback(() => {
+    if (panelState.unifiedPanelContentType === 'schedule') {
+      panelActions.setUnifiedPanelContentType(null)
+      panelActions.setIsScheduleOpen(false)
     } else {
-      setUnifiedPanelContentType('requests')
-      setRequestsPanelOpen?.(true)
-      // Keep Building Info/Schedule states as-is
-    }
-  }
-
-  // Central close for UnifiedPanel (same behavior as UnifiedPanel onClose prop)
-  const handleUnifiedPanelClose = useCallback(() => {
-    const currentType = unifiedPanelContentType
-    if (currentType === 'room-schedule') {
-      handleCloseRoomSchedulePanel()
-      return
-    }
-    setUnifiedPanelContentType(null)
-    if (currentType === 'requests') setRequestsPanelOpen?.(false)
-    if (currentType === 'my-requests') setMyRequestsPanelOpen?.(false)
-    if (currentType === 'user-management') setUserManagementOpen(false)
-    if (currentType === 'building-info') setIsBuildingInfoOpen(false)
-    if (currentType === 'schedule') setScheduleOpen(false)
-  }, [
-    unifiedPanelContentType,
-    handleCloseRoomSchedulePanel,
-    setRequestsPanelOpen,
-    setMyRequestsPanelOpen,
-    setUserManagementOpen,
-    setIsBuildingInfoOpen,
-    setScheduleOpen,
-    setUnifiedPanelContentType
-  ])
-
-  const handleMyRequestsClick = () => {
-    // Don't close dropdown - allow switching content types
-    if (unifiedPanelContentType === 'my-requests') {
-      setUnifiedPanelContentType(null)
-      setMyRequestsPanelOpen?.(false)
-    } else {
-      setUnifiedPanelContentType('my-requests')
-      setMyRequestsPanelOpen?.(true)
-      // Keep Building Info/Schedule states as-is
-    }
-  }
-
-  const handleUserManagementClick = () => {
-    // Navigate to the new User Management page
-    navigate('/users')
-  }
-
-  const handleBuildingInfoToggle = () => {
-    // Don't close dropdown - allow switching content types
-    // Building Info no longer uses UnifiedPanel; just toggle the dropdown section
-    const willOpen = !isBuildingInfoOpen
-    setIsBuildingInfoOpen(willOpen)
-    
-    // Trigger cinematic top-down view when opening Building Info
-    if (willOpen && selectedBuilding) {
-      cinematicTopDownView(controlsRef, {
-        centerPoint: [
-          selectedBuilding.pos_x || 0,
-          0,
-          selectedBuilding.pos_z || 0
-        ],
-        duration: 1500
-      })
-    }
-    
-    // Do not touch the UnifiedPanel content; keep it open if any
-    setScheduleOpen(false)
-    // Ensure floors are loaded when first opening Building Info
-    if (!isBuildingInfoOpen && selectedBuilding && buildingRooms.length === 0 && !buildingRoomsLoading) {
-      (async () => {
-        try {
-          const { data } = await fetchRoomsByBuildingId(selectedBuilding.id)
-          if (data) setBuildingRooms(data)
-        } catch { /* noop */ }
-      })()
-    }
-  }
-
-  const handleScheduleToggle = () => {
-    // Don't close dropdown - allow switching content types
-    if (unifiedPanelContentType === 'schedule') {
-      setUnifiedPanelContentType(null)
-      setScheduleOpen(false)
-    } else {
-      if (timeSlotsLoading) {
-        notifyInfo('Time slots are still loading', {
-          description: 'Please try again in a moment.'
-        })
-        return
-      }
-
-      if (!timeSlots || timeSlots.length === 0) {
+      if (timeSlots.length === 0) {
         notifyError('No time slots available', {
           description: 'Unable to display the schedule without time slot information.'
         })
         return
       }
 
-      // Switch to schedule content in UnifiedPanel
       if (!selectedBuilding) {
-        // Need a building selected first
         return
       }
-      setUnifiedPanelContentType('schedule')
-      setScheduleOpen(true)
-      // Allow Building Info to stay open simultaneously
-      // Ensure building rooms are loaded
+
+      panelActions.setUnifiedPanelContentType('schedule')
+      panelActions.setIsScheduleOpen(true)
+
       if (buildingRooms.length === 0 && !buildingRoomsLoading) {
-      handleScheduleButtonClickInternal()
+        buildingActions.fetchRoomsForBuilding(selectedBuilding)
       }
     }
-  }
+  }, [panelState.unifiedPanelContentType, selectedBuilding, buildingRooms.length, buildingRoomsLoading, timeSlots.length, panelActions, buildingActions, notifyError])
 
-
-
-  // Create a stable onBuildingClick to pass into the memoized SchoolScene.
-  // The actual logic lives in a ref so we can update it when local state changes
-  // without recreating the function reference passed to the scene.
-  const buildingClickHandlerRef = useRef()
-  useEffect(() => {
-    buildingClickHandlerRef.current = (clickedBuilding) => {
-      // Mirror the logic of handleBuildingClick here so it has access to latest state
-      if (Date.now() - (lastDragEndAtRef.current || 0) < 120) {
-        return
-      }
-      lastBuildingClickAtRef.current = Date.now()
-      if (isUnifiedPanelOpen) {
-        handleUnifiedPanelClose()
-        return
-      }
-
-      const clickedId = (typeof clickedBuilding === 'object' ? clickedBuilding?.id : clickedBuilding)
-
-      if (selectedBuilding?.id === clickedId) {
-        if (isBuildingDropdownOpen) {
-          handleCloseDropdown()
-        }
-        setSelectedBuilding(null)
-        setIsBuildingInfoOpen(false)
-        setScheduleOpen(false)
-        setUnifiedPanelContentType(null)
-      } else {
-        // Resolve the clicked building object from the available lists if we were passed an id
-        let resolved = null
-        if (typeof clickedBuilding === 'object') {
-          resolved = clickedBuilding
-        } else if (clickedId !== undefined && clickedId !== null) {
-          resolved = buildings.find(b => b?.id === clickedId) || (building?.id === clickedId ? building : null)
-        }
-        setSelectedBuilding(resolved)
-        handleOpenDropdown()
-      }
-    }
-  }, [isUnifiedPanelOpen, selectedBuilding, isBuildingDropdownOpen, handleUnifiedPanelClose, handleCloseDropdown, handleOpenDropdown, buildings, building])
-
-  const stableOnBuildingClick = useCallback((b) => {
-    if (buildingClickHandlerRef.current) buildingClickHandlerRef.current(b)
-  }, [])
-
-
-  const handleRoomSearch = async (building, roomCode) => {
+  // Handle room search
+  const handleRoomSearch = useCallback(async (building, roomCode) => {
     try {
-      // Don't close dropdown - only close non-building panels
-      setRequestsPanelOpen?.(false)
-      setMyRequestsPanelOpen?.(false)
-      setUserManagementOpen(false)
-      
-      // Select the building
-      setSelectedBuilding(building)
-      // Auto-open dropdown to show actions immediately after selecting building
-      handleOpenDropdown()
-      
-      // Load building rooms
-      setBuildingRoomsLoading(true)
-      const { data: buildingRoomsData, error: roomsError } = await fetchRoomsByBuildingId(building.id)
-      if (!roomsError && buildingRoomsData) {
-        setBuildingRooms(buildingRoomsData)
-      }
-      setBuildingRoomsLoading(false)
+      buildingActions.selectBuilding(building)
+      panelActions.handleOpenDropdown()
 
-      // Collapse hero if not already collapsed
-      if (!heroCollapsed) {
-        setHeroCollapsed(true)
+      if (!panelState.heroCollapsed) {
+        panelActions.setHeroCollapsed(true)
       }
 
-      // If room code is provided, open room schedule directly
+      if (buildingRooms.length === 0 && !buildingRoomsLoading) {
+        await buildingActions.fetchRoomsForBuilding(building)
+      }
+
       if (roomCode) {
-        // Search for the room in the building
-        const { data: roomsData, error } = await fetchRoomsByBuildingId(building.id)
-        
-        if (error) {
-          notifyError('Room not found', {
-            description: `Could not find room ${roomCode} in building ${building.building_code}`
-          })
-          return
-        }
+        const room = buildingRooms.find(r => r.room_code.toLowerCase() === roomCode.trim().toLowerCase())
 
-        // Find the room
-        const room = roomsData.find(r => r.room_code.toLowerCase() === roomCode.trim().toLowerCase())
-        
         if (!room) {
           notifyError('Room not found', {
             description: `Room ${roomCode} does not exist in building ${building.building_code}`
@@ -867,27 +565,19 @@ function HomePage() {
           return
         }
 
-        // Check if room is on Floor 2 and apply transparency
         const roomFloorId = room.floor_id
-        const floor2Id = 'c2bf5515-daa4-4078-aae9-6c019e79e4b8' // Floor 2 UUID
-        
-        if (sceneRef.current && roomFloorId === floor2Id) {
-          // Make 2nd layer transparent for Floor 2 rooms
-          setObjectTransparency(sceneRef.current, '2ndLayer', 0)
-          setUpperLayerTransparent(true)
+        const floor2Id = 'c2bf5515-daa4-4078-aae9-6c019e79e4b8'
+
+        if (sceneManagerRef.current && roomFloorId === floor2Id) {
+          sceneManagerRef.current.actions.setFloorTransparency('Floor 2', true)
         }
 
-        // Open Building Info and focus the floor containing this room
-        setIsBuildingInfoOpen(true)
+        panelActions.setIsBuildingInfoOpen(true)
         window.dispatchEvent(new CustomEvent('search-room', {
           detail: { roomCode: room.room_code }
         }))
 
-        // Open room schedule in UnifiedPanel (this will also highlight the room in 3D)
-        handleOpenRoomSchedulePanel(room)
-      } else {
-        // Just open building dropdown - don't open unified panel
-        // The building is already selected and dropdown is opened above
+        panelActions.handleOpenRoomSchedulePanel(room)
       }
     } catch (err) {
       console.error('Error searching:', err)
@@ -895,89 +585,20 @@ function HomePage() {
         description: 'An unexpected error occurred while searching.'
       })
     }
-  }
+  }, [buildingActions, buildingRooms, buildingRoomsLoading, panelState.heroCollapsed, panelActions, notifyError])
 
-  const handleSceneLoaded = useCallback((scene) => {
-    sceneRef.current = scene
-    console.log('[HomePage] Scene loaded and stored in ref')
-  }, [])
-
-
+  // Handle floor toggle
   const handleFloorToggle = useCallback((floorName, isExpanded) => {
-    if (floorName === 'Floor 2' && sceneRef.current) {
-      // Make 2nd layer transparent when Floor 2 is expanded
-      const opacity = isExpanded ? 0 : 1
-      setObjectTransparency(sceneRef.current, '2ndLayer', opacity)
-      setUpperLayerTransparent(isExpanded)
-      console.log(`Floor 2 ${isExpanded ? 'expanded' : 'collapsed'} - 2ndLayer opacity: ${opacity}`)
+    if (sceneManagerRef.current) {
+      sceneManagerRef.current.actions.setFloorTransparency(floorName, isExpanded)
     }
   }, [])
 
-  const handleRoomClick = useCallback((roomObjectName) => {
-    console.log('[HomePage] Room object clicked:', roomObjectName)
-    
-    // Only allow room clicks when building is selected and dropdown is open
-    if (!selectedBuilding || !isBuildingDropdownOpen) {
-      console.log('[HomePage] Room click ignored - building not selected or dropdown closed')
-      return
-    }
-    
-    // Track room click timestamp to prevent canvas onClick from interfering
-    lastRoomClickAtRef.current = Date.now()
-    
-    // Map 3D object name to room code
-    // MB201 -> 201, MB-WC5 -> WC5
-    let roomCode = roomObjectName
-    if (roomCode.startsWith('MB-')) {
-      roomCode = roomCode.substring(3) // Remove "MB-" prefix
-    } else if (roomCode.startsWith('MB')) {
-      roomCode = roomCode.substring(2) // Remove "MB" prefix
-    }
-    
-    console.log('[HomePage] Mapped room code:', roomCode)
-    
-    // Find the room in buildingRooms
-    const room = buildingRooms.find(r => 
-      r.room_code?.toLowerCase() === roomCode.toLowerCase()
-    )
-    
-    if (room) {
-      console.log('[HomePage] Found room:', room)
-      
-      // Check if room is on Floor 2 and apply transparency if needed
-      const roomFloorId = room.floor_id
-      const floor2Id = 'c2bf5515-daa4-4078-aae9-6c019e79e4b8' // Floor 2 UUID
-      
-      if (sceneRef.current && roomFloorId === floor2Id && !upperLayerTransparent) {
-        setObjectTransparency(sceneRef.current, '2ndLayer', 0)
-        setUpperLayerTransparent(true)
-      }
-      
-      // Open Building Info if not already open
-      if (!isBuildingInfoOpen) {
-        setIsBuildingInfoOpen(true)
-      }
-      
-      // Dispatch search-room event to expand the floor and scroll to the room
-      window.dispatchEvent(new CustomEvent('search-room', {
-        detail: { roomCode: room.room_code }
-      }))
-      
-      // Open room schedule panel (this will also highlight the room)
-      handleOpenRoomSchedulePanel(room)
-    } else {
-      console.log('[HomePage] Room not found in buildingRooms:', roomCode)
-    }
-  }, [buildingRooms, upperLayerTransparent, isBuildingInfoOpen, handleOpenRoomSchedulePanel, selectedBuilding, isBuildingDropdownOpen])
+  // Camera controls hook
+  useCameraControls(sceneManager.refs.controlsRef, panelState.heroCollapsed)
 
-  const handleLogout = async () => {
-    await signOut()
-    navigate('/')
-  }
-
-  console.log('[HomePage] Render state:', { loading, buildingLoading })
-  
-  if (loading || buildingLoading) {
+  // Loading state
+  if (authLoading || coreDataLoading) {
     console.log('[HomePage] Showing loading screen')
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
@@ -988,7 +609,7 @@ function HomePage() {
       </div>
     )
   }
-  
+
   console.log('[HomePage] Rendering main content')
 
   return (
@@ -998,81 +619,53 @@ function HomePage() {
         role={role}
         timeSlots={timeSlots}
         buildingRooms={buildingRooms}
-        isScheduleOpen={isScheduleOpen}
-        isRoomScheduleOpen={isRoomScheduleOpen}
+        isScheduleOpen={panelState.isScheduleOpen}
+        isRoomScheduleOpen={panelState.isRoomScheduleOpen}
         user={user}
         profile={profile}
         canManageRequests={canManageRequests}
         canRequestRoom={canRequestRoom}
       />
+
       {/* 3D Canvas */}
       <div
         className={`hp-canvasContainer canvas-container`}
-        onMouseDown={(e) => {
-          pointerRef.current.downX = e.clientX
-          pointerRef.current.downY = e.clientY
-          pointerRef.current.moved = false
-        }}
-        onMouseMove={(e) => {
-          const dx = Math.abs(e.clientX - pointerRef.current.downX)
-          const dy = Math.abs(e.clientY - pointerRef.current.downY)
-          if (dx > 6 || dy > 6) pointerRef.current.moved = true
-        }}
-        onMouseUp={() => {
-          if (pointerRef.current.moved) {
-            lastDragEndAtRef.current = Date.now()
-          }
-        }}
+        {...sceneManager.canvasProps}
         onClick={(e) => {
-          // Plain background click (not a drag) should deselect and close panel if open
-          const justDragged = Date.now() - (lastDragEndAtRef.current || 0) < 120
-          if (justDragged) return
-          // Only respond to left-clicks
-          if (e.button !== 0) return
+          const justDragged = Date.now() - (sceneManager.refs.lastDragEndAtRef.current || 0) < 120
+          if (justDragged || e.button !== 0) return
+
           const target = e.target
           const panelEl = document.querySelector('.unified-panel')
           const insidePanel = panelEl ? panelEl.contains(target) : false
-          const insideBuildingDropdown = dropdownRef.current ? dropdownRef.current.contains(target) : false
-          // Do not close if click was inside the unified panel or the select building dropdown/button
-          if (insidePanel || insideBuildingDropdown) return
-          // If a room was just clicked, skip background handler
-          if (Date.now() - (lastRoomClickAtRef.current || 0) < 100) return
-          // If a building mesh was just clicked, skip background handler
-          if (Date.now() - (lastBuildingClickAtRef.current || 0) < 50) return
-          if (isUnifiedPanelOpen) {
-            handleUnifiedPanelClose()
-            // When unified panel is open, only close the panel, don't deselect building
+          const insideDropdown = dropdownRef.current ? dropdownRef.current.contains(target) : false
+
+          if (insidePanel || insideDropdown) return
+
+          if (Date.now() - (sceneManager.refs.lastRoomClickAtRef.current || 0) < 100) return
+          if (Date.now() - (sceneManager.refs.lastBuildingClickAtRef.current || 0) < 50) return
+
+          if (panelState.isUnifiedPanelOpen) {
+            panelActions.handleUnifiedPanelClose()
             return
           }
+
           if (selectedBuilding) {
-            // Trigger dropdown close animation only if it's currently open
-            if (isBuildingDropdownOpen) {
-              handleCloseDropdown()
-            }
-            setSelectedBuilding(null)
-            setIsBuildingInfoOpen(false)
-            setScheduleOpen(false)
-            setUnifiedPanelContentType(null)
+            buildingActions.selectBuilding(null)
+            panelActions.handleCloseDropdown()
           }
         }}
       >
         <SchoolScene
-          modelUrl={buildingModelUrl}
-          position={buildingPosition}
-          buildingId={buildingId}
-          buildingLoading={buildingLoading}
-          heroCollapsed={heroCollapsed}
-          controlsRef={controlsRef}
-          onBuildingClick={stableOnBuildingClick}
-          onRoomClick={handleRoomClick}
-          onCameraStart={handleCameraStart}
-          onCameraEnd={handleCameraEnd}
-          onSceneLoaded={handleSceneLoaded}
+          {...sceneManager.sceneProps}
+          heroCollapsed={panelState.heroCollapsed}
+          allBuildings={buildingsList}
+          selectedBuilding={selectedBuilding}
         />
       </div>
 
-      {/* Welcome Notice Overlay, replaces heroIntro and instructions tip */}
-      {!heroCollapsed && (
+      {/* Welcome Modal */}
+      {!panelState.heroCollapsed && (
         <div className="fixed inset-0 z-[55] flex items-center justify-center bg-black/50 backdrop-blur-xs pointer-events-auto">
           <div className="box centered relative bg-[#393e46] border border-[#8991a4] shadow-2xl py-5 px-9 min-w-[340px] max-w-sm w-full flex flex-col items-center" style={{borderRadius: 0}}>
             <div className="text-[#eee] text-center font-sans text-base tracking-wide w-full" style={{lineHeight: 1.25}}>
@@ -1084,7 +677,7 @@ function HomePage() {
               tabIndex={0}
               type="button"
               aria-label="Close welcome dialog"
-              onClick={() => setHeroCollapsed(true)}
+              onClick={() => panelActions.setHeroCollapsed(true)}
               className="btn-close absolute top-2 right-2 w-8 h-8 bg-transparent border-0 flex items-center justify-center cursor-pointer text-2xl transition text-[#eee] hover:bg-[#222831]/40 focus:outline-none"
               style={{borderRadius: 0}}
             >
@@ -1093,42 +686,39 @@ function HomePage() {
                 <path d="M6 6l12 12M6 18L18 6" />
               </svg>
             </button>
-              </div>
+          </div>
         </div>
       )}
 
       {/* Main Overlay */}
-  <div className="hp-heroOverlay">
+      <div className="hp-heroOverlay">
         <div
           className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_left,_rgba(198,222,255,0.6)_0%,_rgba(166,206,255,0.35)_55%,_rgba(216,236,255,0.2)_100%)]"
           aria-hidden="true"
         />
-                {/* Header */}
-                <header className="hp-heroHeader">
-                  <div className="hp-heroHeaderTop">
-                    <div className="hp-heroHeaderTitle">
-                      <span className="text-[0.85rem] tracking-[0.8em] text-[#3282B8] font-bold">Classroom</span>
-                      <span className="text-[0.85rem] tracking-[0.8em] text-[#EEEEEE]/90 font-medium">Insight</span>
-                    </div>
+
+        {/* Header */}
+        <header className="hp-heroHeader">
+          <div className="hp-heroHeaderTop">
+            <div className="hp-heroHeaderTitle">
+              <span className="text-[0.85rem] tracking-[0.8em] text-[#3282B8] font-bold">Classroom</span>
+              <span className="text-[0.85rem] tracking-[0.8em] text-[#EEEEEE]/90 font-medium">Insight</span>
+            </div>
             <div className="hp-heroHeaderActions">
               <div 
-                className={`transition-opacity duration-500 h-full flex items-stretch ${heroCollapsed ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                className={`transition-opacity duration-500 h-full flex items-stretch ${panelState.heroCollapsed ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
               >
                 <SearchBuilding
                   buildings={buildings}
                   onRoomSelect={handleRoomSearch}
-                  onOpen={() => {
-                    setRequestsPanelOpen?.(false)
-                    setMyRequestsPanelOpen?.(false)
-                    setUserManagementOpen(false)
-                  }}
+                  onOpen={() => {}}
                 />
               </div>
               {canRequestRoom && !canManageRequests && (
                 <button
                   type="button"
-                  onClick={handleMyRequestsClick}
-                  className={cn('hp-headerRequestsButton', unifiedPanelContentType === 'my-requests' ? 'hp-headerRequestsButton--active' : '')}
+                  onClick={() => panelActions.setUnifiedPanelContentType('my-requests')}
+                  className={cn('hp-headerRequestsButton', panelState.unifiedPanelContentType === 'my-requests' ? 'hp-headerRequestsButton--active' : '')}
                 >
                   My Requests
                 </button>
@@ -1136,8 +726,8 @@ function HomePage() {
               {canManageRequests && (
                 <button
                   type="button"
-                  onClick={handleRequestsButtonClick}
-                  className={cn('hp-headerRequestsButton', unifiedPanelContentType === 'requests' ? 'hp-headerRequestsButton--active' : '')}
+                  onClick={() => panelActions.setUnifiedPanelContentType('requests')}
+                  className={cn('hp-headerRequestsButton', panelState.unifiedPanelContentType === 'requests' ? 'hp-headerRequestsButton--active' : '')}
                 >
                   Manage Requests
                 </button>
@@ -1145,363 +735,172 @@ function HomePage() {
               {role === USER_ROLES.administrator && (
                 <button
                   type="button"
-                  onClick={handleUserManagementClick}
-                  className={cn('hp-headerUserManagementButton', unifiedPanelContentType === 'user-management' ? 'hp-headerUserManagementButton--active' : '')}
+                  onClick={() => navigate('/users')}
+                  className={cn('hp-headerUserManagementButton', panelState.unifiedPanelContentType === 'user-management' ? 'hp-headerUserManagementButton--active' : '')}
                 >
                   User Management
                 </button>
               )}
               <div className="ml-3 flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="hp-logoutBtn"
-              >
-                Logout
-              </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await signOut()
+                    navigate('/')
+                  }}
+                  className="hp-logoutBtn"
+                >
+                  Logout
+                </button>
               </div>
             </div>
           </div>
         </header>
 
-                {/* Building-specific Controls */}
-                {/* Building Controls - Always visible when hero is collapsed, no sliding */}
-                  <div 
-                  className={`hp-buildingControlsWrapper ${heroCollapsed ? 'hp-buildingControlsVisible' : 'hp-buildingControlsHidden'}`}
-                    >
-                  <div className="relative -ml-2" ref={dropdownRef}>
-                    <div
-                      className={cn(
-                        "canvas-building-btn border border-[#EEEEEE]/30 text-[#EEEEEE] shadow-lg backdrop-blur-sm transition-all duration-300 overflow-hidden flex items-center",
-                        selectedBuilding !== null ? "" : "border-[#EEEEEE]/10 text-[#EEEEEE]/30",
-                        isBuildingDropdownOpen && selectedBuilding
-                          ? "px-5 h-14 bg-[#393E46]/60"
-                          : "px-5 h-9 bg-[#393E46]/80"
-                      )}
-                            style={{
-                         width: '260px'
-                      }}
-                    >
-                      <div
-                        className={cn(
-                          "w-full text-left uppercase tracking-[0.28em] transition-all duration-300 flex flex-col items-start justify-center",
-                          isBuildingDropdownOpen && selectedBuilding
-                            ? "text-[0.9rem] font-bold"
-                            : "text-[0.72rem]"
-                        )}
-                        aria-hidden="true"
-                      >
-                        {selectedBuilding ? (
-                          <>
-                            <div className="leading-tight">{selectedBuilding.building_name}</div>
-                            <div className={cn(
-                              "text-[0.65rem] tracking-[0.24em] mt-1 text-[#EEEEEE]/75 font-normal leading-tight transition-opacity duration-300",
-                              isBuildingDropdownOpen ? "opacity-100" : "opacity-0"
-                            )}>Building code: {selectedBuilding.building_code}</div>
-                          </>
-                        ) : (
-                          'Select a Building'
-                        )}
-                  </div>
+        {/* Building-specific Controls */}
+        <div className={`hp-buildingControlsWrapper ${panelState.heroCollapsed ? 'hp-buildingControlsVisible' : 'hp-buildingControlsHidden'}`}>
+          <div className="relative -ml-2" ref={dropdownRef}>
+            <div
+              className={cn(
+                "canvas-building-btn border border-[#EEEEEE]/30 text-[#EEEEEE] shadow-lg backdrop-blur-sm transition-all duration-300 overflow-hidden flex items-center",
+                selectedBuilding !== null ? "" : "border-[#EEEEEE]/10 text-[#EEEEEE]/30",
+                panelState.isBuildingDropdownOpen && selectedBuilding
+                  ? "px-5 h-14 bg-[#393E46]/60"
+                  : "px-5 h-9 bg-[#393E46]/80"
+              )}
+              style={{
+                width: '260px'
+              }}
+            >
+              <div
+                className={cn(
+                  "w-full text-left uppercase tracking-[0.28em] transition-all duration-300 flex flex-col items-start justify-center",
+                  panelState.isBuildingDropdownOpen && selectedBuilding
+                    ? "text-[0.9rem] font-bold"
+                    : "text-[0.72rem]"
+                )}
+                aria-hidden="true"
+              >
+                {selectedBuilding ? (
+                  <>
+                    <div className="leading-tight">{selectedBuilding.building_name}</div>
+                    <div className={cn(
+                      "text-[0.65rem] tracking-[0.24em] mt-1 text-[#EEEEEE]/75 font-normal leading-tight transition-opacity duration-300",
+                      panelState.isBuildingDropdownOpen ? "opacity-100" : "opacity-0"
+                    )}>Building code: {selectedBuilding.building_code}</div>
+                  </>
+                ) : (
+                  'Select a Building'
+                )}
+              </div>
+            </div>
+
+            {(panelState.isBuildingDropdownOpen || panelState.isDropdownClosing) && (
+              <div
+                className="building-dropdown absolute top-full left-0 mt-2 z-40 flex flex-col gap-0 pointer-events-auto select-none"
+                style={{
+                  animation: panelState.isDropdownClosing ? 'slideOutDrop 0.3s ease-out' : 'slideInDrop 0.3s ease-out',
+                  background: 'none', border: 'none', boxShadow: 'none', padding: 0, width: '260px'
+                }}
+              >
+                <style>{`
+                  @keyframes slideInDrop { from { opacity: 0; transform: translateY(-20px);} to { opacity: 1; transform: translateY(0);} }
+                  @keyframes slideOutDrop { from { opacity: 1; transform: translateY(0);} to { opacity: 0; transform: translateY(-20px);} }
+                  .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+                  .no-scrollbar::-webkit-scrollbar { display: none; }
+                `}</style>
+
+                {/* Actions row */}
+                <div className="flex flex-row gap-2 justify-center mb-2 w-full">
+                  <button
+                    type="button"
+                    onClick={handleBuildingInfoToggle}
+                    className={cn(
+                      "brutal-btn w-1/2 px-2 py-2 text-[0.58rem] font-bold uppercase tracking-[0.16em] border shadow-none focus:outline-none transition-colors duration-150",
+                      panelState.isBuildingInfoOpen
+                        ? "bg-[rgba(57,62,70,0.5)] text-white border-white"
+                        : "bg-[rgba(57,62,70,0.2)] text-[#EEEEEE]/90 border-[#EEEEEE]/60 hover:text-white hover:border-white hover:bg-[rgba(57,62,70,0.35)]"
+                    )}
+                    style={{ borderRadius: 0 }}
+                  >
+                    Building Info
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleScheduleToggle}
+                    className={cn(
+                      "brutal-btn w-1/2 px-2 py-2 text-[0.58rem] font-bold uppercase tracking-[0.16em] border shadow-none focus:outline-none transition-colors duration-150",
+                      panelState.unifiedPanelContentType === 'schedule'
+                        ? "bg-[rgba(57,62,70,0.5)] text-white border-white"
+                        : "bg-[rgba(57,62,70,0.2)] text-[#EEEEEE]/90 border-[#EEEEEE]/60 hover:text-white hover:border-white hover:bg-[rgba(57,62,70,0.35)]"
+                    )}
+                    style={{ borderRadius: 0 }}
+                  >
+                    Schedule
+                  </button>
                 </div>
 
-                    {(isBuildingDropdownOpen || isDropdownClosing) && (
-                <div 
-                        className="building-dropdown absolute top-full left-0 mt-2 z-40 flex flex-col gap-0 pointer-events-auto select-none"
-                        style={{
-                          animation: isDropdownClosing ? 'slideOutDrop 0.3s ease-out' : 'slideInDrop 0.3s ease-out',
-                          background: 'none', border: 'none', boxShadow: 'none', padding: 0, width: '260px'
-                        }}
-                      >
-                        <style>{`
-                          @keyframes slideInDrop { from { opacity: 0; transform: translateY(-20px);} to { opacity: 1; transform: translateY(0);} }
-                          @keyframes slideOutDrop { from { opacity: 1; transform: translateY(0);} to { opacity: 0; transform: translateY(-20px);} }
-                          .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
-                          .no-scrollbar::-webkit-scrollbar { display: none; }
-                        `}</style>
- 
-                         {/* Actions row */}
-                        <div className="flex flex-row gap-2 justify-center mb-2 w-full">
-                    <button
-                      type="button"
-                            onClick={handleBuildingInfoToggle}
-                      className={cn(
-                              "brutal-btn w-1/2 px-2 py-2 text-[0.58rem] font-bold uppercase tracking-[0.16em] border shadow-none focus:outline-none transition-colors duration-150",
-                              isBuildingInfoOpen
-                                ? "bg-[rgba(57,62,70,0.5)] text-white border-white"
-                                : "bg-[rgba(57,62,70,0.2)] text-[#EEEEEE]/90 border-[#EEEEEE]/60 hover:text-white hover:border-white hover:bg-[rgba(57,62,70,0.35)]"
-                      )}
-                            style={{ borderRadius: 0 }}
-                          >
-                            Building Info
-                    </button>
-                          <button
-                            type="button"
-                            onClick={handleScheduleToggle}
-                            className={cn(
-                              "brutal-btn w-1/2 px-2 py-2 text-[0.58rem] font-bold uppercase tracking-[0.16em] border shadow-none focus:outline-none transition-colors duration-150",
-                              unifiedPanelContentType === 'schedule'
-                                ? "bg-[rgba(57,62,70,0.5)] text-white border-white"
-                                : "bg-[rgba(57,62,70,0.2)] text-[#EEEEEE]/90 border-[#EEEEEE]/60 hover:text-white hover:border-white hover:bg-[rgba(57,62,70,0.35)]"
-                            )}
-                            style={{ borderRadius: 0 }}
-                          >
-                            Schedule
-                          </button>
-                        </div>
+                {/* Floor/room accordion */}
+                <>
+                  <div
+                    className={cn("my-2 mx-auto transition-all duration-300 ease-out", panelState.isBuildingInfoOpen ? "opacity-100" : "opacity-0")}
+                    style={{ width: '260px', height: '1px', backgroundColor: 'rgba(255,255,255,0.6)' }}
+                  />
+                  <BuildingInfoModal
+                    isOpen={panelState.isBuildingInfoOpen}
+                    roomsByFloor={roomsByFloor}
+                    isRoomScheduleOpen={panelState.isRoomScheduleOpen && panelState.unifiedPanelContentType === 'room-schedule'}
+                    activeRoomCode={panelState.roomScheduleRoomCode}
+                    onOpenRoomSchedule={panelActions.handleOpenRoomSchedulePanel}
+                    onCloseRoomSchedule={panelActions.handleCloseRoomSchedulePanel}
+                    onFloorToggle={handleFloorToggle}
+                  />
+                  <div
+                    className={cn("my-2 mx-auto transition-all duration-300 ease-out", panelState.isBuildingInfoOpen ? "opacity-100" : "opacity-0")}
+                    style={{ width: '260px', height: '1px', backgroundColor: 'rgba(255,255,255,0.6)' }}
+                  />
+                </>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
 
-                        {/* Floor/room accordion with animated open/close and divider */}
-                        <>
-                          {/* Subtle divider line (centered) with fade/slide */}
-                      <div 
-                            className={cn("my-2 mx-auto transition-all duration-300 ease-out", isBuildingInfoOpen ? "opacity-100" : "opacity-0")}
-                            style={{ width: '260px', height: '1px', backgroundColor: 'rgba(255,255,255,0.6)' }}
-                          />
-                        <BuildingInfoModal
-                          isOpen={isBuildingInfoOpen}
-                          roomsByFloor={roomsByFloor}
-                          isRoomScheduleOpen={isRoomScheduleOpen && unifiedPanelContentType === 'room-schedule'}
-                          activeRoomCode={roomScheduleRoomCode}
-                          onOpenRoomSchedule={handleOpenRoomSchedulePanel}
-                          onCloseRoomSchedule={handleCloseRoomSchedulePanel}
-                          onFloorToggle={handleFloorToggle}
-                        />
-                          {/* Subtle divider line below (centered) with fade/slide - outside scrollable container */}
-                          <div 
-                            className={cn("my-2 mx-auto transition-all duration-300 ease-out", isBuildingInfoOpen ? "opacity-100" : "opacity-0")}
-                            style={{ width: '260px', height: '1px', backgroundColor: 'rgba(255,255,255,0.6)' }}
-                          />
-                       </>
-                     </div>
-                   )}
-                 </div>
-               </div>
-       </div>
- 
-       {/* Modals and Panels */}
- 
-       {/* Unified Panel for Requests, My Requests, User Management, Building Info, and Schedule */}
-       <UnifiedPanel
-         isOpen={isUnifiedPanelOpen}
-         contentType={unifiedPanelContentType}
-       >
-         {unifiedPanelContentType === 'requests' && canManageRequests && (
-           <RequestsPanelContent
-             pendingRequests={pendingRequests}
-             historicalRequests={historicalRequests}
-             requestsLoading={requestsLoading}
-             historicalDateFilter={historicalDateFilter}
-             rejectionReasons={rejectionReasons}
-             setRejectionReasons={setRejectionReasons}
-             requestActionLoading={requestActionLoading}
-             onDateFilterChange={setHistoricalDateFilter}
-             onApprove={(request) => approveRequest(request, { parseDateString: parseDateStringWrapper, toIsoDateString, getSlotLabel })}
-             onReject={rejectRequest}
-          onRevert={(request) => revertRequest(request, { parseDateString: parseDateStringWrapper, toIsoDateString })}
-          timeSlots={timeSlots}
-           />
-         )}
-         {unifiedPanelContentType === 'my-requests' && canRequestRoom && (
-           <MyRequestsPanelContent
-             myRequests={myRequests}
-             filteredMyRequests={filteredMyRequests}
-             myRequestsLoading={myRequestsLoading}
-             myRequestsDateFilter={myRequestsDateFilter}
-             onDateFilterChange={setMyRequestsDateFilter}
-            timeSlots={timeSlots}
-           />
-         )}
-         {unifiedPanelContentType === 'schedule' && selectedBuilding && (
-           <BuildingScheduleContent
-         selectedBuilding={selectedBuilding}
-         buildingRooms={buildingRooms}
-         buildingRoomsLoading={buildingRoomsLoading}
-             roomsByFloor={roomsByFloor}
-         scheduleDate={scheduleDate}
-         setScheduleDate={setScheduleDate}
-         timeSlots={timeSlots}
-         onCellClick={(roomMeta, slotHour) => {
-           const roomCode = typeof roomMeta === 'string' ? roomMeta : roomMeta?.room_code || roomMeta?.roomNumber || roomMeta?.room_number || null
-           const roomName = typeof roomMeta === 'string' ? null : roomMeta?.room_name || roomMeta?.name || null
-           const roomId = typeof roomMeta === 'string' ? null : roomMeta?.id || null
+      {/* Unified Panel Container */}
+      <UnifiedPanel
+        isOpen={panelState.isUnifiedPanelOpen}
+        contentType={panelState.unifiedPanelContentType}
+        selectedBuilding={selectedBuilding}
+        buildingRooms={buildingRooms}
+        roomsByFloor={roomsByFloor}
+        scheduleDate={scheduleDate}
+        setScheduleDate={setScheduleDate}
+        timeSlots={timeSlots}
+        roomScheduleState={panelState}
+        isoDate={isoDate}
+        canEditSchedule={canEditSchedule}
+        canRequestRoom={canRequestRoom}
+        roomLookupByCode={roomLookupByCode}
+        getSlotLabel={getSlotLabel}
+      />
 
-           if (!roomCode) {
-             notifyError('Missing room details', {
-               description: 'Unable to determine which room was selected.'
-             })
-             return
-           }
-
-           if (typeof buildScheduleKey !== 'function') {
-             notifyError('Schedule unavailable', {
-               description: 'The schedule service is still initialising. Please try again shortly.'
-             })
-             return
-           }
-
-           if (canEditSchedule) {
-             const key = buildScheduleKey(roomCode, slotHour)
-             const existing = scheduleMap[key]
-             setRequestState({
-               isOpen: true,
-               isEditMode: true,
-               room: roomCode,
-               roomId: roomId || existing?.room_id || null,
-               roomName: roomName || null,
-               startHour: slotHour,
-               endHour: slotHour,
-               existingEntry: existing
-             })
-           } else if (canRequestRoom) {
-             const key = buildScheduleKey(roomCode, slotHour)
-             const entry = scheduleMap[key]
-
-             if (entry && entry.status !== SCHEDULE_STATUS.empty && entry.status !== SCHEDULE_STATUS.pending) {
-               notifyError('Slot not available', {
-                 description: `Room ${roomCode} at ${getSlotLabel(slotHour)} is already ${SCHEDULE_STATUS_LABELS[entry.status].toLowerCase()}.`
-               })
-               return
-             }
-
-             setRequestState({
-               isOpen: true,
-               isEditMode: false,
-               room: roomCode,
-               roomId: roomId || null,
-               roomName: roomName || null,
-               startHour: slotHour,
-               endHour: slotHour,
-               existingEntry: null
-             })
-           }
-         }}
-         canEdit={canEditSchedule}
-         canRequest={canRequestRoom}
-       />
-         )}
-        {unifiedPanelContentType === 'room-schedule' && isRoomScheduleOpen && roomScheduleRoomCode && (
-          <RoomScheduleContent
-            isOpen={true}
-            embedded={true}
-            roomCode={roomScheduleRoomCode}
-            roomName={roomScheduleRoomName}
-            bookable={roomScheduleBookable}
-            schedule={roomSchedule}
-            scheduleDate={isoDate}
-            timeSlots={timeSlots}
-            roomType={roomScheduleRoomType}
-            onDateChange={(val) => {
-              if (typeof val === 'string') {
-                const parts = val.split('/')
-                if (parts.length === 3) {
-                  const [dd, mm, yyyy] = parts
-                  const y = Number(yyyy)
-                  const m = Number(mm) - 1
-                  const dNum = Number(dd)
-                  const parsed = new Date(y, m, dNum)
-                  if (!isNaN(parsed.getTime())) {
-                    setScheduleDate(parsed)
-                    return
-                  }
-                }
-                // Fallback: today
-                setScheduleDate(new Date())
-              } else if (val instanceof Date) {
-                setScheduleDate(val)
-              }
-            }}
-            canEdit={canEditSchedule}
-            canRequest={canRequestRoom}
-            onAdminAction={(roomNumber, slotHour) => {
-              if (!canEditSchedule) return
-              if (typeof buildScheduleKey !== 'function') {
-                notifyError('Schedule unavailable', {
-                  description: 'The schedule service is still initialising. Please try again shortly.'
-                })
-                return
-              }
-              const roomMeta = roomLookupByCode.get(roomNumber)
-              const key = buildScheduleKey(roomNumber, slotHour)
-              const existing = scheduleMap[key]
-              setRequestState({
-                isOpen: true,
-                isEditMode: true,
-                room: roomNumber,
-                roomId: existing?.room_id || roomMeta?.id || null,
-                roomName: roomMeta?.room_name || roomScheduleRoomName || null,
-                startHour: slotHour,
-                endHour: slotHour,
-                existingEntry: existing
-              })
-            }}
-            onTeacherRequest={(roomNumber, slotHour) => {
-              if (!canRequestRoom) return
-              if (typeof buildScheduleKey !== 'function') {
-                notifyError('Schedule unavailable', {
-                  description: 'The schedule service is still initialising. Please try again shortly.'
-                })
-                return
-              }
-              const key = buildScheduleKey(roomNumber, slotHour)
-              const entry = scheduleMap[key]
-              if (entry && entry.status !== SCHEDULE_STATUS.empty && entry.status !== SCHEDULE_STATUS.pending) {
-                notifyError('Slot not available', {
-                  description: `Room ${roomNumber} at ${getSlotLabel(slotHour)} is already ${SCHEDULE_STATUS_LABELS[entry.status].toLowerCase()}.`
-                })
-                return
-              }
-              const roomMeta = roomLookupByCode.get(roomNumber)
-              setRequestState({
-                isOpen: true,
-                isEditMode: false,
-                room: roomNumber,
-                roomId: roomMeta?.id || null,
-                roomName: roomMeta?.room_name || roomScheduleRoomName || null,
-                startHour: slotHour,
-                endHour: slotHour,
-                existingEntry: null
-              })
-            }}
-          />
-        )}
-       </UnifiedPanel>
-
-      {/* Legacy schedule panel removed; schedule now always renders inside UnifiedPanel */}
-
-      {/* Per-room Schedule rendered in UnifiedPanel (embedded) */}
-
-      {/* Unified Panel Center for Schedule Request/Edit */}
+      {/* Center Modal Container */}
       <UnifiedPanelCenter
-        isOpen={isCenterPanelOpen}
-        contentType={centerPanelContentType}
+        isOpen={panelState.isCenterPanelOpen}
+        contentType={panelState.centerPanelContentType}
         onClose={handleCenterPanelClose}
-      >
-        {centerPanelContentType === 'schedule-request' && requestState.room && (
-          <ScheduleRequestContent
-            requestState={requestState}
-            requestForm={requestForm}
-            timeSlots={filteredRequestTimeSlots}
-            isoDate={isoDate}
-            submitting={isSubmittingRequest}
-            onSubmit={handleRequestSubmit}
-            onFormChange={handleRequestFormChange}
-            onRangeChange={handleRangeChange}
-            onClose={handleCenterPanelClose}
-          />
-        )}
-        {centerPanelContentType === 'schedule-edit' && requestState.room && (
-          <ScheduleEditContent
-            editState={requestState}
-            editForm={editForm}
-            timeSlots={filteredRequestTimeSlots}
-            submitting={isSubmittingEdit}
-            onSubmit={handleEditSubmit}
-            onFormChange={handleEditFormChange}
-            onRangeChange={handleRangeChange}
-            onClose={handleCenterPanelClose}
-          />
-        )}
-      </UnifiedPanelCenter>
+        filteredRequestTimeSlots={filteredRequestTimeSlots}
+        isSubmittingRequest={isSubmittingRequest}
+        isSubmittingEdit={isSubmittingEdit}
+        onRequestSubmit={handleRequestSubmit}
+        onEditSubmit={handleEditSubmit}
+        onRequestFormChange={handleRequestFormChange}
+        onEditFormChange={handleEditFormChange}
+        onRangeChange={handleRangeChange}
+        isoDate={isoDate}
+        requestForm={requestForm}
+        editForm={editForm}
+      />
     </div>
   )
 }

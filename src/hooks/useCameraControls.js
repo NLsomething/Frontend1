@@ -43,7 +43,6 @@ export const animateCameraTo = (controlsRef, options) => {
   let animationId = null
 
   // Disable auto-rotate during animation and keep it disabled after
-  const wasAutoRotating = controls.autoRotate
   controls.autoRotate = false
 
   const animate = () => {

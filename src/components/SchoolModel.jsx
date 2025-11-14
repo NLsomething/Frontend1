@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { Suspense, useEffect } from 'react'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
@@ -252,8 +253,6 @@ function SchoolModel({ modelUrl, position, buildingId, onBuildingClick, onRoomCl
       </>
     )
   }
-
-  console.log('[SchoolModel] Loading model from:', modelUrl)
 
   return (
     <Suspense fallback={

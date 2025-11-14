@@ -47,8 +47,10 @@ const BuildingInfoModal = ({
       onCloseRoomSchedule?.()
     } else {
       onOpenRoomSchedule?.(room)
+      // Scroll into view when opening from list
+      setTimeout(() => focusRoomButton(room.room_code), 50)
     }
-  }, [isRoomScheduleOpen, activeRoomCode, onOpenRoomSchedule, onCloseRoomSchedule])
+  }, [isRoomScheduleOpen, activeRoomCode, onOpenRoomSchedule, onCloseRoomSchedule, focusRoomButton])
 
   useEffect(() => {
     if (!isOpen && prevIsOpenRef.current) {

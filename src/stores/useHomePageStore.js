@@ -40,6 +40,11 @@ const requestsDefaults = {
     weekCount: 1,
     notes: ''
   },
+  editForm: {
+    status: SCHEDULE_STATUS.occupied,
+    courseName: '',
+    bookedBy: ''
+  },
   setRejectionReasons: null,
   loadRequests: null,
   approveRequest: null,
@@ -71,7 +76,8 @@ const REQUESTS_DATA_KEYS = [
   'filteredMyRequests',
   'myRequestsDateFilter',
   'requestState',
-  'requestForm'
+  'requestForm',
+  'editForm'
 ]
 
 const REQUESTS_HANDLER_KEYS = [
@@ -202,7 +208,8 @@ export const selectRequestsSlice = createMemoizedSelector((state) => ({
   filteredMyRequests: state.filteredMyRequests,
   myRequestsDateFilter: state.myRequestsDateFilter,
   requestState: state.requestState,
-  requestForm: state.requestForm
+  requestForm: state.requestForm,
+  editForm: state.editForm
 }))
 
 export const selectRequestsHandlers = createMemoizedSelector((state) => ({
