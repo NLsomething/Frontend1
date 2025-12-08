@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { signIn } from '../services/authService'
+import { checkEmailExists } from '../services/authExtensions'
 import { useAuth } from '../context/AuthContext'
 import { getRandomQuote } from '../constants/quotes'
 import '../styles/LoginPageStyle.css'
@@ -50,10 +51,25 @@ function LoginPage() {
     setLoading(true)
 
     try {
+      // First, check if the email exists
+      const { exists } = await checkEmailExists(formData.usernameOrEmail)
+      
+      if (!exists) {
+        setLoginError('No account found with this email address. Please check your email or sign up.')
+        setLoading(false)
+        return
+      }
+
+      // Email exists, proceed with login
       const { user, session, error } = await signIn(formData.usernameOrEmail, formData.password)
       
       if (error) {
-        setLoginError(error)
+        // If we get here, email exists but password is wrong
+        if (error.includes('Invalid login credentials')) {
+          setLoginError('Incorrect password. Please try again or reset your password.')
+        } else {
+          setLoginError(error)
+        }
       } else if (user && session) {
         navigate('/home')
       }

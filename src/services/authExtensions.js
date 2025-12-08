@@ -131,28 +131,28 @@ export const refreshSession = async () => {
 
 /**
  * CHECK IF EMAIL EXISTS
- * Useful for "forgot username" flows
+ * Checks if an email exists in auth.users via RPC function
+ * Requires the check_email_exists() function to be created in Supabase
  */
 export const checkEmailExists = async (email) => {
   try {
-    // This is a workaround - try to sign in with wrong password
-    // If email doesn't exist, you'll get a different error
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password: 'intentionally_wrong_password_12345'
-    })
+    // Call the RPC function to check if email exists in auth.users
+    const { data, error } = await supabase
+      .rpc('check_email_exists', { p_email: email })
     
-    if (error?.message.includes('Invalid login credentials')) {
-      // Email exists but password is wrong
+    if (error) {
+      console.error('Error checking email existence:', error.message)
+      // If there's an error calling the RPC, assume exists to allow normal login flow
       return { exists: true, error: null }
-    } else if (error?.message.includes('Email not confirmed')) {
-      return { exists: true, error: null }
-    } else {
-      // Email doesn't exist
-      return { exists: false, error: null }
     }
+    
+    // data is an array with one row containing { exists: boolean }
+    const emailExists = data && data.length > 0 ? data[0].exists : false
+    return { exists: emailExists, error: null }
   } catch (error) {
-    return { exists: false, error: error.message }
+    console.error('Error checking email existence:', error.message)
+    // On error, assume exists to allow normal login flow
+    return { exists: true, error: error.message }
   }
 }
 
