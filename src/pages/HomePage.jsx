@@ -544,7 +544,10 @@ function HomePage() {
   // Handle room search
   const handleRoomSearch = useCallback(async (building, roomCode) => {
     try {
-      buildingActions.selectBuilding(building)
+      // Ensure the building is selected (do not toggle off if it's already selected)
+      if (!building || building.id !== selectedBuilding?.id) {
+        buildingActions.setSelectedBuilding(building)
+      }
       panelActions.handleOpenDropdown()
 
       if (!panelState.heroCollapsed) {

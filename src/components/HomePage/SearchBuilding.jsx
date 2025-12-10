@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect } from 'react'
 import '../../styles/HomePageStyle/SearchBuildingStyle.css'
+import { useNotifications } from '../../context/NotificationContext.jsx'
 
 const SearchBuilding = ({ buildings, onRoomSelect, onOpen }) => {
   const [searchInput, setSearchInput] = useState('')
   const [isSearching, setIsSearching] = useState(false)
   const [isFocused, setIsFocused] = useState(false)
   const inputRef = useRef(null)
+  const { notifyError } = useNotifications()
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -45,7 +47,7 @@ const SearchBuilding = ({ buildings, onRoomSelect, onOpen }) => {
       const { roomCode, buildingCode } = parseSearchInput(searchInput)
 
       if (!buildingCode) {
-        console.error('Building code not provided')
+        notifyError?.('Invalid search', { description: 'Please enter a building code like "MB" or a room/building like "101/MB".' })
         setIsSearching(false)
         return
       }
@@ -56,7 +58,7 @@ const SearchBuilding = ({ buildings, onRoomSelect, onOpen }) => {
       )
 
       if (!building) {
-        console.error('Building not found')
+        notifyError?.('Building not found', { description: `No building matches "${buildingCode}".` })
         setIsSearching(false)
         return
       }
