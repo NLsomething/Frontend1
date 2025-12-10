@@ -29,7 +29,7 @@ export const useBuildingManager = () => {
   const fetchRoomsForBuilding = useCallback(async (building) => {
     if (!building?.id) {
       setBuildingRooms([]);
-      return;
+      return [];
     }
     
     setBuildingRoomsLoading(true);
@@ -40,12 +40,16 @@ export const useBuildingManager = () => {
           description: `Could not fetch rooms for ${building.building_name}.`
         });
         setBuildingRooms([]);
+        return [];
       } else {
-        setBuildingRooms(data || []);
+        const rooms = data || [];
+        setBuildingRooms(rooms);
+        return rooms;
       }
     } catch (err) {
       notifyError('Failed to load rooms', { description: err.message });
       setBuildingRooms([]);
+      return [];
     } finally {
       setBuildingRoomsLoading(false);
     }

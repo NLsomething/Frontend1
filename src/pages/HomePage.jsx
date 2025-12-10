@@ -87,6 +87,8 @@ function HomePage() {
   const requestForm = useHomePageStore((state) => state.requestForm)
   const setRequestForm = useHomePageStore((state) => state.setRequestForm)
   const submitRequest = useHomePageStore((state) => state.submitRequest)
+  const setMyRequestsPanelOpen = useHomePageStore((state) => state.setMyRequestsPanelOpen)
+  const setRequestsPanelOpen = useHomePageStore((state) => state.setRequestsPanelOpen)
 
   // ===== COMPUTED =====
 
@@ -265,6 +267,21 @@ function HomePage() {
       sceneManagerRef
     }
   }, [panelState, selectedBuilding, buildings, buildingActions, panelActions, roomLookupByCode])
+
+  // Sync unified panel content type with request panel states
+  useEffect(() => {
+    if (panelState.unifiedPanelContentType === 'my-requests') {
+      setMyRequestsPanelOpen?.(true)
+    } else {
+      setMyRequestsPanelOpen?.(false)
+    }
+
+    if (panelState.unifiedPanelContentType === 'requests') {
+      setRequestsPanelOpen?.(true)
+    } else {
+      setRequestsPanelOpen?.(false)
+    }
+  }, [panelState.unifiedPanelContentType, setMyRequestsPanelOpen, setRequestsPanelOpen])
 
   // Initialize edit form when entering edit mode
   useEffect(() => {
@@ -554,12 +571,14 @@ function HomePage() {
         panelActions.setHeroCollapsed(true)
       }
 
+      // Fetch rooms for the building and get the data directly
+      let rooms = buildingRooms
       if (buildingRooms.length === 0 && !buildingRoomsLoading) {
-        await buildingActions.fetchRoomsForBuilding(building)
+        rooms = await buildingActions.fetchRoomsForBuilding(building)
       }
 
       if (roomCode) {
-        const room = buildingRooms.find(r => r.room_code.toLowerCase() === roomCode.trim().toLowerCase())
+        const room = rooms.find(r => r.room_code.toLowerCase() === roomCode.trim().toLowerCase())
 
         if (!room) {
           notifyError('Room not found', {
@@ -588,7 +607,7 @@ function HomePage() {
         description: 'An unexpected error occurred while searching.'
       })
     }
-  }, [buildingActions, buildingRooms, buildingRoomsLoading, panelState.heroCollapsed, panelActions, notifyError])
+  }, [buildingActions, buildingRooms, buildingRoomsLoading, panelState.heroCollapsed, panelActions, notifyError, selectedBuilding])
 
   // Handle floor toggle
   const handleFloorToggle = useCallback((floorName, isExpanded) => {
