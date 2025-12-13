@@ -57,7 +57,7 @@ function ForgotPasswordPage() {
           <div className="fp-header">
             <h1 className="fp-title">Forgot your password?</h1>
             <p className="fp-subtitle">
-              Enter your email and we'll send you a code to reset the password
+              Enter your email and we'll send you a link to reset the password
             </p>
           </div>
 
@@ -85,7 +85,7 @@ function ForgotPasswordPage() {
               className="fp-btn-primary"
               disabled={loading}
             >
-              {loading ? 'Sending...' : 'Send reset code'}
+              {loading ? 'Sending...' : 'Send reset link'}
             </button>
           </form>
 
