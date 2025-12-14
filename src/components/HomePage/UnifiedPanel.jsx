@@ -213,7 +213,7 @@ const UnifiedPanel = ({
           onDateFilterChange={setHistoricalDateFilter}
           onApprove={(request) => approveRequest(request, { parseDateString: parseDateStringWrapper, toIsoDateString: toIsoDateString, getSlotLabel: getSlotLabel })}
           onReject={rejectRequest}
-          onRevert={(request) => revertRequest(request, { parseDateString: parseDateStringWrapper })}
+          onRevert={(request) => revertRequest(request, { parseDateString: parseDateStringWrapper, toIsoDateString: toIsoDateString })}
           timeSlots={timeSlots}
         />
       )
