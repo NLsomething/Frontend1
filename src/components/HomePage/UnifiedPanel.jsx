@@ -3,6 +3,7 @@ import '../../styles/HomePageStyle/UnifiedPanelStyle.css'
 import { SCHEDULE_STATUS, SCHEDULE_STATUS_LABELS } from '../../constants/schedule'
 import { useHomePageStore } from '../../stores/useHomePageStore'
 import { useNotifications } from '../../context/NotificationContext'
+import { toIsoDateString } from '../../utils/homePageUtils'
 import RequestsPanelContent from './RequestsPanelContent'
 import MyRequestsPanelContent from './MyRequestsPanelContent'
 import BuildingScheduleContent from './BuildingScheduleContent'
@@ -210,7 +211,7 @@ const UnifiedPanel = ({
           setRejectionReasons={setRejectionReasons}
           requestActionLoading={requestActionLoading}
           onDateFilterChange={setHistoricalDateFilter}
-          onApprove={(request) => approveRequest(request, { parseDateString: parseDateStringWrapper })}
+          onApprove={(request) => approveRequest(request, { parseDateString: parseDateStringWrapper, toIsoDateString: toIsoDateString, getSlotLabel: getSlotLabel })}
           onReject={rejectRequest}
           onRevert={(request) => revertRequest(request, { parseDateString: parseDateStringWrapper })}
           timeSlots={timeSlots}
