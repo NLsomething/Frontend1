@@ -88,10 +88,80 @@ export const useRoomRequests = (canManage, canRequest, user, profile, options = 
 
   const roomLookup = useMemo(() => {
     const map = new Map()
+
+    const normalizeRoomCode = (value) => {
+      if (value === undefined || value === null) return null
+      const text = String(value).trim()
+      return text.length ? text : null
+    }
+
+    const getRoomCodeAliases = (value) => {
+      const normalized = normalizeRoomCode(value)
+      if (!normalized) return []
+
+      const aliases = new Set()
+      const addWithCaseVariants = (text) => {
+        if (!text) return
+        aliases.add(text)
+        aliases.add(text.toUpperCase())
+        aliases.add(text.toLowerCase())
+      }
+
+      addWithCaseVariants(normalized)
+
+      // Tolerate room codes stored with model prefixes (MB-/MB)
+      if (normalized.startsWith('MB-')) {
+        addWithCaseVariants(normalized.substring(3))
+      } else if (normalized.startsWith('MB') && normalized.length > 2) {
+        addWithCaseVariants(normalized.substring(2))
+      }
+
+      const withoutNumericSuffix = normalized.replace(/\.\d+$/, '')
+      if (withoutNumericSuffix !== normalized) {
+        addWithCaseVariants(withoutNumericSuffix)
+
+        if (withoutNumericSuffix.startsWith('MB-')) {
+          addWithCaseVariants(withoutNumericSuffix.substring(3))
+        } else if (withoutNumericSuffix.startsWith('MB') && withoutNumericSuffix.length > 2) {
+          addWithCaseVariants(withoutNumericSuffix.substring(2))
+        }
+      }
+
+      // Tolerate ROOM### codes for Floor 1 classrooms (ROOM101 <-> 101)
+      const base = withoutNumericSuffix
+      const roomPrefixMatch = base.match(/^ROOM\s*(\d{3})$/i)
+      if (roomPrefixMatch) {
+        const digits = roomPrefixMatch[1]
+        aliases.add(digits)
+        aliases.add(digits.toUpperCase())
+        aliases.add(digits.toLowerCase())
+      }
+
+      if (/^\d{3}$/.test(base)) {
+        const withPrefix = `ROOM${base}`
+        aliases.add(withPrefix)
+        aliases.add(withPrefix.toUpperCase())
+        aliases.add(withPrefix.toLowerCase())
+
+        const withSpacedPrefix = `Room ${base}`
+        aliases.add(withSpacedPrefix)
+        aliases.add(withSpacedPrefix.toUpperCase())
+        aliases.add(withSpacedPrefix.toLowerCase())
+      }
+
+      return Array.from(aliases)
+    }
+
     rooms.forEach((room) => {
       const code = room?.room_code || room?.roomNumber || room?.room_number || room?.code
+
+      const aliases = getRoomCodeAliases(code)
+      if (!aliases.length) return
+
+      aliases.forEach((key) => map.set(key, room))
+
       if (code) {
-        map.set(code, room)
+        map.set(String(code), room)
       }
     })
     return map

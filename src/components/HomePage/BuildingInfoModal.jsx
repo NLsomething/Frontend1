@@ -139,9 +139,7 @@ const BuildingInfoModal = ({
               onClick={() => {
                 const newExpanded = expandedFloorKey === floorKey ? null : floorKey
                 setExpandedFloorKey(newExpanded)
-                // Trigger floor toggle callback for Floor 2
-                // This was hardcoded as for floor 2 because only floor 2 has removable layer
-                if (onFloorToggle && floorName === 'Floor 2') {
+                if (onFloorToggle) {
                   onFloorToggle(floorName, newExpanded !== null)
                 }
               }}

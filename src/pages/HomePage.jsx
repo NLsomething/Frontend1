@@ -7,6 +7,10 @@ import { SCHEDULE_STATUS } from '../constants/schedule'
 import { cn } from '../utils/classnames'
 import { toIsoDateString } from '../utils'
 
+import mapData from '../assets/map_data.json'
+import { dijkstraPath, pathNodesToRouteObjects } from '../lib/pathfinding/shortestPath'
+import { START_GATE_NODES, resolveDestinationNode } from '../lib/pathfinding/navigationMapping'
+
 // Import New Hooks
 import { usePanelManager } from '../hooks/usePanelManager'
 import { useCoreData } from '../hooks/useCoreData'
@@ -39,6 +43,11 @@ function HomePage() {
   const { user, loading: authLoading, role, profile } = useAuth()
   console.log('[HomePage] Auth state:', { user: !!user, loading: authLoading, role })
   const { notifyError, notifySuccess } = useNotifications()
+
+  // ===== FIND PATH (UI ONLY) =====
+  const [isFindPathOpen, setIsFindPathOpen] = useState(false)
+  const [selectedStartPoint, setSelectedStartPoint] = useState(null)
+  const findPathRef = useRef(null)
 
   // ===== HOOKS =====
 
@@ -77,6 +86,42 @@ function HomePage() {
   const dropdownRef = useRef(null)
   const sceneManagerRef = useRef(null)
   const sceneStateRef = useRef({ panelState, selectedBuilding, buildings, buildingActions, panelActions })
+
+  // Floor 1: DB codes may be short abbreviations while GLB uses different object codes.
+  // This mapping keeps highlight + click lookup consistent without forcing DB changes.
+  const FLOOR1_DB_TO_MODEL_CODE = useMemo(() => ({
+    // Faculties
+    FSE: 'KCNPM',
+    FIS: 'KHTTT',
+    FIT: 'KCNNT',
+    FCS: 'KKHMT',
+    FCNC: 'KMMTTT',
+    FMM: 'KTTDPT',
+
+    // Offices / spaces
+    CEI: 'TTDTVTH',
+    YUO: 'VPDTN',
+    CEO: 'PKTMT',
+    INNO: 'KGSC',
+    SO: 'VPT',
+    LIB: 'TV',
+  }), [])
+
+  const FLOOR1_MODEL_TO_DB_CODES = useMemo(() => ({
+    KCNPM: ['FSE'],
+    KCNTT: ['FIS', 'FIT'],
+    KCNNT: ['FIT'],
+    KHTTT: ['FIS'],
+    KKHMT: ['FCS'],
+    KMMTTT: ['FCNC'],
+    KTTDPT: ['FMM'],
+    TTDTVTH: ['CEI'],
+    VPDTN: ['YUO'],
+    PKTMT: ['CEO'],
+    KGSC: ['INNO'],
+    VPT: ['SO'],
+    TV: ['LIB'],
+  }), [])
 
   // ===== STORE =====
   const loadSchedules = useHomePageStore((state) => state.loadSchedules)
@@ -212,7 +257,18 @@ function HomePage() {
 
     console.log('[HomePage] Mapped room code:', roomCode)
 
-    const room = roomLookupByCode.get(roomCode)
+    const clickRoomCode = String(roomCode || '').replace(/\.\d+$/, '')
+    const roomCodeUpper = String(clickRoomCode || '').toUpperCase()
+    const lookupCandidates = [clickRoomCode, roomCodeUpper]
+    const floor1MappedDbCodes = FLOOR1_MODEL_TO_DB_CODES[roomCodeUpper]
+    if (Array.isArray(floor1MappedDbCodes)) {
+      floor1MappedDbCodes.forEach((c) => lookupCandidates.push(c, String(c).toUpperCase()))
+    }
+
+    const room = lookupCandidates
+      .map((key) => roomLookupByCode.get(key))
+      .find(Boolean)
+
     if (!room) {
       console.log('[HomePage] Room not found in lookup:', roomCode)
       return
@@ -237,10 +293,31 @@ function HomePage() {
 
     panelActions.handleOpenRoomSchedulePanel(room)
 
+    const toModelObjectName = (value) => {
+      let code = String(value ?? '').trim()
+      code = code.replace(/\.\d+$/, '')
+
+      // If DB stores model-like codes (MB-/MB), strip them first
+      if (code.startsWith('MB-')) code = code.substring(3)
+      else if (code.startsWith('MB') && code.length > 2) code = code.substring(2)
+
+      // If DB stores short codes for Floor 1, map them to GLB object codes
+      const mapped = FLOOR1_DB_TO_MODEL_CODE[String(code).toUpperCase()]
+      if (mapped) {
+        code = mapped
+      }
+
+      const roomPrefixMatch = code.match(/^ROOM\s*(\d{3})$/i)
+      if (roomPrefixMatch) {
+        code = roomPrefixMatch[1]
+      }
+
+      const isNumericRoom = /^\d{3}$/.test(code)
+      return isNumericRoom ? `MB${code}` : `MB-${code}`
+    }
+
     if (smRef.current) {
-      const isAdministrativeRoom = !roomCode.match(/^\d{3}$/)
-      const modelObjectName = isAdministrativeRoom ? `MB-${roomCode}` : `MB${roomCode}`
-      smRef.current.actions.highlightRoomInScene(modelObjectName, true)
+      smRef.current.actions.highlightRoomInScene(toModelObjectName(roomCode), true)
     }
   }, [])
 
@@ -321,9 +398,28 @@ function HomePage() {
       
       if (roomMeta) {
         // Highlight the room
-        const isAdministrativeRoom = !roomCode.match(/^\d{3}$/)
-        const modelObjectName = isAdministrativeRoom ? `MB-${roomCode}` : `MB${roomCode}`
-        sceneManagerRef.current.actions.highlightRoomInScene(modelObjectName, true)
+        const toModelObjectName = (value) => {
+          let code = String(value ?? '').trim()
+          code = code.replace(/\.\d+$/, '')
+
+          if (code.startsWith('MB-')) code = code.substring(3)
+          else if (code.startsWith('MB') && code.length > 2) code = code.substring(2)
+
+          const mapped = FLOOR1_DB_TO_MODEL_CODE[String(code).toUpperCase()]
+          if (mapped) {
+            code = mapped
+          }
+
+          const roomPrefixMatch = code.match(/^ROOM\s*(\d{3})$/i)
+          if (roomPrefixMatch) {
+            code = roomPrefixMatch[1]
+          }
+
+          const isNumericRoom = /^\d{3}$/.test(code)
+          return isNumericRoom ? `MB${code}` : `MB-${code}`
+        }
+
+        sceneManagerRef.current.actions.highlightRoomInScene(toModelObjectName(roomCode), true)
         
         // Check if room is on Floor 2 and apply transparency if needed
         const roomFloorId = roomMeta.floor_id
@@ -611,10 +707,53 @@ function HomePage() {
 
   // Handle floor toggle
   const handleFloorToggle = useCallback((floorName, isExpanded) => {
-    if (sceneManagerRef.current) {
-      sceneManagerRef.current.actions.setFloorTransparency(floorName, isExpanded)
+    const scene = sceneManagerRef.current
+    if (!scene) return
+
+    const normalized = String(floorName || '').toLowerCase()
+    const isFloor1 = normalized.includes('floor 1') || normalized.includes('tầng 1') || normalized.includes('tang 1')
+    const isFloor2 = normalized.includes('floor 2') || normalized.includes('tầng 2') || normalized.includes('tang 2')
+
+    if (isFloor1) {
+      // Moving to Floor 1: hide Floor 2 (2ndLayer + Floor + descendant rooms)
+      scene.actions.setFloor2Visibility(isExpanded)
+      return
     }
+
+    if (isFloor2) {
+      // Moving to Floor 2: ensure Floor 2 is visible, then apply removable layer behavior
+      scene.actions.setFloor2Visibility(false)
+      scene.actions.setFloorTransparency('Floor 2', isExpanded)
+      return
+    }
+
+    // Fallback to old behavior for any other floor naming
+    scene.actions.setFloorTransparency(floorName, isExpanded)
   }, [])
+
+  const selectedRoomCodeForPath = panelState?.roomScheduleRoomCode || null
+
+  useEffect(() => {
+    // When the selected room changes, reset the find-path UI.
+    setIsFindPathOpen(false)
+    setSelectedStartPoint(null)
+
+    // Also clear any previously drawn path.
+    sceneManagerRef.current?.actions?.clearPathInScene?.()
+  }, [selectedRoomCodeForPath])
+
+  useEffect(() => {
+    if (!isFindPathOpen) return
+
+    const handleClickOutside = (event) => {
+      if (findPathRef.current && !findPathRef.current.contains(event.target)) {
+        setIsFindPathOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isFindPathOpen])
 
   // Camera controls hook
   useCameraControls(sceneManager.refs.controlsRef, panelState.heroCollapsed)
@@ -833,7 +972,7 @@ function HomePage() {
                 `}</style>
 
                 {/* Actions row */}
-                <div className="flex flex-row gap-2 justify-center mb-2 w-full">
+                <div className="relative flex flex-row gap-2 justify-center mb-2 w-full">
                   <button
                     type="button"
                     onClick={handleBuildingInfoToggle}
@@ -860,6 +999,128 @@ function HomePage() {
                   >
                     Schedule
                   </button>
+
+                  {/* Find path appears to the right without shifting the 2 existing buttons */}
+                  <div
+                    ref={findPathRef}
+                    className={cn(
+                      'absolute top-0 left-full ml-2',
+                      selectedRoomCodeForPath
+                        ? 'opacity-100 translate-x-0 pointer-events-auto'
+                        : 'opacity-0 -translate-x-2 pointer-events-none'
+                    )}
+                    style={{ transition: 'opacity 220ms ease-out, transform 220ms ease-out' }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!selectedRoomCodeForPath) return
+                        setIsFindPathOpen((prev) => !prev)
+                      }}
+                      className={cn(
+                        "brutal-btn w-[140px] px-2 py-2 text-[0.58rem] font-bold uppercase tracking-[0.16em] border shadow-none focus:outline-none transition-colors duration-150 flex items-center justify-center gap-2",
+                        isFindPathOpen
+                          ? "bg-[rgba(57,62,70,0.5)] text-white border-white"
+                          : "bg-[rgba(57,62,70,0.2)] text-[#EEEEEE]/90 border-[#EEEEEE]/60 hover:text-white hover:border-white hover:bg-[rgba(57,62,70,0.35)]"
+                      )}
+                      style={{ borderRadius: 0 }}
+                      aria-haspopup="menu"
+                      aria-expanded={isFindPathOpen}
+                    >
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M10 17l5-5-5-5" />
+                        <path d="M4 12h11" />
+                        <path d="M20 4v16" />
+                      </svg>
+                      <span>Find path</span>
+                    </button>
+
+                    {isFindPathOpen && (
+                      <div
+                        role="menu"
+                        className="absolute top-0 left-full ml-2 z-50 w-[180px] pointer-events-auto select-none"
+                        style={{ borderRadius: 0 }}
+                      >
+                        <div className="flex flex-col gap-2 p-2 border border-[#EEEEEE]/60 bg-[rgba(57,62,70,0.95)]">
+                          {[
+                            { id: 'main', label: 'Main Gate' },
+                            { id: 'back', label: 'Back Gate' },
+                            { id: 'rear', label: 'Rear Gate' },
+                          ].map((opt) => (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              role="menuitem"
+                              onClick={() => {
+                                setSelectedStartPoint(opt)
+                                setIsFindPathOpen(false)
+
+                                const startNode = START_GATE_NODES[opt.id]
+                                if (!startNode) {
+                                  notifyError('Unknown start gate')
+                                  return
+                                }
+
+                                const targetNode = resolveDestinationNode({
+                                  roomCode: selectedRoomCodeForPath,
+                                  roomName: panelState.roomScheduleRoomName,
+                                })
+
+                                if (!targetNode) {
+                                  notifyError('Room is not mapped to a node', {
+                                    description: `No destination node mapping for "${panelState.roomScheduleRoomName || selectedRoomCodeForPath}".`
+                                  })
+                                  return
+                                }
+
+                                const pathNodes = dijkstraPath(mapData.graph, startNode, targetNode)
+                                if (!pathNodes) {
+                                  notifyError('No path found', {
+                                    description: `Unable to find a route from ${startNode} to ${targetNode}.`
+                                  })
+                                  return
+                                }
+
+                                // Fade Floor/1stLayer + other rooms to reduce occlusion (applies to Floor 1 & 2).
+                                const destinationRoomObjectName = sceneManagerRef.current?.state?.highlightedRoom || null
+                                sceneManagerRef.current?.actions?.enablePathOcclusionForPath?.({
+                                  opacity: 0.15,
+                                  excludeNames: [destinationRoomObjectName].filter(Boolean),
+                                })
+
+                                const routeObjects = pathNodesToRouteObjects(pathNodes, mapData.route_map)
+                                sceneManagerRef.current?.actions?.showPathInScene?.({
+                                  nodes: pathNodes,
+                                  routes: routeObjects,
+                                })
+
+                                console.log('[FindPath] startGate:', opt, 'startNode:', startNode, 'targetNode:', targetNode, 'path:', pathNodes, 'routes:', routeObjects)
+                              }}
+                              className={cn(
+                                "brutal-btn px-2 py-2 text-[0.58rem] font-bold uppercase tracking-[0.16em] border shadow-none focus:outline-none transition-colors duration-150",
+                                selectedStartPoint?.id === opt.id
+                                  ? "bg-[rgba(57,62,70,0.5)] text-white border-white"
+                                  : "bg-[rgba(57,62,70,0.2)] text-[#EEEEEE]/90 border-[#EEEEEE]/60 hover:text-white hover:border-white hover:bg-[rgba(57,62,70,0.35)]"
+                              )}
+                              style={{ borderRadius: 0 }}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Floor/room accordion */}
